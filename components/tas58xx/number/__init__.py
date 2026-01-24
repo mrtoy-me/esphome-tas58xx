@@ -1,0 +1,333 @@
+import esphome.codegen as cg
+from esphome.components import number
+import esphome.config_validation as cv
+from esphome.const import (
+    DEVICE_CLASS_SOUND_PRESSURE,
+    ENTITY_CATEGORY_CONFIG,
+    UNIT_DECIBEL,
+)
+
+CONF_LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
+CONF_LEFT_EQ_GAIN_31P5HZ = "left_eq_gain_31.5Hz"
+CONF_LEFT_EQ_GAIN_50HZ = "left_eq_gain_50Hz"
+CONF_LEFT_EQ_GAIN_80HZ = "left_eq_gain_80Hz"
+CONF_LEFT_EQ_GAIN_125HZ = "left_eq_gain_125Hz"
+CONF_LEFT_EQ_GAIN_200HZ = "left_eq_gain_200Hz"
+CONF_LEFT_EQ_GAIN_315HZ = "left_eq_gain_315Hz"
+CONF_LEFT_EQ_GAIN_500HZ = "left_eq_gain_500Hz"
+CONF_LEFT_EQ_GAIN_800HZ = "left_eq_gain_800Hz"
+CONF_LEFT_EQ_GAIN_1250HZ = "left_eq_gain_1250Hz"
+CONF_LEFT_EQ_GAIN_2000HZ = "left_eq_gain_2000Hz"
+CONF_LEFT_EQ_GAIN_3150HZ = "left_eq_gain_3150Hz"
+CONF_LEFT_EQ_GAIN_5000HZ = "left_eq_gain_5000Hz"
+CONF_LEFT_EQ_GAIN_8000HZ = "left_eq_gain_8000Hz"
+CONF_LEFT_EQ_GAIN_16000HZ = "left_eq_gain_16000Hz"
+
+ICON_VOLUME_SOURCE = "mdi:volume-source"
+
+from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
+
+LeftEqGain20hz = tas58xx_ns.class_("LeftEqGain20hz", number.Number, cg.Component)
+LeftEqGain31p5hz = tas58xx_ns.class_("LeftEqGain31p5hz", number.Number, cg.Component)
+LeftEqGain50hz = tas58xx_ns.class_("LeftEqGain50hz", number.Number, cg.Component)
+LeftEqGain80hz = tas58xx_ns.class_("LeftEqGain80hz", number.Number, cg.Component)
+LeftEqGain125hz = tas58xx_ns.class_("LeftEqGain125hz", number.Number, cg.Component)
+LeftEqGain200hz = tas58xx_ns.class_("LeftEqGain200hz", number.Number, cg.Component)
+LeftEqGain315hz = tas58xx_ns.class_("LeftEqGain315hz", number.Number, cg.Component)
+LeftEqGain500hz = tas58xx_ns.class_("LeftEqGain500hz", number.Number, cg.Component)
+LeftEqGain800hz = tas58xx_ns.class_("LeftEqGain800hz", number.Number, cg.Component)
+LeftEqGain1250hz = tas58xx_ns.class_("LeftEqGain1250hz", number.Number, cg.Component)
+LeftEqGain2000hz = tas58xx_ns.class_("LeftEqGain2000hz", number.Number, cg.Component)
+LeftEqGain3150hz = tas58xx_ns.class_("LeftEqGain3150hz", number.Number, cg.Component)
+LeftEqGain5000hz = tas58xx_ns.class_("LeftEqGain5000hz", number.Number, cg.Component)
+LeftEqGain8000hz = tas58xx_ns.class_("LeftEqGain8000hz", number.Number, cg.Component)
+LeftEqGain16000hz = tas58xx_ns.class_("LeftEqGain16000hz", number.Number, cg.Component)
+
+
+def validate_eq_gain_numbers(config):
+
+    have_all_right_gains = (CONF_LEFT_EQ_GAIN_20HZ in config and
+                            CONF_LEFT_EQ_GAIN_31P5HZ in config and CONF_LEFT_EQ_GAIN_50HZ in config and
+                            CONF_LEFT_EQ_GAIN_80HZ in config and CONF_LEFT_EQ_GAIN_125HZ in config and
+                            CONF_LEFT_EQ_GAIN_200HZ in config and CONF_LEFT_EQ_GAIN_315HZ in config and
+                            CONF_LEFT_EQ_GAIN_500HZ in config and CONF_LEFT_EQ_GAIN_800HZ in config and
+                            CONF_LEFT_EQ_GAIN_1250HZ in config and CONF_LEFT_EQ_GAIN_2000HZ in config and
+                            CONF_LEFT_EQ_GAIN_3150HZ in config and CONF_LEFT_EQ_GAIN_5000HZ in config and
+                            CONF_LEFT_EQ_GAIN_8000HZ in config and CONF_LEFT_EQ_GAIN_16000HZ in config)
+
+    if  (not have_all_right_gains):
+      raise cv.Invalid("All 15 Left EQ Gain numbers must be defined in YAML")
+
+    # have_at_least_one_right_gain = (CONF_RIGHT_EQ_GAIN_20HZ in config or
+    #                                 CONF_RIGHT_EQ_GAIN_31P5HZ in config or CONF_RIGHT_EQ_GAIN_50HZ in config or
+    #                                 CONF_RIGHT_EQ_GAIN_80HZ in config or CONF_RIGHT_EQ_GAIN_125HZ in config or
+    #                                 CONF_RIGHT_EQ_GAIN_200HZ in config or CONF_RIGHT_EQ_GAIN_315HZ in config or
+    #                                 CONF_RIGHT_EQ_GAIN_500HZ in config or CONF_RIGHT_EQ_GAIN_800HZ in config or
+    #                                 CONF_RIGHT_EQ_GAIN_1250HZ in config or CONF_RIGHT_EQ_GAIN_2000HZ in config or
+    #                                 CONF_RIGHT_EQ_GAIN_3150HZ in config or CONF_RIGHT_EQ_GAIN_5000HZ in config or
+    #                                 CONF_RIGHT_EQ_GAIN_8000HZ in config or CONF_RIGHT_EQ_GAIN_16000HZ in config)
+
+    # if (have_at_least_one_right_gain):
+    #     have_all_right_gains = (CONF_RIGHT_EQ_GAIN_20HZ in config and
+    #                             CONF_RIGHT_EQ_GAIN_31P5HZ in config and CONF_RIGHT_EQ_GAIN_50HZ in config and
+    #                             CONF_RIGHT_EQ_GAIN_80HZ in config and CONF_RIGHT_EQ_GAIN_125HZ in config and
+    #                             CONF_RIGHT_EQ_GAIN_200HZ in config and CONF_RIGHT_EQ_GAIN_315HZ in config and
+    #                             CONF_RIGHT_EQ_GAIN_500HZ in config and CONF_RIGHT_EQ_GAIN_800HZ in config and
+    #                             CONF_RIGHT_EQ_GAIN_1250HZ in config and CONF_RIGHT_EQ_GAIN_2000HZ in config and
+    #                             CONF_RIGHT_EQ_GAIN_3150HZ in config and CONF_RIGHT_EQ_GAIN_5000HZ in config and
+    #                             CONF_RIGHT_EQ_GAIN_8000HZ in config and CONF_RIGHT_EQ_GAIN_16000HZ in config)
+
+    #     if (not have_all_right_gains):
+    #       raise cv.Invalid("All 15 Right EQ Gain numbers must be defined in YAML")
+
+    return config
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_20HZ): number.number_schema(
+            LeftEqGain20hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_31P5HZ): number.number_schema(
+            LeftEqGain31p5hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_50HZ): number.number_schema(
+            LeftEqGain50hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_80HZ): number.number_schema(
+            LeftEqGain80hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_125HZ): number.number_schema(
+            LeftEqGain125hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_200HZ): number.number_schema(
+            LeftEqGain200hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_315HZ): number.number_schema(
+            LeftEqGain315hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_500HZ): number.number_schema(
+            LeftEqGain500hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_800HZ): number.number_schema(
+            LeftEqGain800hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_1250HZ): number.number_schema(
+            LeftEqGain1250hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_2000HZ): number.number_schema(
+            LeftEqGain2000hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_3150HZ): number.number_schema(
+            LeftEqGain3150hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_5000HZ): number.number_schema(
+            LeftEqGain5000hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_8000HZ): number.number_schema(
+            LeftEqGain8000hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_LEFT_EQ_GAIN_16000HZ): number.number_schema(
+            LeftEqGain16000hz,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+    }
+).add_extra(validate_eq_gain_numbers)
+
+async def to_code(config):
+    cg.add_define("USE_TAS58XX_EQ")
+    tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])
+    gain_20hz_config = config.get(CONF_LEFT_EQ_GAIN_20HZ)
+    n = await number.new_number(
+        gain_20hz_config, min_value=-15, max_value=15, step=1
+    )
+    await cg.register_component(n, gain_20hz_config)
+    await cg.register_parented(n, tas58xx_component)
+
+    if gain_31p5hz_config := config.get(CONF_LEFT_EQ_GAIN_31P5HZ):
+        n = await number.new_number(
+            gain_31p5hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_31p5hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_50hz_config := config.get(CONF_LEFT_EQ_GAIN_50HZ):
+        n = await number.new_number(
+            gain_50hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_50hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_80hz_config := config.get(CONF_LEFT_EQ_GAIN_80HZ):
+        n = await number.new_number(
+            gain_80hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_80hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_125hz_config := config.get(CONF_LEFT_EQ_GAIN_125HZ):
+        n = await number.new_number(
+            gain_125hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_125hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_200hz_config := config.get(CONF_LEFT_EQ_GAIN_200HZ):
+        n = await number.new_number(
+            gain_200hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_200hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_315hz_config := config.get(CONF_LEFT_EQ_GAIN_315HZ):
+        n = await number.new_number(
+            gain_315hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_315hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_500hz_config := config.get(CONF_LEFT_EQ_GAIN_500HZ):
+        n = await number.new_number(
+            gain_500hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_500hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_800hz_config := config.get(CONF_LEFT_EQ_GAIN_800HZ):
+        n = await number.new_number(
+            gain_800hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_800hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_1250hz_config := config.get(CONF_LEFT_EQ_GAIN_1250HZ):
+        n = await number.new_number(
+            gain_1250hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_1250hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_2000hz_config := config.get(CONF_LEFT_EQ_GAIN_2000HZ):
+        n = await number.new_number(
+            gain_2000hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_2000hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_3150hz_config := config.get(CONF_LEFT_EQ_GAIN_3150HZ):
+        n = await number.new_number(
+            gain_3150hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_3150hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_5000hz_config := config.get(CONF_LEFT_EQ_GAIN_5000HZ):
+        n = await number.new_number(
+            gain_5000hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_5000hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+
+    if gain_8000hz_config := config.get(CONF_LEFT_EQ_GAIN_8000HZ):
+        n = await number.new_number(
+            gain_8000hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_8000hz_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if gain_16000hz_config := config.get(CONF_LEFT_EQ_GAIN_16000HZ):
+        n = await number.new_number(
+            gain_16000hz_config, min_value=-15, max_value=15, step=1
+        )
+        await cg.register_component(n, gain_16000hz_config)
+        await cg.register_parented(n, tas58xx_component)
