@@ -81,9 +81,13 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   bool enable_eq(bool enable);
 
+  void eq_mode_select(uint8_t index);
+
   #ifdef USE_TAS58XX_EQ
   bool set_eq_gain(uint8_t band, int8_t gain);
   #endif
+
+  uint8_t get_select_options_count() { return 3; }
 
   bool is_muted() override { return this->is_muted_; }
   bool set_mute_off() override;

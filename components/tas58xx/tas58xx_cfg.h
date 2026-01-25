@@ -72,7 +72,7 @@ namespace esphome::tas58xx {
   static const uint8_t TAS58XX_ANA_CTRL              = 0x53;
   static const uint8_t TAS58XX_AGAIN                 = 0x54;
   #ifdef USE_TAS5805M_DAC
-  static const uint8_t TAS5805_DSP_MISC              = 0x66;
+  static const uint8_t TAS5805M_DSP_MISC             = 0x66;
   #endif
   static const uint8_t TAS58XX_POWER_STATE           = 0x68;
 
@@ -86,7 +86,7 @@ namespace esphome::tas58xx {
 
   // EQ constants
   #ifdef USE_TAS5805M_DAC
-  static const uint8_t   TAS5805_CTRL_EQ[]           = {0b0111, 0b0110, 0b1110};
+  static const uint8_t   TAS5805M_CTRL_EQ[]           = {0b0111, 0b0110, 0b1110};
   #else
   static const uint8_t   TAS5825M_EQ_CTRL_BOOK        = 0x8C;
   static const uint8_t   TAS5825M_EQ_CTRL_PAGE        = 0x0B;

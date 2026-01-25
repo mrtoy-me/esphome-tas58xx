@@ -351,6 +351,10 @@ bool Tas58xxComponent::enable_eq(bool enable) {
   return true;
 }
 
+void Tas58xxComponent:: eq_mode_select(uint8_t index) {
+  ESP_LOGE(TAG, "Select index: %d", index);
+}
+
 // used by eq gain numbers
 #ifdef USE_TAS58XX_EQ
 bool Tas58xxComponent::set_eq_gain(uint8_t band, int8_t gain) {
