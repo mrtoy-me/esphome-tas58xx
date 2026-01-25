@@ -1,25 +1,25 @@
-#include "left_eq_gain_1250hz.h"
+#include "right_eq_gain_1250hz.h"
 #include "esphome/core/log.h"
 
 namespace esphome::tas58xx {
 
 static const char *const TAG = "tas58xx.number";
 
-void LeftEqGain1250hz::setup() {
+void RightEqGain1250hz::setup() {
   float value;
   this->pref_ = this->make_entity_preference<float>();
   if (!this->pref_.load(&value)) value = 0.0; // no saved gain so set to 0dB
   this->publish_state(value);
-  this->parent_->set_eq_gain(LEFT_CHANNEL, BAND_1250HZ, static_cast<int>(value));
+  this->parent_->set_eq_gain(RIGHT_CHANNEL, BAND_1250HZ, static_cast<int>(value));
 }
 
-void LeftEqGain1250hz::dump_config() {
+void RightEqGain1250hz::dump_config() {
   ESP_LOGCONFIG(TAG, "  1250Hz Band '%s'", this->get_name().c_str());
 }
 
-void LeftEqGain1250hz::control(float value) {
+void RightEqGain1250hz::control(float value) {
   this->publish_state(value);
-  this->parent_->set_eq_gain(LEFT_CHANNEL, BAND_1250HZ, static_cast<int>(value));
+  this->parent_->set_eq_gain(RIGHT_CHANNEL, BAND_1250HZ, static_cast<int>(value));
   this->pref_.save(&value);
 }
 
