@@ -20,8 +20,14 @@ namespace esphome::tas58xx {
 	  BAND_16000HZ= 14,
   };
 
-  static const int8_t  TAS58XX_EQ_MAX_DB      = 15;
-  static const int8_t  TAS58XX_EQ_MIN_DB      = -TAS58XX_EQ_MAX_DB;
+  static const int8_t  TAS58XX_EQ_MAX_DB       = 15;
+  static const int8_t  TAS58XX_EQ_MIN_DB       = -TAS58XX_EQ_MAX_DB;
+
+	#ifdef USE_TAS58XX_EQ_BIMAP
+  static const uint8_t NUMBER_EQ_CHANNELS      = 2;
+  #else
+	static const uint8_t NUMBER_EQ_CHANNELS      = 1;
+	#endif
 
   static const uint8_t NUMBER_EQ_BANDS         = 15;
   static const uint8_t COEFFICENTS_PER_EQ_BAND = 4 * 5; // 4 registers per coefficient, 5 cooefficents per eq band;
@@ -43,8 +49,8 @@ namespace esphome::tas58xx {
 	  uint8_t offset;
   }__attribute__((packed));
 
-  #ifdef USE_TAS5805M_DAC
-  static const AddressSequenceEq TAS5805M_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
+#ifdef USE_TAS5805M_DAC
+  static const AddressSequenceEq TAS5805M_LEFT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
 	    { 0x24, 0x18 }, // BQ1 Left  - Frequency: 20 Hz
 	    { 0x24, 0x2c }, // BQ2 Left  - Frequency: 31.5 Hz
 	    { 0x24, 0x40 }, // BQ3 Left  - Frequency: 50 Hz
@@ -61,8 +67,27 @@ namespace esphome::tas58xx {
 	    { 0x26, 0x2c }, // BQ14 Left - Frequency: 8000 Hz
 	    { 0x26, 0x40 }, // BQ15 Left - Frequency: 16000 Hz
   };
-  #else
-	static const AddressSequenceEq TAS5825M_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
+  #ifdef USE_TAS58XX_BIAMP
+  static const AddressSequenceEq TAS5805M_RIGHT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
+	    { 0x26, 0x54 }, // BQ1 Right  - Frequency: 20 Hz
+	    { 0x26, 0x68 }, // BQ2 Right  - Frequency: 31.5 Hz
+	    { 0x26, 0x7c }, // BQ3 Right  - Frequency: 50 Hz
+	    { 0x27, 0x18 }, // BQ4 Right  - Frequency: 80 Hz
+	    { 0x27, 0x2c }, // BQ5 Right  - Frequency: 125 Hz
+	    { 0x27, 0x40 }, // BQ6 Right  - Frequency: 200 Hz
+	    { 0x27, 0x54 }, // BQ7 Right  - Frequency: 315 Hz
+	    { 0x27, 0x68 }, // BQ8 Right  - Frequency: 500 Hz
+	    { 0x27, 0x7c }, // BQ9 Right  - Frequency: 800 Hz
+	    { 0x28, 0x18 }, // BQ10 Right - Frequency: 1250 Hz
+	    { 0x28, 0x2c }, // BQ11 Right - Frequency: 2000 Hz
+	    { 0x28, 0x40 }, // BQ12 Right - Frequency: 3150 Hz
+	    { 0x28, 0x54 }, // BQ13 Right - Frequency: 5000 Hz
+	    { 0x28, 0x68 }, // BQ14 Right - Frequency: 8000 Hz
+	    { 0x28, 0x7c }, // BQ15 Right - Frequency: 16000 Hz
+  };
+	#endif
+#else
+	static const AddressSequenceEq TAS5825M_LEFT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
 	    { 0x01, 0x30 }, // BQ1 Left  - Frequency: 20 Hz
 	    { 0x01, 0x44 }, // BQ2 Left  - Frequency: 31.5 Hz
 	    { 0x01, 0x58 }, // BQ3 Left  - Frequency: 50 Hz
@@ -79,7 +104,26 @@ namespace esphome::tas58xx {
 	    { 0x03, 0x44 }, // BQ14 Left - Frequency: 8000 Hz
 	    { 0x03, 0x58 }, // BQ15 Left - Frequency: 16000 Hz
   };
-  #endif
+  #ifdef USE_TAS58XX_BIAMP
+	static const AddressSequenceEq TAS5825M_RIGHT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
+		{ 0x03, 0x6c }, // BQ1 Right  - Frequency: 20 Hz
+		{ 0x04, 0x08 }, // BQ2 Right  - Frequency: 31.5 Hz
+		{ 0x04, 0x1c }, // BQ3 Right  - Frequency: 50 Hz
+		{ 0x04, 0x30 }, // BQ4 Right  - Frequency: 80 Hz
+		{ 0x04, 0x44 }, // BQ5 Right  - Frequency: 125 Hz
+		{ 0x04, 0x58 }, // BQ6 Right  - Frequency: 200 Hz
+		{ 0x04, 0x6c }, // BQ7 Right  - Frequency: 315 Hz
+		{ 0x05, 0x08 }, // BQ8 Right  - Frequency: 500 Hz
+		{ 0x05, 0x1c }, // BQ9 Right  - Frequency: 800 Hz
+		{ 0x05, 0x30 }, // BQ10 Right - Frequency: 1250 Hz
+		{ 0x05, 0x44 }, // BQ11 Right - Frequency: 2000 Hz
+		{ 0x05, 0x58 }, // BQ12 Right - Frequency: 3150 Hz
+		{ 0x05, 0x6c }, // BQ13 Right - Frequency: 5000 Hz
+		{ 0x06, 0x08 }, // BQ14 Right - Frequency: 8000 Hz
+		{ 0x06, 0x1c }, // BQ15 Right - Frequency: 16000 Hz
+  };
+	#endif
+#endif
 
   struct RegisterSequenceEq {
 	  uint8_t value[COEFFICENTS_PER_EQ_BAND];

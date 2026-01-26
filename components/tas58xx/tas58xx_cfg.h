@@ -22,14 +22,8 @@ namespace esphome::tas58xx {
     LEFT,
   };
 
-  enum EqMode : uint8_t {
-    EQ_OFF =0,
-    EQ_ON,
-    EQ_BIAMP_ON,
-  };
-
   static const char* const MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
-  static const char* const EQ_MODE_TEXT[]   = {"EQ Off", "EQ On", "BIAMP On"};
+  static const char* const EQ_MODE_TEXT[]   = {"Off", "L/R GANGED On", "EQ BIAMP On"};
 
   struct Tas58xxConfiguration {
     uint8_t offset;

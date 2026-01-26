@@ -1,0 +1,22 @@
+#pragma once
+
+#include "esphome/components/number/number.h"
+#include "esphome/core/component.h"
+#include "esphome/core/preferences.h"
+#include "../tas58xx.h"
+
+namespace esphome::tas58xx {
+
+class RightEqGain125hz : public number::Number, public Component, public Parented<Tas58xxComponent> {
+ public:
+  void setup() override;
+  void dump_config() override;
+  float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
+
+ protected:
+  void control(float value) override;
+
+  ESPPreferenceObject pref_;
+};
+
+}  // namespace esphome::tas58xx

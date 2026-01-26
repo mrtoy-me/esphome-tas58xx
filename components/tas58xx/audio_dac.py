@@ -1,5 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome.core import CORE
 from esphome.components import i2c
 from esphome.components.audio_dac import AudioDac
 from esphome import pins
@@ -8,6 +9,7 @@ from esphome.const import (
     CONF_ADDRESS,
     CONF_ENABLE_PIN,
     CONF_ID,
+    CONF_PLATFORM,
 )
 
 CODEOWNERS = ["@mrtoy-me"]
@@ -23,6 +25,13 @@ CONF_REFRESH_EQ = "refresh_eq"
 CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
+
+NUMBER_COMPONENT= "number"
+SELECT_COMPONENT = "select"
+PLATFORM_TAS58XX = "tas58xx"
+LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
+RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
+BIAMP_PRESETS = "biamp_presets"
 
 TAS5805M_I2C_ADDR = 0x2D
 TAS5825M_I2C_ADDR = 0x4C
@@ -53,6 +62,7 @@ EXCLUDE_IGNORE_MODES = {
      "NONE"        : ExcludeIgnoreMode.NONE,
      "CLOCK_FAULT" : ExcludeIgnoreMode.CLOCK_FAULT,
 }
+
 MixerMode = tas58xx_ns.enum("MixerMode")
 MIXER_MODES = {
     "STEREO"         : MixerMode.STEREO,
@@ -109,7 +119,45 @@ CONFIG_SCHEMA = cv.All(
     cv.only_on_esp32,
 )
 
+def left_eq_gain_exists():
+    all_numbers = CORE.config.get(NUMBER_COMPONENT, [])
+    for num in all_numbers:
+        if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            # Check if left_eq_gain key exists in this tas58xx config
+            if LEFT_EQ_GAIN_20HZ in num:
+                return True
+
+    return False
+
+def right_eq_gain_exists():
+    all_numbers = CORE.config.get(NUMBER_COMPONENT, [])
+    for num in all_numbers:
+        if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            # Check if right_eq_gain key exists in this tas58xx config
+            if RIGHT_EQ_GAIN_20HZ in num:
+                return True
+
+    return False
+
+def select_biamp_presets_exists():
+    all_select = CORE.config.get(SELECT_COMPONENT, [])
+    for num in all_select:
+        if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            # Check if right_eq_gain key exists in this tas58xx config
+            if BIAMP_PRESETS in num:
+                return True
+
+    return False
+
 async def to_code(config):
+    derived_eq_mode_enum= 0
+    if left_eq_gain_exists():
+        derived_eq_mode_enum  = 1
+        if right_eq_gain_exists():
+            derived_eq_mode_enum  = 2
+        # if select_biamp_presets_exists():
+        #     derived_eq_mode_enum = 3
+
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
     if tas58xx_dac == "TAS5825M":
         config[CONF_ADDRESS] = TAS5825M_I2C_ADDR
@@ -126,6 +174,8 @@ async def to_code(config):
     cg.add(var.config_refresh_eq(config[CONF_REFRESH_EQ]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
+    cg.add(var.set_eq_mode_enum(derived_eq_mode_enum))
+
     if tas58xx_dac == "TAS5805M":
         cg.add_define("USE_TAS5805M_DAC")
     else:

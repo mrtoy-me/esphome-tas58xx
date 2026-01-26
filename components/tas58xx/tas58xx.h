@@ -26,6 +26,17 @@ enum ExcludeIgnoreMode : uint8_t {
     CLOCK_FAULT = 1,
 };
 
+enum EqChannels : uint8_t {
+	  EQ_CHANNEL_LEFT = 0,
+		EQ_CHANNEL_RIGHT = 1,
+};
+
+enum EqMode : uint8_t {
+    EQ_OFF = 0,
+    EQ_15BAND_ON,
+    EQ_BIAMP_ON,
+};
+
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
   void setup() override;
@@ -56,6 +67,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = (int8_t)(volume_max); }
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = (int8_t)(volume_min); }
 
+  void set_eq_mode_enum(uint8_t eq_mode_enum) { this->eq_mode_enum_ = (EqMode)eq_mode_enum; }
+
   #ifdef USE_TAS58XX_BINARY_SENSOR
   SUB_BINARY_SENSOR(have_fault)
   SUB_BINARY_SENSOR(left_channel_dc_fault)
@@ -77,17 +90,18 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   }
   #endif
 
+  uint8_t get_eq_mode_enum() { return this->eq_mode_enum_; }
+  // uint8_t get_eq_mode_restore() { return this->restore_eq_mode_; }
+
   void enable_dac(bool enable);
 
-  bool enable_eq(bool enable);
+  // bool enable_eq(bool enable);
 
   void eq_mode_select(uint8_t index);
 
   #ifdef USE_TAS58XX_EQ
-  bool set_eq_gain(uint8_t band, int8_t gain);
+  bool set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t gain);
   #endif
-
-  uint8_t get_select_options_count() { return 3; }
 
   bool is_muted() override { return this->is_muted_; }
   bool set_mute_off() override;
@@ -157,6 +171,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // configured by YAML
    AutoRefreshMode auto_refresh_;  // default 'BY_GAIN' = 0
+  //  RestoreMode restore_eq_mode_;   // default 'RESTORE_DEFAULT_OFF' = 1
 
    #ifdef USE_TAS58XX_BINARY_SENSOR
    bool exclude_clock_fault_from_have_faults_; // YAML default = true
@@ -176,7 +191,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used if eq gain numbers are defined in YAML
    #ifdef USE_TAS58XX_EQ
    EqMode tas58xx_eq_mode_{EQ_OFF};
-   int8_t tas58xx_eq_gain_[NUMBER_EQ_BANDS]{0};
+   int8_t tas58xx_eq_gain_[NUMBER_EQ_CHANNELS][NUMBER_EQ_BANDS]{0};
    #endif
 
    // initialised in setup
@@ -233,6 +248,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // used for counting number of 'loops' iterations for delay of starting 'loop'
    uint8_t loop_counter_{0};
+
+  EqMode eq_mode_enum_{0};
 
    // number tas58xx registers configured during 'setup'
    uint16_t number_registers_configured_{0};
