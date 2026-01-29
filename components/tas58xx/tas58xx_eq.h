@@ -23,7 +23,7 @@ namespace esphome::tas58xx {
   static const int8_t  TAS58XX_EQ_MAX_DB       = 15;
   static const int8_t  TAS58XX_EQ_MIN_DB       = -TAS58XX_EQ_MAX_DB;
 
-	#ifdef USE_TAS58XX_EQ_BIMAP
+	#ifdef USE_TAS58XX_EQ_BIAMP
   static const uint8_t NUMBER_EQ_CHANNELS      = 2;
   #else
 	static const uint8_t NUMBER_EQ_CHANNELS      = 1;
@@ -67,7 +67,7 @@ namespace esphome::tas58xx {
 	    { 0x26, 0x2c }, // BQ14 Left - Frequency: 8000 Hz
 	    { 0x26, 0x40 }, // BQ15 Left - Frequency: 16000 Hz
   };
-  #ifdef USE_TAS58XX_BIAMP
+  #ifdef USE_TAS58XX_EQ_BIAMP
   static const AddressSequenceEq TAS5805M_RIGHT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
 	    { 0x26, 0x54 }, // BQ1 Right  - Frequency: 20 Hz
 	    { 0x26, 0x68 }, // BQ2 Right  - Frequency: 31.5 Hz
@@ -104,7 +104,7 @@ namespace esphome::tas58xx {
 	    { 0x03, 0x44 }, // BQ14 Left - Frequency: 8000 Hz
 	    { 0x03, 0x58 }, // BQ15 Left - Frequency: 16000 Hz
   };
-  #ifdef USE_TAS58XX_BIAMP
+  #ifdef USE_TAS58XX_EQ_BIAMP
 	static const AddressSequenceEq TAS5825M_RIGHT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
 		{ 0x03, 0x6c }, // BQ1 Right  - Frequency: 20 Hz
 		{ 0x04, 0x08 }, // BQ2 Right  - Frequency: 31.5 Hz

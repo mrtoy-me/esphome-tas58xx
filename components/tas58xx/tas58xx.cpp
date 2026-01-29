@@ -3,6 +3,7 @@
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/hal.h"
+#include <cmath>
 
 namespace esphome::tas58xx {
 
@@ -119,12 +120,26 @@ void Tas58xxComponent::loop() {
     this->loop_counter_++;
     return;
   }
-
+  // set mixer mode gains and channel gains
   if (!this->mixer_mode_configured_) {
     if (!this->set_mixer_mode_(this->tas58xx_mixer_mode_)) {
       // show warning but continue as if mixer mode was set ok
       ESP_LOGW(TAG, "%ssetting mixer mode: %s", ERROR, MIXER_MODE);
     }
+
+    #ifdef USE_TAS58XX_CHANNEL_GAIN_LEFT
+    if (!set_channel_gain(LEFT_CHANNEL, this->tas58xx_channel_gain_[LEFT_CHANNEL])) {
+      // show warning but continue as if eq gain was set ok
+      ESP_LOGW(TAG, "%ssetting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[LEFT_CHANNEL]);
+    }
+    #endif
+
+    #ifdef USE_TAS58XX_CHANNEL_GAIN_RIGHT
+    if (!set_channel_gain(RIGHT_CHANNEL, this->tas58xx_channel_gain_[RIGHT_CHANNEL])) {
+    // show warning but continue as if eq gain was set ok
+    ESP_LOGW(TAG, "%ssetting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[RIGHT_CHANNEL]);
+    }
+    #endif
 
     this->mixer_mode_configured_ = true;
 
@@ -147,23 +162,23 @@ void Tas58xxComponent::loop() {
     // finished writing all gains
     this->refresh_settings_complete_ = true;
     this->refresh_band_ = 0;
-    this->loop_counter_ = 0;
+    //this->loop_counter_ = 0;
     return;
   }
 
   // write gains of current band and increment to next band ready for when loop next runs
-  if (!this->set_eq_gain(EQ_CHANNEL_LEFT, this->refresh_band_, this->tas58xx_eq_gain_[EQ_CHANNEL_LEFT][this->refresh_band_])) {
+  if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
     // show warning but continue as if eq gain was set ok
-    #ifdef USE_TAS58XX_EQ_BIMAP
+    #ifdef USE_TAS58XX_EQ_BIAMP
     ESP_LOGW(TAG, "%ssetting Left EQ Band %d Gain", ERROR, this->refresh_band_);
     #else
     ESP_LOGW(TAG, "%ssetting EQ Band %d Gain", ERROR, this->refresh_band_);
     #endif
   }
 
-  #ifdef USE_TAS58XX_EQ_BIMAP
+  #ifdef USE_TAS58XX_EQ_BIAMP
   // write gains of current band and increment to next band ready for when loop next runs
-  if (!this->set_eq_gain(EQ_CHANNEL_RIGHT, this->refresh_band_, this->tas58xx_eq_gain_[EQ_CHANNEL_RIGHT][this->refresh_band_])) {
+  if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
     // show warning but continue as if eq gain was set ok
     ESP_LOGW(TAG, "%ssetting Right EQ Band %d Gain", ERROR, this->refresh_band_);
   }
@@ -368,13 +383,10 @@ void Tas58xxComponent::enable_dac(bool enable) {
 
 void Tas58xxComponent:: eq_mode_select(uint8_t index) {
   #ifdef USE_TAS58XX_EQ
-  ESP_LOGD(TAG, "  Set EQ using Select Index: %d", index);
-  if (index > EQ_OFF) {
+  if (index > EqMode::EQ_OFF) {
     this->set_eq_(this->eq_mode_enum_);
-    ESP_LOGD(TAG, "  Set EQ Mode:%d", this->eq_mode_enum_);
   } else {
     this->set_eq_(EQ_OFF);
-    ESP_LOGD(TAG, "  Set EQ Mode:%d", EQ_OFF);
   }
   #endif
 }
@@ -397,25 +409,26 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
 
   // EQ Gains initially set by tas58xx number component setups
   if (!this->refresh_settings_triggered_) {
+    ESP_LOGD(TAG, "Saving Channel:%d %s:%d Gain >> %ddB", eq_channel, EQ_BAND, band, gain);
     this->tas58xx_eq_gain_[eq_channel][band] = gain;
     return true;
   }
 
   // runs when 'refresh_settings_triggered_' is true
 
-  ESP_LOGD(TAG, "Set Channel:%d %s:%d Gain >> %ddB", eq_channel, EQ_BAND, band, gain);
+  ESP_LOGV(TAG, "Set Channel:%d %s:%d Gain >> %ddB", eq_channel, EQ_BAND, band, gain);
 
   uint8_t x = (gain + TAS58XX_EQ_MAX_DB);
 
 #ifdef USE_TAS5805M_DAC
-  #ifdef USE_TAS58XX_BIAMP
-  const AddressSequenceEq* eq_address = (eq_channel == EQ_CHANNEL_LEFT) ? &TAS5805M_LEFT_EQ_ADDRESS[band] : &TAS5805M_RIGHT_EQ_ADDRESS[band];
+  #ifdef USE_TAS58XX_EQ_BIAMP
+  const AddressSequenceEq* eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[band] : &TAS5805M_RIGHT_EQ_ADDRESS[band];
   #else
   const AddressSequenceEq* eq_address = &TAS5805M_LEFT_EQ_ADDRESS[band];
   #endif
 #else
-  #ifdef USE_TAS58XX_BIAMP
-  const AddressSequenceEq* eq_address = (eq_channel == EQ_CHANNEL_LEFT) ? &TAS5825M_LEFT_EQ_ADDRESS[band] : &TAS5825M_RIGHT_EQ_ADDRESS[band];
+  #ifdef USE_TAS58XX_EQ_BIAMP
+  const AddressSequenceEq* eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[band] : &TAS5825M_RIGHT_EQ_ADDRESS[band];
   #else
   const AddressSequenceEq* eq_address = &TAS5825M_LEFT_EQ_ADDRESS[band];
   #endif
@@ -448,7 +461,7 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
     return false;
   }
 
-  ESP_LOGD(TAG, "Write Channel:%d EQ Band:%d gain:%ddb to page:0x%02X, offset:0x%02X, block1%d, block2%d ",eq_channel, band, gain, eq_address->page, eq_address->offset, bytes_in_block1, bytes_in_block2);
+  ESP_LOGV(TAG, "Write Channel:%d EQ Band:%d gain:%ddb to page:0x%02X, offset:0x%02X, block1:%d, block2:%d ",eq_channel, band, gain, eq_address->page, eq_address->offset, bytes_in_block1, bytes_in_block2);
 
   if(!this->tas58xx_write_bytes_(eq_address->offset, const_cast<uint8_t *>(reg_value->value), bytes_in_block1)) {
     ESP_LOGE(TAG, "%sChannel:%d %s:%d Gain:%ddb offset 0x%02X for %d bytes", ERROR, eq_channel, EQ_BAND, band, gain, eq_address->offset, bytes_in_block1);
@@ -465,6 +478,54 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
       return false;
     }
   }
+  return this->set_book_and_page_(TAS58XX_REG_BOOK_CONTROL_PORT, TAS58XX_REG_PAGE_ZERO);
+}
+#endif
+
+
+#ifdef USE_TAS58XX_EQ
+int32_t Tas58xxComponent::gain_to_q9_23(int8_t gain) {
+  float linear = powf(10.0f, ((float)gain) / 20.0f);
+  if (linear > TAS58XX_LINEAR_GAIN_MAX) linear = TAS58XX_LINEAR_GAIN_MAX;
+  if (linear < TAS58XX_LINEAR_GAIN_MIN) linear = TAS58XX_LINEAR_GAIN_MIN;
+
+  int32_t fixed_q9_23 = static_cast<int32_t>(linear * (1 << 23));
+  int32_t little_endian = byteswap(fixed_q9_23);
+
+  ESP_LOGV(TAG, "Gain:%ddb  = Fixed 9.23 >> 0x%08X : Convert Endian >> 0x%08X", gain, fixed_q9_23, little_endian);
+  return little_endian;
+}
+
+bool Tas58xxComponent::set_channel_gain(EqChannels eq_channel, int8_t gain) {
+  if (gain < TAS58XX_CHANNEL_GAIN_MIN_DB || gain > TAS58XX_CHANNEL_GAIN_MAX_DB) {
+    ESP_LOGE(TAG, "Invalid Gain for Channel:%d Gain:%ddB", eq_channel, gain);
+    return false;
+  }
+  if ((eq_channel + 1) > NUMBER_EQ_CHANNELS) {
+    ESP_LOGE(TAG, "Invalid Channel:%d with Gain:%ddB", eq_channel, gain);
+    return false;
+  }
+
+  // Channel Gains initially set by tas58xx number component setups
+  if (!this->refresh_settings_triggered_) {
+    ESP_LOGD(TAG, "Saving Channel:%d Gain >> %ddB", eq_channel, gain);
+    this->tas58xx_channel_gain_[eq_channel] = gain;
+    return true;
+  }
+
+  ESP_LOGD(TAG, "Set Channel Gain >> Channel:%d Gain:%ddB", eq_channel, gain);
+
+  if(!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_CHANNEL_GAIN_PAGE)) {
+    ESP_LOGE(TAG, "%sChannel Gain: setting book and page");
+    return false;
+  }
+
+  int32_t little_endian_9_23 = gain_to_q9_23(gain);
+
+  if(!this->tas58xx_write_bytes_(TAS58XX_CHANNEL_GAIN_OFFSET[eq_channel], reinterpret_cast<uint8_t *>(&little_endian_9_23), 4)) {
+    ESP_LOGE(TAG, "%s writing channel gain: Channel:%d Gain:%ddb", ERROR, eq_channel, gain);
+  }
+
   return this->set_book_and_page_(TAS58XX_REG_BOOK_CONTROL_PORT, TAS58XX_REG_PAGE_ZERO);
 }
 #endif
@@ -693,55 +754,62 @@ bool Tas58xxComponent::set_eq_(EqMode new_mode) {
   #endif
 
   this->tas58xx_eq_mode_ = new_mode;
-  ESP_LOGD(TAG, "EQ mode >> %S", EQ_MODE_TEXT[new_mode]);
+  ESP_LOGD(TAG, "EQ mode >> %s", EQ_MODE_TEXT[new_mode]);
   #endif
   return true;
 }
 
-bool Tas58xxComponent::get_mixer_mode_(MixerMode *mode) {
-  *mode = this->tas58xx_mixer_mode_;
-  return true;
+uint8_t Tas58xxComponent::get_mixer_mode_() {
+  return this->tas58xx_mixer_mode_;
 }
 
 // only runs once from 'loop'
 // 'mixer_mode_configured_' used by 'loop' to ensure only runs once
 bool Tas58xxComponent::set_mixer_mode_(MixerMode mode) {
+  // save until eq refresh is triggered
+
+  if (!this->refresh_settings_triggered_) {
+     ESP_LOGD(TAG, "saving %s >> %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
+     this->tas58xx_mixer_mode_ = mode;
+     return true;
+  }
+
   uint32_t mixer_l_to_l, mixer_r_to_r, mixer_l_to_r, mixer_r_to_l;
 
   switch (mode) {
     case STEREO:
       mixer_l_to_l = TAS58XX_MIXER_VALUE_0DB;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_0DB;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_MUTE;
       mixer_r_to_l = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_l_to_r = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_r_to_r = TAS58XX_MIXER_VALUE_0DB;
       break;
 
     case STEREO_INVERSE:
       mixer_l_to_l = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_0DB;
       mixer_r_to_l = TAS58XX_MIXER_VALUE_0DB;
+      mixer_l_to_r = TAS58XX_MIXER_VALUE_0DB;
+      mixer_r_to_r = TAS58XX_MIXER_VALUE_MUTE;
       break;
 
     case MONO:
       mixer_l_to_l = TAS58XX_MIXER_VALUE_MINUS6DB;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_MINUS6DB;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_MINUS6DB;
       mixer_r_to_l = TAS58XX_MIXER_VALUE_MINUS6DB;
+      mixer_l_to_r = TAS58XX_MIXER_VALUE_MINUS6DB;
+      mixer_r_to_r = TAS58XX_MIXER_VALUE_MINUS6DB;
       break;
 
     case LEFT:
       mixer_l_to_l = TAS58XX_MIXER_VALUE_0DB;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_0DB;
       mixer_r_to_l = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_l_to_r = TAS58XX_MIXER_VALUE_0DB;
+      mixer_r_to_r = TAS58XX_MIXER_VALUE_MUTE;
       break;
 
     case RIGHT:
       mixer_l_to_l = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_0DB;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_MUTE;
       mixer_r_to_l = TAS58XX_MIXER_VALUE_0DB;
+      mixer_l_to_r = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_r_to_r = TAS58XX_MIXER_VALUE_0DB;
       break;
 
     default:
@@ -749,30 +817,32 @@ bool Tas58xxComponent::set_mixer_mode_(MixerMode mode) {
       return false;
   }
 
-  if(!this->set_book_and_page_(TAS58XX_REG_BOOK_5, TAS58XX_REG_BOOK_5_MIXER_PAGE)) {
+  if(!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_MIXER_GAIN_PAGE)) {
     ESP_LOGE(TAG, "%s begin Set %s", ERROR, MIXER_MODE);
     return false;
   }
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_REG_LEFT_TO_LEFT_GAIN, reinterpret_cast<uint8_t *>(&mixer_l_to_l), 4)) {
+  if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[LEFT_2_LEFT_GAIN], reinterpret_cast<uint8_t *>(&mixer_l_to_l), 4)) {
     ESP_LOGE(TAG, "%s Mixer L-L Gain", ERROR);
     return false;
   }
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_REG_RIGHT_TO_RIGHT_GAIN, reinterpret_cast<uint8_t *>(&mixer_r_to_r), 4)) {
-    ESP_LOGE(TAG, "%s Mixer R-R Gain", ERROR);
+  if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[RIGHT_2_LEFT_GAIN], reinterpret_cast<uint8_t *>(&mixer_r_to_l), 4)) {
+    ESP_LOGE(TAG, "%s Mixer R-L Gain", ERROR);
     return false;
   }
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_REG_LEFT_TO_RIGHT_GAIN, reinterpret_cast<uint8_t *>(&mixer_l_to_r), 4)) {
+  if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[LEFT_2_RIGHT_GAIN], reinterpret_cast<uint8_t *>(&mixer_l_to_r), 4)) {
     ESP_LOGE(TAG, "%s Mixer L-R Gain", ERROR);
     return false;
   }
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_REG_RIGHT_TO_LEFT_GAIN, reinterpret_cast<uint8_t *>(&mixer_r_to_l), 4)) {
-    ESP_LOGE(TAG, "%s Mixer R-L Gain", ERROR);
+  if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[RIGHT_2_RIGHT_GAIN], reinterpret_cast<uint8_t *>(&mixer_r_to_r), 4)) {
+    ESP_LOGE(TAG, "%s Mixer R-R Gain", ERROR);
     return false;
   }
+
+
 
   if (!this->set_book_and_page_(TAS58XX_REG_BOOK_CONTROL_PORT, TAS58XX_REG_PAGE_ZERO)) {
     ESP_LOGE(TAG, "%s end Set %s", ERROR, MIXER_MODE);
@@ -782,7 +852,7 @@ bool Tas58xxComponent::set_mixer_mode_(MixerMode mode) {
   // 'tas58xx_state_' global already has mixer mode from YAML config
   // save anyway so 'set_mixer_mode' could be used more generally in future
   this->tas58xx_mixer_mode_ = mode;
-  ESP_LOGD(TAG, "%s >> %s", MIXER_MODE, MIXER_MODE_TEXT[this->tas58xx_mixer_mode_]);
+  ESP_LOGD(TAG, "Set %s >> %s", MIXER_MODE, MIXER_MODE_TEXT[this->tas58xx_mixer_mode_]);
   return true;
 }
 

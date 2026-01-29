@@ -7,10 +7,10 @@ static const char *const TAG = "tas58xx.number";
 
 void RightEqGain315hz::setup() {
   float value;
-  this->pref_ = global_preferences->make_preference<float>(this->get_preference_hash());
+  this->pref_ = this->make_entity_preference<float>();
   if (!this->pref_.load(&value)) value = 0.0; // no saved gain so set to 0dB
   this->publish_state(value);
-  this->parent_->set_eq_gain(EQ_CHANNEL_RIGHT, BAND_315HZ, static_cast<int>(value));
+  this->parent_->set_eq_gain(RIGHT_CHANNEL, BAND_315HZ, static_cast<int>(value));
 }
 
 void RightEqGain315hz::dump_config() {
@@ -19,7 +19,7 @@ void RightEqGain315hz::dump_config() {
 
 void RightEqGain315hz::control(float value) {
   this->publish_state(value);
-  this->parent_->set_eq_gain(EQ_CHANNEL_RIGHT, BAND_315HZ, static_cast<int>(value));
+  this->parent_->set_eq_gain(RIGHT_CHANNEL, BAND_315HZ, static_cast<int>(value));
   this->pref_.save(&value);
 }
 

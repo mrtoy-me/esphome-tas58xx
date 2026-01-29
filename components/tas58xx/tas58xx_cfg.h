@@ -22,8 +22,27 @@ namespace esphome::tas58xx {
     LEFT,
   };
 
+  enum MixerGains : uint8_t {
+    LEFT_2_LEFT_GAIN = 0,
+    RIGHT_2_LEFT_GAIN,
+    LEFT_2_RIGHT_GAIN,
+    RIGHT_2_RIGHT_GAIN,
+  };
+
+  enum EqMode : uint8_t {
+    EQ_OFF = 0,
+    EQ_ON = 1,
+    EQ_15BAND_ON = 1,
+    EQ_BIAMP_ON = 2,
+  };
+
+  enum EqChannels : uint8_t {
+	  LEFT_CHANNEL = 0,
+		RIGHT_CHANNEL = 1,
+  };
+
   static const char* const MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
-  static const char* const EQ_MODE_TEXT[]   = {"Off", "L/R GANGED On", "EQ BIAMP On"};
+  static const char* const EQ_MODE_TEXT[]   = {"Off", "EQ 15 Band", "EQ BIAMP"};
 
   struct Tas58xxConfiguration {
     uint8_t offset;
@@ -93,16 +112,29 @@ namespace esphome::tas58xx {
 
   // Level meter constants
 
-  // Mixer constants
-  static const uint8_t TAS58XX_REG_BOOK_5               = 0x8C;
-  static const uint8_t TAS58XX_REG_BOOK_5_MIXER_PAGE    = 0x29;
-  static const uint8_t TAS58XX_REG_LEFT_TO_LEFT_GAIN    = 0x18;
-  static const uint8_t TAS58XX_REG_RIGHT_TO_LEFT_GAIN   = 0x1C;
-  static const uint8_t TAS58XX_REG_LEFT_TO_RIGHT_GAIN   = 0x20;
-  static const uint8_t TAS58XX_REG_RIGHT_TO_RIGHT_GAIN  = 0x24;
-  static const uint8_t TAS58XX_REG_BOOK_5_VOLUME_PAGE   = 0x2A;
-  static const uint8_t TAS58XX_REG_LEFT_VOLUME          = 0x24;
-  static const uint8_t TAS58XX_REG_RIGHT_VOLUME         = 0x28;
+  // Mixer Gain and Channel Gain constants
+  static const int8_t TAS58XX_CHANNEL_GAIN_MAX_DB      = 24;
+  static const int8_t TAS58XX_CHANNEL_GAIN_MIN_DB      = -TAS58XX_CHANNEL_GAIN_MAX_DB;
+
+  static const float TAS58XX_LINEAR_GAIN_MAX = 255.999999f;
+  static const float TAS58XX_LINEAR_GAIN_MIN = -256.0f;
+
+  static const uint8_t TAS58XX_MIXER_CHANNEL_GAINS_BOOK = 0x8C;
+
+  #ifdef USE_TAS5805M_DAC
+  // TAS5805M
+  static const uint8_t TAS58XX_MIXER_GAIN_PAGE          = 0x29;
+  static const uint8_t TAS58XX_MIXER_GAIN_OFFSET[]      = {0x18, 0x1c, 0x20, 0x24};
+  static const uint8_t TAS58XX_CHANNEL_GAIN_PAGE        = 0x2A;
+  static const uint8_t TAS58XX_CHANNEL_GAIN_OFFSET[]    = {0x24, 0x28};
+  #else
+  // TAS5825M
+  static const uint8_t TAS58XX_MIXER_GAIN_PAGE          = 0x0B;
+  static const uint8_t TAS58XX_MIXER_GAIN_OFFSET[]      = {0x14, 0x18, 0x1c, 0x20};
+  static const uint8_t TAS58XX_CHANNEL_GAIN_PAGE        = 0x0B;
+  static const uint8_t TAS58XX_CHANNEL_GAIN_OFFSET[]    = {0x0c, 0x10};
+  #endif
+
   static const uint32_t TAS58XX_MIXER_VALUE_MUTE        = 0x00000000;
   static const uint32_t TAS58XX_MIXER_VALUE_0DB         = 0x00008000;
   static const uint32_t TAS58XX_MIXER_VALUE_MINUS6DB    = 0x00004000;

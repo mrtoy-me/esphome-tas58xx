@@ -6,13 +6,19 @@ from esphome.const import ENTITY_CATEGORY_CONFIG
 from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
 
 EqModeSelect = tas58xx_ns.class_("EqModeSelect", select.Select, cg.Component)
+MixerModeSelect = tas58xx_ns.class_("MixerModeSelect", select.Select, cg.Component)
 
 CONF_EQ_MODE = "eq_mode"
+CONF_MIXER_MODE = "mixer_mode"
 
 CONFIG_SCHEMA = {
     cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
     cv.Optional(CONF_EQ_MODE): select.select_schema(
         EqModeSelect,
+        entity_category=ENTITY_CATEGORY_CONFIG,
+    ),
+    cv.Optional(CONF_MIXER_MODE): select.select_schema(
+        MixerModeSelect,
         entity_category=ENTITY_CATEGORY_CONFIG,
     ),
 }
@@ -25,4 +31,12 @@ async def to_code(config):
             options=[],
         )
         await cg.register_component(s, eq_mode_config)
+        await cg.register_parented(s, tas58xx_component)
+
+    if mixer_mode_config := config.get(CONF_MIXER_MODE):
+        s = await select.new_select(
+            mixer_mode_config,
+            options=[],
+        )
+        await cg.register_component(s, mixer_mode_config)
         await cg.register_parented(s, tas58xx_component)

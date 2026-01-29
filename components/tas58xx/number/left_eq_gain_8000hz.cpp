@@ -7,10 +7,10 @@ static const char *const TAG = "tas58xx.number";
 
 void LeftEqGain8000hz::setup() {
   float value;
-  this->pref_ = global_preferences->make_preference<float>(this->get_preference_hash());
+  this->pref_ = this->make_entity_preference<float>();
   if (!this->pref_.load(&value)) value= 0.0;
   this->publish_state(value);
-  this->parent_->set_eq_gain(EQ_CHANNEL_LEFT, BAND_8000HZ, static_cast<int>(value));
+  this->parent_->set_eq_gain(LEFT_CHANNEL, BAND_8000HZ, static_cast<int>(value));
 }
 
 void LeftEqGain8000hz::dump_config() {
@@ -19,7 +19,7 @@ void LeftEqGain8000hz::dump_config() {
 
 void LeftEqGain8000hz::control(float value) {
   this->publish_state(value);
-  this->parent_->set_eq_gain(EQ_CHANNEL_LEFT, BAND_8000HZ, static_cast<int>(value));
+  this->parent_->set_eq_gain(LEFT_CHANNEL, BAND_8000HZ, static_cast<int>(value));
   this->pref_.save(&value);
 }
 

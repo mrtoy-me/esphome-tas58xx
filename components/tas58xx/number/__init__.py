@@ -6,7 +6,8 @@ from esphome.const import (
     ENTITY_CATEGORY_CONFIG,
     UNIT_DECIBEL,
 )
-
+CONF_CHANNEL_GAIN_LEFT = "channel_gain_left"
+CONF_CHANNEL_GAIN_RIGHT = "channel_gain_right"
 CONF_LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
 CONF_LEFT_EQ_GAIN_31P5HZ = "left_eq_gain_31.5Hz"
 CONF_LEFT_EQ_GAIN_50HZ = "left_eq_gain_50Hz"
@@ -42,6 +43,9 @@ CONF_RIGHT_EQ_GAIN_16000HZ = "right_eq_gain_16000Hz"
 ICON_VOLUME_SOURCE = "mdi:volume-source"
 
 from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
+
+ChannelGainLeft = tas58xx_ns.class_("ChannelGainLeft", number.Number, cg.Component)
+ChannelGainRight = tas58xx_ns.class_("ChannelGainRight", number.Number, cg.Component)
 
 LeftEqGain20hz = tas58xx_ns.class_("LeftEqGain20hz", number.Number, cg.Component)
 LeftEqGain31p5hz = tas58xx_ns.class_("LeftEqGain31p5hz", number.Number, cg.Component)
@@ -86,9 +90,6 @@ def validate_eq_gain_numbers(config):
                               CONF_LEFT_EQ_GAIN_3150HZ in config and CONF_LEFT_EQ_GAIN_5000HZ in config and
                               CONF_LEFT_EQ_GAIN_8000HZ in config and CONF_LEFT_EQ_GAIN_16000HZ in config)
 
-    if  (not have_all_left_gains):
-      raise cv.Invalid("All 15 Left EQ Gain numbers must be defined in YAML")
-
     have_at_least_one_right_gain = (CONF_RIGHT_EQ_GAIN_20HZ in config or
                                     CONF_RIGHT_EQ_GAIN_31P5HZ in config or CONF_RIGHT_EQ_GAIN_50HZ in config or
                                     CONF_RIGHT_EQ_GAIN_80HZ in config or CONF_RIGHT_EQ_GAIN_125HZ in config or
@@ -98,24 +99,59 @@ def validate_eq_gain_numbers(config):
                                     CONF_RIGHT_EQ_GAIN_3150HZ in config or CONF_RIGHT_EQ_GAIN_5000HZ in config or
                                     CONF_RIGHT_EQ_GAIN_8000HZ in config or CONF_RIGHT_EQ_GAIN_16000HZ in config)
 
-    if (have_at_least_one_right_gain):
-        have_all_right_gains = (CONF_RIGHT_EQ_GAIN_20HZ in config and
-                                CONF_RIGHT_EQ_GAIN_31P5HZ in config and CONF_RIGHT_EQ_GAIN_50HZ in config and
-                                CONF_RIGHT_EQ_GAIN_80HZ in config and CONF_RIGHT_EQ_GAIN_125HZ in config and
-                                CONF_RIGHT_EQ_GAIN_200HZ in config and CONF_RIGHT_EQ_GAIN_315HZ in config and
-                                CONF_RIGHT_EQ_GAIN_500HZ in config and CONF_RIGHT_EQ_GAIN_800HZ in config and
-                                CONF_RIGHT_EQ_GAIN_1250HZ in config and CONF_RIGHT_EQ_GAIN_2000HZ in config and
-                                CONF_RIGHT_EQ_GAIN_3150HZ in config and CONF_RIGHT_EQ_GAIN_5000HZ in config and
-                                CONF_RIGHT_EQ_GAIN_8000HZ in config and CONF_RIGHT_EQ_GAIN_16000HZ in config)
 
+    have_all_right_gains = (CONF_RIGHT_EQ_GAIN_20HZ in config and
+                            CONF_RIGHT_EQ_GAIN_31P5HZ in config and CONF_RIGHT_EQ_GAIN_50HZ in config and
+                            CONF_RIGHT_EQ_GAIN_80HZ in config and CONF_RIGHT_EQ_GAIN_125HZ in config and
+                            CONF_RIGHT_EQ_GAIN_200HZ in config and CONF_RIGHT_EQ_GAIN_315HZ in config and
+                            CONF_RIGHT_EQ_GAIN_500HZ in config and CONF_RIGHT_EQ_GAIN_800HZ in config and
+                            CONF_RIGHT_EQ_GAIN_1250HZ in config and CONF_RIGHT_EQ_GAIN_2000HZ in config and
+                            CONF_RIGHT_EQ_GAIN_3150HZ in config and CONF_RIGHT_EQ_GAIN_5000HZ in config and
+                            CONF_RIGHT_EQ_GAIN_8000HZ in config and CONF_RIGHT_EQ_GAIN_16000HZ in config)
+
+    if (not have_all_left_gains):
+        raise cv.Invalid("All 15 Left EQ Gain numbers must be defined in YAML")
+
+    if (have_at_least_one_right_gain):
         if (not have_all_right_gains):
-          raise cv.Invalid("All 15 Right EQ Gain numbers must be defined in YAML")
+            raise cv.Invalid("All 15 Right EQ Gain numbers must be defined in YAML")
+
+    if (have_all_right_gains and not have_all_left_gains):
+        raise cv.Invalid("Right EQ Gain Numbers must have all 15 Left EQ Gain numbers also defined in YAML")
+
+    have_channel_gain_left = CONF_CHANNEL_GAIN_LEFT in config
+    have_channel_gain_right = CONF_CHANNEL_GAIN_RIGHT in config
+
+    if (have_channel_gain_left and not have_all_left_gains):
+       raise cv.Invalid("Left Channel Gain must have all Left EQ Gain numbers configured in YAML")
+
+    if (have_channel_gain_right and not have_all_right_gains):
+        raise cv.Invalid("Right Channel Gain must also have all Right EQ Gain numbers configured in YAML")
+
+
 
     return config
 
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
+        cv.Optional(CONF_CHANNEL_GAIN_LEFT): number.number_schema(
+            ChannelGainLeft,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+        cv.Optional(CONF_CHANNEL_GAIN_RIGHT): number.number_schema(
+            ChannelGainRight,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_DECIBEL,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
 
         cv.Optional(CONF_LEFT_EQ_GAIN_20HZ): number.number_schema(
             LeftEqGain20hz,
@@ -392,6 +428,22 @@ CONFIG_SCHEMA = cv.Schema(
 async def to_code(config):
     tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])
 
+    if channel_gain_left_config := config.get(CONF_CHANNEL_GAIN_LEFT):
+        cg.add_define("USE_TAS58XX_CHANNEL_GAIN_LEFT")
+        n = await number.new_number(
+           channel_gain_left_config, min_value=-24, max_value=24, step=1
+        )
+        await cg.register_component(n, channel_gain_left_config)
+        await cg.register_parented(n, tas58xx_component)
+
+    if channel_gain_right_config := config.get(CONF_CHANNEL_GAIN_RIGHT):
+        cg.add_define("USE_TAS58XX_CHANNEL_GAIN_RIGHT")
+        n = await number.new_number(
+           channel_gain_right_config, min_value=-24, max_value=24, step=1
+        )
+        await cg.register_component(n, channel_gain_right_config)
+        await cg.register_parented(n, tas58xx_component)
+
     if left_gain_20hz_config := config.get(CONF_LEFT_EQ_GAIN_20HZ):
         cg.add_define("USE_TAS58XX_EQ")
         n = await number.new_number(
@@ -501,7 +553,7 @@ async def to_code(config):
 
     # Right Eq Gain - EQ BiAMP
     if right_gain_20hz_config := config.get(CONF_RIGHT_EQ_GAIN_20HZ):
-        cg.add_define("USE_TAS58XX_EQ_BIMAP")
+        cg.add_define("USE_TAS58XX_EQ_BIAMP")
         n = await number.new_number(
            right_gain_20hz_config, min_value=-15, max_value=15, step=1
         )

@@ -26,17 +26,6 @@ enum ExcludeIgnoreMode : uint8_t {
     CLOCK_FAULT = 1,
 };
 
-enum EqChannels : uint8_t {
-	  EQ_CHANNEL_LEFT = 0,
-		EQ_CHANNEL_RIGHT = 1,
-};
-
-enum EqMode : uint8_t {
-    EQ_OFF = 0,
-    EQ_15BAND_ON,
-    EQ_BIAMP_ON,
-};
-
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
   void setup() override;
@@ -91,7 +80,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   #endif
 
   uint8_t get_eq_mode_enum() { return this->eq_mode_enum_; }
-  // uint8_t get_eq_mode_restore() { return this->restore_eq_mode_; }
+  uint8_t get_mixer_mode_();
 
   void enable_dac(bool enable);
 
@@ -99,8 +88,11 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void eq_mode_select(uint8_t index);
 
+  bool set_mixer_mode_(MixerMode mode);
+
   #ifdef USE_TAS58XX_EQ
   bool set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t gain);
+  bool set_channel_gain(EqChannels eq_channel, int8_t gain);
   #endif
 
   bool is_muted() override { return this->is_muted_; }
@@ -139,9 +131,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    #endif
 
    bool set_eq_(EqMode new_mode);
-
-   bool get_mixer_mode_(MixerMode *mode);
-   bool set_mixer_mode_(MixerMode mode);
+   int32_t gain_to_q9_23(int8_t gain);
 
    bool get_state_(ControlState* state);
    bool set_state_(ControlState state);
@@ -186,12 +176,13 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    int8_t tas58xx_volume_max_;
    int8_t tas58xx_volume_min_;
 
-   MixerMode tas58xx_mixer_mode_;
+   MixerMode tas58xx_mixer_mode_{MixerMode::STEREO};
 
    // used if eq gain numbers are defined in YAML
    #ifdef USE_TAS58XX_EQ
    EqMode tas58xx_eq_mode_{EQ_OFF};
    int8_t tas58xx_eq_gain_[NUMBER_EQ_CHANNELS][NUMBER_EQ_BANDS]{0};
+   int8_t tas58xx_channel_gain_[NUMBER_EQ_CHANNELS]{0};
    #endif
 
    // initialised in setup
@@ -249,7 +240,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used for counting number of 'loops' iterations for delay of starting 'loop'
    uint8_t loop_counter_{0};
 
-  EqMode eq_mode_enum_{0};
+  EqMode eq_mode_enum_{EqMode::EQ_OFF};
 
    // number tas58xx registers configured during 'setup'
    uint16_t number_registers_configured_{0};

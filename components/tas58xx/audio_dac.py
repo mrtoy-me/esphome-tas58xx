@@ -152,7 +152,7 @@ def select_biamp_presets_exists():
 async def to_code(config):
     derived_eq_mode_enum= 0
     if left_eq_gain_exists():
-        derived_eq_mode_enum  = 1
+        derived_eq_mode_enum = 1
         if right_eq_gain_exists():
             derived_eq_mode_enum  = 2
         # if select_biamp_presets_exists():
@@ -175,6 +175,9 @@ async def to_code(config):
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.set_eq_mode_enum(derived_eq_mode_enum))
+
+    if config[CONF_DAC_MODE] == "PBTL":
+        cg.add_define("USE_DAC_MODE_PBTL")
 
     if tas58xx_dac == "TAS5805M":
         cg.add_define("USE_TAS5805M_DAC")
