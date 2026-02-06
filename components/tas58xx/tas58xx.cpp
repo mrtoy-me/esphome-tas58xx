@@ -392,7 +392,92 @@ void Tas58xxComponent:: eq_mode_select(uint8_t index) {
 }
 
 bool Tas58xxComponent::set_eq_preset(EqChannels eq_channel, uint8_t select_preset) {
-  return true;
+
+  if (select_preset > EQ_PROFILE_MAXIMUM_INDEX) {
+    ESP_LOGE(TAG, "Invalid Preset index: %d", select_preset);
+    return false;
+  }
+  if ((eq_channel + 1) > NUMBER_EQ_CHANNELS) {
+    ESP_LOGE(TAG, "Invalid Channel: %d", eq_channel);
+    return false;
+  }
+
+  // EQ Gains initially set by tas58xx number component setups
+  if (!this->refresh_settings_triggered_) {
+    ESP_LOGD(TAG, "Saving Preset Channel:%d Preset index >> %d", eq_channel, select_preset);
+    this->tas58xx_channel_preset_[eq_channel] = select_preset;
+    return true;
+  }
+
+  // runs when 'refresh_settings_triggered_' is true
+
+  ESP_LOGV(TAG, "Set Channel:%d  Preset >> %ddB", eq_channel, select_preset);
+
+  uint8_t x = (gain + TAS58XX_EQ_MAX_DB);
+
+#ifdef USE_TAS5805M_DAC
+  const AddressSequenceEq* biquad1_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[0] : &TAS5805M_RIGHT_EQ_ADDRESS[0];
+  const AddressSequenceEq* biquad2_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[1] : &TAS5805M_RIGHT_EQ_ADDRESS[1];
+  const AddressSequenceEq* biquad3_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[2] : &TAS5805M_RIGHT_EQ_ADDRESS[2];
+#else
+  const AddressSequenceEq* biquad1_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[0] : &TAS5825M_RIGHT_EQ_ADDRESS[0];
+  const AddressSequenceEq* biquad2_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[1] : &TAS5825M_RIGHT_EQ_ADDRESS[1];
+  const AddressSequenceEq* biquad3_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[2] : &TAS5825M_RIGHT_EQ_ADDRESS[2];
+
+#endif
+
+  const RegisterSequenceEq* biquad1_coeff = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][0] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][0]
+  const RegisterSequenceEq* biquad2_coeff = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][1] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][1]
+  const RegisterSequenceEq* biquad3_coeff = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][2] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][2]
+
+  if ((reg_value == NULL) || (eq_address == NULL)) {
+    ESP_LOGE(TAG, "%sNULL discovered: [%d][%d]",ERROR, x, band);
+    return false;
+  }
+
+
+  // write Left channel
+  if(!this->set_book_and_page_(TAS58XX_REG_BOOK_EQ, biquad1_eq_address->page)) {
+    ESP_LOGE(TAG, "%s%s%d @ page 0x%02X", ERROR, EQ_BAND, band, eq_address->page);
+    return false;
+  }
+
+  uint8_t bytes_in_block1{COEFFICENTS_PER_EQ_BAND};
+  uint8_t bytes_in_block2{0};
+
+
+  if ((eq_address->offset + COEFFICENTS_PER_EQ_BAND) > MAX_OFFSET_PLUS1) {
+    bytes_in_block1 = MAX_OFFSET_PLUS1 - eq_address->offset;
+    bytes_in_block2 = COEFFICENTS_PER_EQ_BAND - bytes_in_block1;
+  }
+
+  // should not be needed as previous condition would exclude
+  if (bytes_in_block1 > COEFFICENTS_PER_EQ_BAND) {
+    ESP_LOGE(TAG, "%s%s %d invalid first block size: %d", ERROR, EQ_BAND, band, bytes_in_block1);
+    return false;
+  }
+
+  ESP_LOGV(TAG, "Write Channel:%d EQ Band:%d gain:%ddb to page:0x%02X, offset:0x%02X, block1:%d, block2:%d ",eq_channel, band, gain, eq_address->page, eq_address->offset, bytes_in_block1, bytes_in_block2);
+
+  if(!this->tas58xx_write_bytes_(eq_address->offset, const_cast<uint8_t *>(reg_value->value), bytes_in_block1)) {
+    ESP_LOGE(TAG, "%sChannel:%d %s:%d Gain:%ddb offset 0x%02X for %d bytes", ERROR, eq_channel, EQ_BAND, band, gain, eq_address->offset, bytes_in_block1);
+  }
+
+  if (bytes_in_block2 != 0) {
+    uint8_t next_page = eq_address->page + 1;
+    if(!this->set_book_and_page_(TAS58XX_REG_BOOK_EQ, next_page)) {
+      ESP_LOGE(TAG, "%s%s%d @ page 0x%02X", ERROR, EQ_BAND, band, next_page);
+      return false;
+    }
+    if(!this->tas58xx_write_bytes_(NEXT_PAGE_OFFSET, const_cast<uint8_t *>(reg_value->value + bytes_in_block1), bytes_in_block2)) {
+      ESP_LOGE(TAG, "%sChannel:%d %s:%d Gain:%ddb offset 0x%02X for %d bytes", ERROR, eq_channel, EQ_BAND, band, gain, NEXT_PAGE_OFFSET, bytes_in_block2);
+      return false;
+    }
+  }
+
+
+
+  return this->set_book_and_page_(TAS58XX_REG_BOOK_CONTROL_PORT, TAS58XX_REG_PAGE_ZERO);
 }
 
 // used by eq gain numbers

@@ -184,6 +184,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    EqMode tas58xx_eq_mode_{EQ_OFF};
    int8_t tas58xx_eq_gain_[NUMBER_EQ_CHANNELS][NUMBER_EQ_BANDS]{0};
    int8_t tas58xx_channel_gain_[NUMBER_EQ_CHANNELS]{0};
+   uint8_t tas58xx_channel_preset_[NUMBER_EQ_CHANNELS]{0};
    #endif
 
    // initialised in setup

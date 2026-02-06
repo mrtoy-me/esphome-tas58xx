@@ -10,7 +10,9 @@ namespace esphome::tas58xx {
     // Biquad 3: High Shelf
 
 #ifdef USE_TAS58XX_EQ_PROFILES
+static const int8_t  EQ_PROFILE_MAXIMUM_INDEX = 20;
 static const int8_t  EQ_PROFILE_BANDS = 3;
+
 
 static const RegisterSequenceEq TAS58XX_EQ_REGISTERS_LEFT_FLAT[EQ_PROFILE_BANDS] = {
     //  Biquad - BQ1 Left - Filter: All Pass  Frequency: 1000 Hz  QVal: 0.71  Bandwidth: 1000 Hz
@@ -390,7 +392,7 @@ static const RegisterSequenceEq TAS58XX_EQ_REGISTERS_RIGHT_HF_150[EQ_PROFILE_BAN
     { 0x08, 0xf7, 0x52, 0xa3, 0xee, 0x68, 0x1c, 0x01, 0x08, 0xa1, 0x63, 0x38, 0x0f, 0xae, 0x0d, 0x5a, 0xf8, 0x51, 0x20, 0xca }
 };
 
-static const RegisterSequenceEq* TAS58XX_EQ_PROFILE_LEFT_registers[] = {
+static const RegisterSequenceEq* TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[] = {
     TAS58XX_EQ_REGISTERS_LEFT_FLAT,
     TAS58XX_EQ_REGISTERS_LEFT_LF_60,
     TAS58XX_EQ_REGISTERS_LEFT_LF_70,
@@ -414,7 +416,7 @@ static const RegisterSequenceEq* TAS58XX_EQ_PROFILE_LEFT_registers[] = {
     TAS58XX_EQ_REGISTERS_LEFT_HF_150,
 };
 
-static const RegisterSequenceEq* TAS58XX_EQ_PROFILE_RIGHT_registers[] = {
+static const RegisterSequenceEq* TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[] = {
     TAS58XX_EQ_REGISTERS_RIGHT_FLAT,
     TAS58XX_EQ_REGISTERS_RIGHT_LF_60,
     TAS58XX_EQ_REGISTERS_RIGHT_LF_70,
