@@ -1,7 +1,12 @@
 import esphome.codegen as cg
 from esphome.components import select
 import esphome.config_validation as cv
-from esphome.const import ENTITY_CATEGORY_CONFIG
+import esphome.final_validate as fv
+
+from esphome.const import (
+   CONF_PLATFORM,
+   ENTITY_CATEGORY_CONFIG,
+)
 
 from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
 
@@ -15,25 +20,62 @@ CONF_MIXER_MODE = "mixer_mode"
 CONF_EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 CONF_EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
 
-CONFIG_SCHEMA = {
-    cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
-    cv.Optional(CONF_EQ_MODE): select.select_schema(
-        EqModeSelect,
-        entity_category=ENTITY_CATEGORY_CONFIG,
-    ),
-    cv.Optional(CONF_MIXER_MODE): select.select_schema(
-        MixerModeSelect,
-        entity_category=ENTITY_CATEGORY_CONFIG,
-    ),
-    cv.Optional(CONF_EQ_PRESET_LEFT_CHANNEL): select.select_schema(
-        EqPresetLeftSelect,
-        entity_category=ENTITY_CATEGORY_CONFIG,
-    ),
-    cv.Optional(CONF_EQ_PRESET_RIGHT_CHANNEL): select.select_schema(
-        EqPresetRightSelect,
-        entity_category=ENTITY_CATEGORY_CONFIG,
-    ),
-}
+NUMBER_COMPONENT = "number"
+PLATFORM_TAS58XX = "tas58xx"
+LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
+
+def validate_eq_presets(config):
+    have_eq_preset_left = CONF_EQ_PRESET_LEFT_CHANNEL in config
+    have_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
+
+    if (have_eq_preset_left and not have_eq_preset_right):
+        raise cv.Invalid("channel_gain_right must configured with channel_gain_left - add channel_gain_right to configuration")
+
+    if (have_eq_preset_right and not have_eq_preset_left):
+        raise cv.Invalid("channel_gain_left must configured with channel_gain_right - add channel_gain_left to configuration")
+
+    return config
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
+        cv.Optional(CONF_EQ_MODE): select.select_schema(
+            EqModeSelect,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+         ),
+        cv.Optional(CONF_MIXER_MODE): select.select_schema(
+            MixerModeSelect,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+        ),
+        cv.Optional(CONF_EQ_PRESET_LEFT_CHANNEL): select.select_schema(
+            EqPresetLeftSelect,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+        ),
+        cv.Optional(CONF_EQ_PRESET_RIGHT_CHANNEL): select.select_schema(
+            EqPresetRightSelect,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+        ),
+    }
+).add_extra(validate_eq_presets)
+
+def _final_validate(config):
+    have_defined_tas58xx_number_eq_gain = False
+
+    have_defined_tas58xx_select_eq_preset = (CONF_EQ_PRESET_LEFT_CHANNEL in config)
+
+    full_conf = fv.full_config.get()
+    number_confs = full_conf.get(NUMBER_COMPONENT, [])
+    for number_conf in number_confs:
+        if number_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+           if LEFT_EQ_GAIN_20HZ in number_conf:
+               have_defined_tas58xx_number_eq_gain = True
+               break
+
+    if (have_defined_tas58xx_select_eq_preset and have_defined_tas58xx_number_eq_gain):
+        raise cv.Invalid("Select eq_presets are not allowed with Number left_eq_gains and right_eq_gains - remove one set of those configurations")
+    return config
+
+FINAL_VALIDATE_SCHEMA = _final_validate
 
 async def to_code(config):
     tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])

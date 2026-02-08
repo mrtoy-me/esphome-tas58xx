@@ -1,5 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
+import esphome.final_validate as fv
 from esphome.core import CORE
 from esphome.components import i2c
 from esphome.components.audio_dac import AudioDac
@@ -31,7 +32,7 @@ SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
 LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
 RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
-BIAMP_PRESETS = "biamp_presets"
+EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 
 TAS5805M_I2C_ADDR = 0x2D
 TAS5825M_I2C_ADDR = 0x4C
@@ -82,6 +83,7 @@ def validate_config(config):
         raise cv.Invalid("volume_max must at least 9db greater than volume_min")
     return config
 
+
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
@@ -123,7 +125,6 @@ def left_eq_gain_exists():
     all_numbers = CORE.config.get(NUMBER_COMPONENT, [])
     for num in all_numbers:
         if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            # Check if left_eq_gain key exists in this tas58xx config
             if LEFT_EQ_GAIN_20HZ in num:
                 return True
 
@@ -133,18 +134,16 @@ def right_eq_gain_exists():
     all_numbers = CORE.config.get(NUMBER_COMPONENT, [])
     for num in all_numbers:
         if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            # Check if right_eq_gain key exists in this tas58xx config
             if RIGHT_EQ_GAIN_20HZ in num:
                 return True
 
     return False
 
-def select_biamp_presets_exists():
+def select_eq_presets_exists():
     all_select = CORE.config.get(SELECT_COMPONENT, [])
-    for num in all_select:
-        if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            # Check if right_eq_gain key exists in this tas58xx config
-            if BIAMP_PRESETS in num:
+    for select in all_select:
+        if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            if EQ_PRESET_LEFT_CHANNEL in select:
                 return True
 
     return False
@@ -155,8 +154,8 @@ async def to_code(config):
         derived_eq_mode_enum = 1
         if right_eq_gain_exists():
             derived_eq_mode_enum  = 2
-        # if select_biamp_presets_exists():
-        #     derived_eq_mode_enum = 3
+    if select_eq_presets_exists():
+        derived_eq_mode_enum = 3
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
     if tas58xx_dac == "TAS5825M":
