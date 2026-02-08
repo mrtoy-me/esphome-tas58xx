@@ -96,6 +96,7 @@ async def to_code(config):
         await cg.register_parented(s, tas58xx_component)
 
     if eq_preset_left_config := config.get(CONF_EQ_PRESET_LEFT_CHANNEL):
+        cg.add_define("USE_TAS58XX_EQ_PRESETS")
         s = await select.new_select(
             eq_preset_left_config,
             options=[],

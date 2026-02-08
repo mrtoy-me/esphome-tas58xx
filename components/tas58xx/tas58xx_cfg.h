@@ -71,10 +71,10 @@ namespace esphome::tas58xx {
   static const float TAS58XX_MAX_ANALOG_GAIN         = 0.0;
 
   // set book and page registers
-  static const uint8_t TAS58XX_REG_PAGE_SET          = 0x00;
-  static const uint8_t TAS58XX_REG_BOOK_SET          = 0x7F;
-  static const uint8_t TAS58XX_REG_BOOK_CONTROL_PORT = 0x00;
-  static const uint8_t TAS58XX_REG_PAGE_ZERO         = 0x00;
+  static const uint8_t TAS58XX_PAGE_SET              = 0x00;
+  static const uint8_t TAS58XX_BOOK_SET              = 0x7F;
+  static const uint8_t TAS58XX_BOOK_CONTROL          = 0x00;
+  static const uint8_t TAS58XX_PAGE_ZERO             = 0x00;
 
   // tas58x5m registers
   static const uint8_t TAS58XX_DEVICE_CTRL_1         = 0x02;

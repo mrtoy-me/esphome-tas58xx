@@ -30,14 +30,14 @@ namespace esphome::tas58xx {
 	#endif
 
   static const uint8_t NUMBER_EQ_BANDS         = 15;
-  static const uint8_t COEFFICENTS_PER_EQ_BAND = 4 * 5; // 4 registers per coefficient, 5 cooefficents per eq band;
+  static const uint8_t COEFFICIENTS_PER_BIQUAD = 4 * 5; // 4 registers per coefficient, 5 cooefficents per biquad;
 
   // EQ Addressing helper constants
-	static const uint8_t MAX_OFFSET_PLUS1 = 0x80; // 0x7F + 1 = 0x80
-	static const uint8_t NEXT_PAGE_OFFSET = 0x08; // when page rolls over the next register offset = 0x08
+	static const uint8_t PAGE_SIZE = 0x80; // 0x7F + 1 = 0x80
+	static const uint8_t MINIMUM_PAGE_SUBADDR = 0x08; // when page rolls over the next register offset = 0x08
 
   // Mixer registers
-  static const uint8_t TAS58XX_REG_BOOK_EQ     = 0xAA;
+  static const uint8_t TAS58XX_EQ_BOOK     = 0xAA;
 
   // Frequency bands
   static const uint16_t TAS58XX_EQ_BANDS[NUMBER_EQ_BANDS] = {
@@ -67,7 +67,6 @@ namespace esphome::tas58xx {
 	    { 0x26, 0x2c }, // BQ14 Left - Frequency: 8000 Hz
 	    { 0x26, 0x40 }, // BQ15 Left - Frequency: 16000 Hz
   };
-  #ifdef USE_TAS58XX_EQ_BIAMP
   static const AddressSequenceEq TAS5805M_RIGHT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
 	    { 0x26, 0x54 }, // BQ1 Right  - Frequency: 20 Hz
 	    { 0x26, 0x68 }, // BQ2 Right  - Frequency: 31.5 Hz
@@ -85,7 +84,7 @@ namespace esphome::tas58xx {
 	    { 0x28, 0x68 }, // BQ14 Right - Frequency: 8000 Hz
 	    { 0x28, 0x7c }, // BQ15 Right - Frequency: 16000 Hz
   };
-	#endif
+
 #else
 	static const AddressSequenceEq TAS5825M_LEFT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
 	    { 0x01, 0x30 }, // BQ1 Left  - Frequency: 20 Hz
@@ -104,7 +103,7 @@ namespace esphome::tas58xx {
 	    { 0x03, 0x44 }, // BQ14 Left - Frequency: 8000 Hz
 	    { 0x03, 0x58 }, // BQ15 Left - Frequency: 16000 Hz
   };
-  #ifdef USE_TAS58XX_EQ_BIAMP
+
 	static const AddressSequenceEq TAS5825M_RIGHT_EQ_ADDRESS[NUMBER_EQ_BANDS] = {
 		{ 0x03, 0x6c }, // BQ1 Right  - Frequency: 20 Hz
 		{ 0x04, 0x08 }, // BQ2 Right  - Frequency: 31.5 Hz
@@ -122,11 +121,10 @@ namespace esphome::tas58xx {
 		{ 0x06, 0x08 }, // BQ14 Right - Frequency: 8000 Hz
 		{ 0x06, 0x1c }, // BQ15 Right - Frequency: 16000 Hz
   };
-	#endif
 #endif
 
   struct RegisterSequenceEq {
-	  uint8_t value[COEFFICENTS_PER_EQ_BAND];
+	  uint8_t value[COEFFICIENTS_PER_BIQUAD];
   }__attribute__((packed));
 
   static const RegisterSequenceEq TAS58XX_EQ_REGISTERS_MF[NUMBER_EQ_BANDS] = {

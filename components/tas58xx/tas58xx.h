@@ -6,9 +6,9 @@
 #include "esphome/core/hal.h"
 #include "tas58xx_cfg.h"
 
-#ifdef USE_TAS58XX_EQ
+
 #include "tas58xx_eq.h"
-#endif
+#include "tas58xx_eq_profiles.h"
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -91,10 +91,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   bool set_mixer_mode(MixerMode mode);
 
-  #ifdef USE_TAS58XX_EQ
   bool set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t gain);
+
   bool set_channel_gain(EqChannels eq_channel, int8_t gain);
-  #endif
 
   bool is_muted() override { return this->is_muted_; }
   bool set_mute_off() override;
@@ -127,9 +126,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool get_digital_volume_(uint8_t* raw_volume);
    bool set_digital_volume_(uint8_t new_volume);
 
-   #ifdef USE_TAS58XX_EQ
    bool get_eq_(EqMode* current_mode);
-   #endif
 
    bool set_eq_(EqMode new_mode);
    int32_t gain_to_q9_23(int8_t gain);
@@ -149,6 +146,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // low level functions
    bool set_book_and_page_(uint8_t book, uint8_t page);
+   bool write_biquad_coefficients_(uint8_t page, uint8_t sub_addr, uint8_t* data);
 
    bool tas58xx_read_byte_(uint8_t a_register, uint8_t* data);
    bool tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes);
@@ -180,12 +178,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    MixerMode tas58xx_mixer_mode_{MixerMode::STEREO};
 
    // used if eq gain numbers are defined in YAML
-   #ifdef USE_TAS58XX_EQ
-   EqMode tas58xx_eq_mode_{EQ_OFF};
    int8_t tas58xx_eq_gain_[NUMBER_EQ_CHANNELS][NUMBER_EQ_BANDS]{0};
-   int8_t tas58xx_channel_gain_[NUMBER_EQ_CHANNELS]{0};
+
+
+   EqMode tas58xx_eq_mode_{EQ_OFF};
    uint8_t tas58xx_channel_preset_[NUMBER_EQ_CHANNELS]{0};
-   #endif
+   int8_t tas58xx_channel_gain_[NUMBER_EQ_CHANNELS]{0};
 
    // initialised in setup
    ControlState tas58xx_control_state_;
@@ -227,7 +225,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool update_delay_finished_{false};
 
    // are eq gain numbers configured in YAML
-   #ifdef USE_TAS58XX_EQ
+   #ifdef USE_TAS58XX_EQ_GAINS
    bool using_eq_gains_{true};
    #else
    bool using_eq_gains_{false};

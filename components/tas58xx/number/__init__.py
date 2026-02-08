@@ -462,7 +462,7 @@ async def to_code(config):
     tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])
 
     if channel_gain_left_config := config.get(CONF_CHANNEL_GAIN_LEFT):
-        cg.add_define("USE_TAS58XX_CHANNEL_GAIN_LEFT")
+        cg.add_define("USE_TAS58XX_CHANNEL_GAINS")
         n = await number.new_number(
            channel_gain_left_config, min_value=-24, max_value=24, step=1
         )
@@ -470,7 +470,6 @@ async def to_code(config):
         await cg.register_parented(n, tas58xx_component)
 
     if channel_gain_right_config := config.get(CONF_CHANNEL_GAIN_RIGHT):
-        cg.add_define("USE_TAS58XX_CHANNEL_GAIN_RIGHT")
         n = await number.new_number(
            channel_gain_right_config, min_value=-24, max_value=24, step=1
         )
@@ -478,7 +477,7 @@ async def to_code(config):
         await cg.register_parented(n, tas58xx_component)
 
     if left_gain_20hz_config := config.get(CONF_LEFT_EQ_GAIN_20HZ):
-        cg.add_define("USE_TAS58XX_EQ")
+        cg.add_define("USE_TAS58XX_EQ_GAINS")
         n = await number.new_number(
            left_gain_20hz_config, min_value=-15, max_value=15, step=1
         )
