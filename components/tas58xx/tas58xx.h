@@ -16,9 +16,9 @@
 
 namespace esphome::tas58xx {
 
-enum AutoRefreshMode : uint8_t {
-    BY_GAIN   = 0,
-    BY_SWITCH = 1,
+enum EqRefreshMode : uint8_t {
+    AUTO   = 0,
+    MANUAL = 1,
 };
 
 enum ExcludeIgnoreMode : uint8_t {
@@ -51,12 +51,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void config_mixer_mode(MixerMode mixer_mode) { this->tas58xx_mixer_mode_ = mixer_mode; }
 
-  void config_refresh_eq(AutoRefreshMode auto_refresh) { this->auto_refresh_ = auto_refresh; }
+  void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
 
   void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = (int8_t)(volume_max); }
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = (int8_t)(volume_min); }
 
-  void set_eq_mode_enum(uint8_t eq_mode_enum) { this->eq_mode_enum_ = (EqMode)eq_mode_enum; }
+  void config_eq_mode(uint8_t configured_eq_mode) { this->configured_eq_mode_ = static_cast<EqMode>(configured_eq_mode); }
 
   #ifdef USE_TAS58XX_BINARY_SENSOR
   SUB_BINARY_SENSOR(have_fault)
@@ -79,16 +79,15 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   }
   #endif
 
-  uint8_t get_eq_mode_enum() { return this->eq_mode_enum_; }
-  uint8_t get_mixer_mode();
-
   void enable_dac(bool enable);
 
-  // bool enable_eq(bool enable);
+  uint8_t get_configured_eq_mode();
 
-  void eq_mode_select(uint8_t index);
+  void select_eq_mode(uint8_t select_index);
+
   bool set_eq_preset(EqChannels eq_channel, uint8_t select_preset);
 
+  uint8_t get_mixer_mode();
   bool set_mixer_mode(MixerMode mode);
 
   bool set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t gain);
@@ -99,12 +98,14 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   bool set_mute_off() override;
   bool set_mute_on() override;
 
-  void refresh_settings();
+  void refresh_eq_settings();
 
   uint32_t times_faults_cleared();
 
-  bool use_eq_gain_refresh();
-  bool use_eq_switch_refresh();
+  bool using_eq_gains();
+
+  bool using_auto_eq_refresh();
+  bool using_manual_eq_refresh();
 
   float volume() override;
   bool set_volume(float value) override;
@@ -126,9 +127,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool get_digital_volume_(uint8_t* raw_volume);
    bool set_digital_volume_(uint8_t new_volume);
 
-   bool get_eq_(EqMode* current_mode);
+   void get_eq_mode(EqMode* current_mode);
+   bool set_eq_mode(EqMode new_mode)
 
-   bool set_eq_(EqMode new_mode);
    int32_t gain_to_q9_23(int8_t gain);
 
    bool get_state_(ControlState* state);
@@ -159,8 +160,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    } error_code_{NONE};
 
    // configured by YAML
-   AutoRefreshMode auto_refresh_;  // default 'BY_GAIN' = 0
-  //  RestoreMode restore_eq_mode_;   // default 'RESTORE_DEFAULT_OFF' = 1
+   EqRefreshMode eq_refresh_;  // default 'AUTO' = 0
 
    #ifdef USE_TAS58XX_BINARY_SENSOR
    bool exclude_clock_fault_from_have_faults_; // YAML default = true
@@ -180,8 +180,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used if eq gain numbers are defined in YAML
    int8_t tas58xx_eq_gain_[NUMBER_EQ_CHANNELS][NUMBER_EQ_BANDS]{0};
 
+   // derived from YAML
+   EqMode configured_eq_mode_;
 
+   // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
    EqMode tas58xx_eq_mode_{EQ_OFF};
+
    uint8_t tas58xx_channel_preset_[NUMBER_EQ_CHANNELS]{0};
    int8_t tas58xx_channel_gain_[NUMBER_EQ_CHANNELS]{0};
 
@@ -217,15 +221,15 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // only ever changed to true once to trigger 'refresh_settings()'
    // when true 'set_eq_gains' is allowed to write eq gains
-   // when 'refresh_settings_complete_' is false and 'refresh_settings_triggered_' is true
+   // when 'refresh_settings_complete_' is false and 'refresh_eq_settings_triggered_' is true
    // 'loop' will write mixer mode and if setup in YAML, also eq gains
-   bool refresh_settings_triggered_{false};
+   bool refresh_eq_settings_triggered_{false};
 
    // use to indicate if delay before starting 'update' starting is complete
    bool update_delay_finished_{false};
 
    // are eq gain numbers configured in YAML
-   #ifdef USE_TAS58XX_EQ_GAINS
+   #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
    bool using_eq_gains_{true};
    #else
    bool using_eq_gains_{false};

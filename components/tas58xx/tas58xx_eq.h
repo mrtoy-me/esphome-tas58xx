@@ -23,11 +23,7 @@ namespace esphome::tas58xx {
   static const int8_t  TAS58XX_EQ_MAX_DB       = 15;
   static const int8_t  TAS58XX_EQ_MIN_DB       = -TAS58XX_EQ_MAX_DB;
 
-	#ifdef USE_TAS58XX_EQ_BIAMP
   static const uint8_t NUMBER_EQ_CHANNELS      = 2;
-  #else
-	static const uint8_t NUMBER_EQ_CHANNELS      = 1;
-	#endif
 
   static const uint8_t NUMBER_EQ_BANDS         = 15;
   static const uint8_t COEFFICIENTS_PER_BIQUAD = 4 * 5; // 4 registers per coefficient, 5 cooefficents per biquad;

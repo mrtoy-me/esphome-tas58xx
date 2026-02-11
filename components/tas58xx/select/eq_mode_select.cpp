@@ -9,30 +9,25 @@ static const uint8_t EQ_OFF_NUMBER_OPTIONS = 1; // only one option if EQ is off
 static const uint8_t EQ_ON_NUMBER_OPTIONS  = 2; // two options there is an EQ option
 
 void EqModeSelect::setup() {
-  size_t restored_index = EqMode::EQ_OFF;
-
-  // retrieve the select options enum (index) which was derived from YAML configuration
-  // provides the index for the EQ Mode saved in stored_options_
+  // retrieve the select options index which was derived from YAML configuration
+  // provides the index for the EQ Mode to be used in stored_options_
   // Off = 0; EQ 15 Band = 1; EQ BIAMP = 2; EQ Presets = 3
-  uint8_t select_options_index = this->parent_->get_eq_mode_enum();
+  uint8_t select_options_index = this->parent_->get_configured_eq_mode();
 
-  if (this->parent_->use_eq_switch_refresh()) {
-    // if YAML configured auto_fresh: EQ_SWITCH
-    // then trigger refresh_settings and start with EQ Off
-    this->trigger_refresh_settings_ = true;
-  }
-#ifdef USE_TAS58XX_EQ
-  #ifdef USE_SPEAKER
-  else {
-    // if EQ and Speaker component is defined then by default enable EQ
-    if (restored_index == EqMode::EQ_OFF) {
-      if (select_options_index > EqMode::EQ_OFF) {
-        restored_index= EqMode::EQ_ON;
-      }
+  size_t initial_select_index = EqMode::EQ_OFF;
+
+  if (this->parent_->using_eq_gains()) {
+    // if auto eq refresh then trigger eq refresh now and selct Eq Mode
+    if(this->parent_->using_auto_eq_refresh()) {
+      initial_select_index = EqMode::EQ_ON;
+      this->parent_->refresh_eq_settings();
+    }
+    // if manual then set trigger for transition from Off to Eq Mode
+    if(this->parent_->using_manual_eq_refresh()) {
+      initial_select_index = EqMode::EQ_OFF;
+      this->trigger_refresh_settings_ = true;
     }
   }
-  #endif
-#endif
 
   // based on select options enum (index) which was derived from YAML configuration
   // set size of select option as either 1 = EQ Off only or 2 = EQ Off plus one of the other EQ On options
@@ -48,8 +43,8 @@ void EqModeSelect::setup() {
 
   traits.set_options(this->option_ptrs_);
 
-  this->publish_state(restored_index);
-  this->parent_->eq_mode_select(restored_index);
+  this->publish_state(initial_select_index);
+  this->parent_->select_eq_mode(initial_select_index);
 }
 
 void EqModeSelect::dump_config() {
@@ -59,14 +54,14 @@ void EqModeSelect::dump_config() {
 
 void EqModeSelect::control(size_t index) {
   this->publish_state(index);
-  this->parent_->eq_mode_select(index);
+  this->parent_->select_eq_mode(index);
 
   // normal condition
   if (!this->trigger_refresh_settings_) return;
 
-  // when 'trigger_refresh_settings_' is set true by 'setup'
-  // then effectively 'refresh_settings' triggers on first transition from Off to Eq On
-  // if 'refresh_settings' has already been called somewhere else
+  // when 'trigger_refresh_settings_' is set true by 'setup' manual trigger refresh is active
+  // then effectively 'refresh_settings' triggers on first transition from Off to one of the Eq Modes
+  // if 'refresh_settings' has somehow been already been called somewhere else
   // it does not matter as'parent_->refresh_settings()' will only run once
   if (index > EqMode::EQ_OFF) {
     ESP_LOGD(TAG, "Triggering refresh settings");

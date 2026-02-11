@@ -12,11 +12,11 @@ void LeftEqGain16000hz::setup() {
   this->publish_state(value);
   this->parent_->set_eq_gain(LEFT_CHANNEL, BAND_16000HZ, static_cast<int>(value));
 
-#ifdef USE_TAS58XX_EQ
+#ifdef USE_TAS58XX_EQ_GAINS
   #ifndef USE_TAS58XX_EQ_BIAMP
   // if YAML configured auto_fresh: EQ_GAIN which is default then trigger refresh_settings
-  if(this->parent_->use_eq_gain_refresh()) {
-    this->parent_->refresh_settings();
+  if(this->parent_->using_auto_eq_refresh()) {
+    this->parent_->refresh_eq_settings();
   }
   #endif
 #endif

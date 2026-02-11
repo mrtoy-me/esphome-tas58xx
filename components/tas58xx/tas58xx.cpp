@@ -71,7 +71,7 @@ bool Tas58xxComponent::configure_registers_() {
   this->number_registers_configured_ = counter;
 
   // enable Tas58xx
-  if(!this->set_deep_sleep_off_()) return false;
+  if (!this->set_deep_sleep_off_()) return false;
 
   // only setup once here
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
@@ -81,16 +81,6 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
-
-  // #ifdef USE_TAS58XX_EQ
-  //   #ifdef USE_SPEAKER
-  //   this->set_eq_(EQ_ON);
-  //   // if (!this->enable_eq(true)) return false;
-  //   #else
-  //   this->set_eq_(EQ_OFF);
-  //   // if (!this->enable_eq(false)) return false;
-  //   #endif
-  // #endif
 
   // initialise to now
   this->start_time_ = millis();
@@ -112,7 +102,7 @@ void Tas58xxComponent::loop() {
   }
 
   // refresh of settings has not been triggered yet
-  if (!this->refresh_settings_triggered_) return;
+  if (!this->refresh_eq_settings_triggered_) return;
 
   // once refresh settings is triggered then wait 'DELAY_LOOPS' before proceeding
   // to ensure on boot sound has played and tas58xx has detected i2s clock
@@ -153,7 +143,7 @@ void Tas58xxComponent::loop() {
   }
 
 #ifdef USE_TAS58XX_EQ_GAINS
-  // write gains for all eq bands when triggered by boolean 'refresh_settings_triggered_'
+  // write gains for all eq bands when triggered by boolean 'refresh_eq_settings_triggered_'
   // write gains one eq band per 'loop' so component does not take too long in 'loop'
 
   if (this->refresh_band_ == NUMBER_EQ_BANDS) {
@@ -194,7 +184,7 @@ void Tas58xxComponent::update() {
     uint32_t current_time = millis();
     this->update_delay_finished_ = ((current_time - this->start_time_) > INITIAL_UPDATE_DELAY);
 
-    if(!this->update_delay_finished_) return;
+    if (!this->update_delay_finished_) return;
 
     // finished delay so clear faults
     if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
@@ -371,19 +361,17 @@ void Tas58xxComponent::enable_dac(bool enable) {
   enable ? this->set_deep_sleep_off_() : this->set_deep_sleep_on_();
 }
 
-// used by 'enable_eq_switch'
-// bool Tas58xxComponent::enable_eq(bool enable) {
-  // #ifdef USE_TAS58XX_EQ
-  // enable ? this->set_eq_(EQ_ON) : this->set_eq_(EQ_OFF);
-  // #endif
-//   return true;
-// }
+// used by select eq mode
+uint8_t Tas58xxComponent::get_configured_eq_mode() {
+  return this->configured_eq_mode_;
+}
 
-void Tas58xxComponent:: eq_mode_select(uint8_t index) {
-  if (index > EqMode::EQ_OFF) {
-    this->set_eq_(this->eq_mode_enum_);
+// used by select eq mode
+void Tas58xxComponent::select_eq_mode(uint8_t select_index) {
+  if (select_index == static_cast<uint_t>(EqMode::EQ_OFF)) {
+    this->set_eq_mode_(EqMode::EQ_OFF);
   } else {
-    this->set_eq_(EQ_OFF);
+    this->set_eq_mode_(this->configured_eq_mode_);
   }
 }
 
@@ -393,19 +381,15 @@ bool Tas58xxComponent::set_eq_preset(EqChannels eq_channel, uint8_t select_prese
     ESP_LOGE(TAG, "Invalid Preset index: %d", select_preset);
     return false;
   }
-  if ((eq_channel + 1) > NUMBER_EQ_CHANNELS) {
-    ESP_LOGE(TAG, "Invalid Channel: %d", eq_channel);
-    return false;
-  }
 
   // EQ Gains initially set by tas58xx number component setups
-  if (!this->refresh_settings_triggered_) {
+  if (!this->refresh_eq_settings_triggered_) {
     ESP_LOGD(TAG, "Saving Preset Channel:%d Preset index >> %d", eq_channel, select_preset);
     this->tas58xx_channel_preset_[eq_channel] = select_preset;
     return true;
   }
 
-  // runs when 'refresh_settings_triggered_' is true
+  // runs when 'refresh_eq_settings_triggered_' is true
 
   ESP_LOGD(TAG, "Set Channel:%d EQ Preset index >> %ddB", eq_channel, select_preset);
 
@@ -462,19 +446,15 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
     ESP_LOGE(TAG, "Invalid %s%d Gain: %ddB", EQ_BAND, band, gain);
     return false;
   }
-  if ((eq_channel + 1) > NUMBER_EQ_CHANNELS) {
-    ESP_LOGE(TAG, "Invalid Channel:%d %s%d Gain: %ddB", eq_channel, EQ_BAND, band, gain);
-    return false;
-  }
 
   // EQ Gains initially set by tas58xx number component setups
-  if (!this->refresh_settings_triggered_) {
+  if (!this->refresh_eq_settings_triggered_) {
     ESP_LOGD(TAG, "Saving Channel:%d %s:%d Gain >> %ddB", eq_channel, EQ_BAND, band, gain);
     this->tas58xx_eq_gain_[eq_channel][band] = gain;
     return true;
   }
 
-  // runs when 'refresh_settings_triggered_' is true
+  // runs when 'refresh_eq_settings_triggered_' is true
 
   ESP_LOGV(TAG, "Set Channel:%d %s:%d Gain >> %ddB", eq_channel, EQ_BAND, band, gain);
 
@@ -507,7 +487,7 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
   }
 
   // write Left channel
-  // if(!this->set_book_and_page_(TAS58XX_EQ_BOOK, eq_address->page)) {
+  // if (!this->set_book_and_page_(TAS58XX_EQ_BOOK, eq_address->page)) {
   //   ESP_LOGE(TAG, "%s%s%d @ page 0x%02X", ERROR, EQ_BAND, band, eq_address->page);
   //   return false;
   // }
@@ -528,17 +508,17 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
 
   // ESP_LOGV(TAG, "Write Channel:%d EQ Band:%d gain:%ddb to page:0x%02X, offset:0x%02X, block1:%d, block2:%d ",eq_channel, band, gain, eq_address->page, eq_address->offset, bytes_in_block1, bytes_in_block2);
 
-  // if(!this->tas58xx_write_bytes_(eq_address->offset, const_cast<uint8_t *>(reg_value->value), bytes_in_block1)) {
+  // if (!this->tas58xx_write_bytes_(eq_address->offset, const_cast<uint8_t *>(reg_value->value), bytes_in_block1)) {
   //   ESP_LOGE(TAG, "%sChannel:%d %s:%d Gain:%ddb offset 0x%02X for %d bytes", ERROR, eq_channel, EQ_BAND, band, gain, eq_address->offset, bytes_in_block1);
   // }
 
   // if (bytes_in_block2 != 0) {
   //   uint8_t next_page = eq_address->page + 1;
-  //   if(!this->set_book_and_page_(TAS58XX_EQ_BOOK, next_page)) {
+  //   if (!this->set_book_and_page_(TAS58XX_EQ_BOOK, next_page)) {
   //     ESP_LOGE(TAG, "%s%s%d @ page 0x%02X", ERROR, EQ_BAND, band, next_page);
   //     return false;
   //   }
-  //   if(!this->tas58xx_write_bytes_(MINIMUM_PAGE_SUBADDR, const_cast<uint8_t *>(reg_value->value + bytes_in_block1), bytes_in_block2)) {
+  //   if (!this->tas58xx_write_bytes_(MINIMUM_PAGE_SUBADDR, const_cast<uint8_t *>(reg_value->value + bytes_in_block1), bytes_in_block2)) {
   //     ESP_LOGE(TAG, "%sChannel:%d %s:%d Gain:%ddb offset 0x%02X for %d bytes", ERROR, eq_channel, EQ_BAND, band, gain, MINIMUM_PAGE_SUBADDR, bytes_in_block2);
   //     return false;
   //   }
@@ -567,13 +547,9 @@ bool Tas58xxComponent::set_channel_gain(EqChannels eq_channel, int8_t gain) {
     ESP_LOGE(TAG, "Invalid Gain for Channel:%d Gain:%ddB", eq_channel, gain);
     return false;
   }
-  if ((eq_channel + 1) > NUMBER_EQ_CHANNELS) {
-    ESP_LOGE(TAG, "Invalid Channel:%d with Gain:%ddB", eq_channel, gain);
-    return false;
-  }
 
   // Channel Gains initially set by tas58xx number component setups
-  if (!this->refresh_settings_triggered_) {
+  if (!this->refresh_eq_settings_triggered_) {
     ESP_LOGD(TAG, "Saving Channel:%d Gain >> %ddB", eq_channel, gain);
     this->tas58xx_channel_gain_[eq_channel] = gain;
     return true;
@@ -581,14 +557,14 @@ bool Tas58xxComponent::set_channel_gain(EqChannels eq_channel, int8_t gain) {
 
   ESP_LOGD(TAG, "Set Channel Gain >> Channel:%d Gain:%ddB", eq_channel, gain);
 
-  if(!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_CHANNEL_GAIN_PAGE)) {
+  if (!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_CHANNEL_GAIN_PAGE)) {
     ESP_LOGE(TAG, "%s Channel Gain: setting book and page", ERROR);
     return false;
   }
 
   int32_t little_endian_9_23 = gain_to_q9_23(gain);
 
-  if(!this->tas58xx_write_bytes_(TAS58XX_CHANNEL_GAIN_OFFSET[eq_channel], reinterpret_cast<uint8_t *>(&little_endian_9_23), 4)) {
+  if (!this->tas58xx_write_bytes_(TAS58XX_CHANNEL_GAIN_OFFSET[eq_channel], reinterpret_cast<uint8_t *>(&little_endian_9_23), 4)) {
     ESP_LOGE(TAG, "%s writing channel gain: Channel:%d Gain:%ddb", ERROR, eq_channel, gain);
   }
 
@@ -617,20 +593,16 @@ bool Tas58xxComponent::set_mute_on() {
 }
 
 // used by 'enable_eq_switch' and 'eq_gain_band16000hz'
-void Tas58xxComponent::refresh_settings() {
-  // if 'this->refresh_settings_triggered_' is true then refresh of settings
+void Tas58xxComponent::refresh_eq_settings() {
+  // if 'refresh_eq_settings_triggered_' is true then refresh of settings
   // has been initiated so no action is required
-  if (this->refresh_settings_triggered_) return;
+  if (this->refresh_eq_settings_triggered_) return;
 
   // triggers 'loop' to configure mixer mode and eq gains
   // allows 'set_eq_gains' to now write eq gains rather than deferring for later setup
-  // 'refresh_settings_triggered_' remains true once refresh of settings has completed
+  // 'refresh_eq_settings_triggered_' remains true once refresh of settings has completed
   // which allows 'set_eq_gains' continue to write eq gains
-  this->refresh_settings_triggered_ = true;
-
-#ifdef USE_TAS58XX_EQ_GAINS
-  ESP_LOGD(TAG, "EQ Refresh triggered");
-#endif
+  this->refresh_eq_settings_triggered_ = true;
   return;
 }
 
@@ -639,14 +611,19 @@ uint32_t Tas58xxComponent::times_faults_cleared() {
   return this->times_faults_cleared_;
 }
 
-// used by 'eq_gain_band16000hz' to determine if it should 'refresh_settings()'
-bool Tas58xxComponent::use_eq_gain_refresh() {
-  return (this->auto_refresh_ == AutoRefreshMode::BY_GAIN);
+// used by 'select eq mode' to determine if it should 'refresh_settings()'
+bool Tas58xxComponent::using_eq_gains() {
+  return this->using_eq_gains_;
 }
 
-// used by 'enable_eq_switch' to determine if it should 'refresh_settings()'
-bool Tas58xxComponent::use_eq_switch_refresh() {
-  return (this->auto_refresh_ == AutoRefreshMode::BY_SWITCH);
+// used by 'eq_gain_band16000hz' to determine if it should 'refresh_settings()'
+bool Tas58xxComponent::using_auto_eq_refresh() {
+  return (this->eq_refresh_ == EqRefreshMode::AUTO);
+}
+
+// used by 'enable_eq_switch' or select to determine if it should 'refresh_settings()'
+bool Tas58xxComponent::using_manual_eq_refresh() {
+  return (this->eq_refresh_ == EqRefreshMode::MANUAL);
 }
 
 float Tas58xxComponent::volume() {
@@ -767,7 +744,7 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
 
 bool Tas58xxComponent::get_digital_volume_(uint8_t* raw_volume) {
   uint8_t current = 254; // lowest raw volume
-  if(!this->tas58xx_read_byte_(TAS58XX_DIG_VOL_CTRL, &current)) return false;
+  if (!this->tas58xx_read_byte_(TAS58XX_DIG_VOL_CTRL, &current)) return false;
   *raw_volume = current;
   return true;
 }
@@ -787,20 +764,19 @@ bool Tas58xxComponent::set_digital_volume_(uint8_t raw_volume) {
 }
 
 
-// return value of protected variable rather than read current mode; does not matter since not currently used
-bool Tas58xxComponent::get_eq_(EqMode* current_mode) {
+bool Tas58xxComponent::get_eq_mode_(EqMode* current_mode) {
   *current_mode = this->tas58xx_eq_mode_;
   return true;
 }
 
-bool Tas58xxComponent::set_eq_(EqMode new_mode) {
-#ifdef USE_TAS58XX_EQ_GAINS
+bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
+#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
   if (this->tas58xx_eq_mode_ == new_mode) return true;
 
   #ifdef USE_TAS5805M_DAC
   if (!this->tas58xx_write_byte_(TAS5805M_DSP_MISC, TAS5805M_CTRL_EQ[new_mode])) return false;
   #else
-   if(!this->set_book_and_page_(TAS5825M_EQ_CTRL_BOOK, TAS5825M_EQ_CTRL_PAGE)) {
+  if (!this->set_book_and_page_(TAS5825M_EQ_CTRL_BOOK, TAS5825M_EQ_CTRL_PAGE)) {
     ESP_LOGE(TAG, "%s on book and page set for EQ control", ERROR);
     return false;
   }
@@ -835,7 +811,7 @@ uint8_t Tas58xxComponent::get_mixer_mode() {
 bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
   // save until eq refresh is triggered
 
-  if (!this->refresh_settings_triggered_) {
+  if (!this->refresh_eq_settings_triggered_) {
      ESP_LOGD(TAG, "saving %s >> %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
      this->tas58xx_mixer_mode_ = mode;
      return true;
@@ -884,7 +860,7 @@ bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
       return false;
   }
 
-  if(!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_MIXER_GAIN_PAGE)) {
+  if (!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_MIXER_GAIN_PAGE)) {
     ESP_LOGE(TAG, "%s begin Set %s", ERROR, MIXER_MODE);
     return false;
   }
@@ -1015,7 +991,7 @@ bool Tas58xxComponent::write_biquad_coefficients_(uint8_t page, uint8_t sub_addr
   uint8_t bytes_in_block2{0};
 
   // write biquad page
-  if(!this->set_book_and_page_(TAS58XX_EQ_BOOK, page)) {
+  if (!this->set_book_and_page_(TAS58XX_EQ_BOOK, page)) {
     ESP_LOGE(TAG, "%s setting EQ book @ Page:0x%02X", ERROR, page);
     return false;
   }

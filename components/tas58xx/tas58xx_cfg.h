@@ -29,20 +29,21 @@ namespace esphome::tas58xx {
     RIGHT_2_RIGHT_GAIN,
   };
 
-  enum EqMode : uint8_t {
-    EQ_OFF = 0,
-    EQ_ON = 1,
-    EQ_15BAND_ON = 1,
-    EQ_BIAMP_ON = 2,
+  enum EqChannels : uint8_t {
+	  LEFT_CHANNEL  = 0,
+		RIGHT_CHANNEL,
   };
 
-  enum EqChannels : uint8_t {
-	  LEFT_CHANNEL = 0,
-		RIGHT_CHANNEL = 1,
+  enum EqMode : uint8_t {
+    EQ_OFF        = 0,
+    EQ_ON         = 1,
+    EQ_15BAND_ON  = 1,
+    EQ_BIAMP_ON   = 2,
+    EQ_PRESETS_ON = 3,
   };
 
   static const char* const MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
-  static const char* const EQ_MODE_TEXT[]   = {"Off", "EQ 15 Band", "EQ BIAMP"};
+  static const char* const EQ_MODE_TEXT[]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
 
   struct Tas58xxConfiguration {
     uint8_t offset;
@@ -97,17 +98,18 @@ namespace esphome::tas58xx {
   static const uint8_t TAS58XX_FAULT_CLEAR           = 0x78;
   static const uint8_t TAS58XX_ANALOG_FAULT_CLEAR    = 0x80;
 
-  // EQ constants
+  // EQ constants equivalent to the indexes of the eq_modes
+  // Off=Bypass EQ On + Ganged On; EQ 15 Band=Bypass EQ Off + Ganged On; EQ BIAMP 15 Band and EQ Presets=Bypass EQ Off + Ganged Off
   #ifdef USE_TAS5805M_DAC
-  static const uint8_t   TAS5805M_CTRL_EQ[]           = {0b0111, 0b0110, 0b1110};
+  static const uint8_t   TAS5805M_CTRL_EQ[]           = {0b0111, 0b0110, 0b1110, 0b1110};
   #else
   static const uint8_t   TAS5825M_EQ_CTRL_BOOK        = 0x8C;
   static const uint8_t   TAS5825M_EQ_CTRL_PAGE        = 0x0B;
   static const uint8_t   TAS5825M_GANG_EQ             = 0x28;
   static const uint8_t   TAS5825M_BYPASS_EQ           = 0x2C;
 
-  static const uint32_t  TAS5825M_CTRL_BYPASS_EQ[]    = {0x00000001, 0x00000000, 0x00000000}; // 0x00000000 Bypass EQ = false ie EQ enabled
-  static const uint32_t  TAS5825M_CTRL_GANGED_EQ[]    = {0x00000001, 0x00000001, 0x00000000}; // 0x00000001 EQ Ganged ie L/R channel common coefficients
+  static const uint32_t  TAS5825M_CTRL_BYPASS_EQ[]    = {0x00000001, 0x00000000, 0x00000000, 0x00000000}; // 0x00000000 Bypass EQ = false ie EQ enabled
+  static const uint32_t  TAS5825M_CTRL_GANGED_EQ[]    = {0x00000001, 0x00000001, 0x00000000, 0x00000000}; // 0x00000001 EQ Ganged ie L/R channel common coefficients
   #endif
 
   // Level meter constants
