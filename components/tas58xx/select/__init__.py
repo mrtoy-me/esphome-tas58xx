@@ -25,14 +25,18 @@ PLATFORM_TAS58XX = "tas58xx"
 LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
 
 def validate_eq_presets(config):
+    have_select_eq_mode = CONF_EQ_MODE in config
     have_eq_preset_left = CONF_EQ_PRESET_LEFT_CHANNEL in config
     have_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
 
     if (have_eq_preset_left and not have_eq_preset_right):
-        raise cv.Invalid("channel_gain_right must configured with channel_gain_left - add channel_gain_right to configuration")
+        raise cv.Invalid("Select channel_gain_right must configured with channel_gain_left - add channel_gain_right to configuration")
 
     if (have_eq_preset_right and not have_eq_preset_left):
-        raise cv.Invalid("channel_gain_left must configured with channel_gain_right - add channel_gain_left to configuration")
+        raise cv.Invalid("Select channel_gain_left must configured with channel_gain_right - add channel_gain_left to configuration")
+
+    if (have_select_eq_mode and (not have_eq_preset_left or not have_eq_preset_right)):
+         raise cv.Invalid("Select eq_mode must configured with both left and right eq_presets")
 
     return config
 
@@ -61,6 +65,7 @@ CONFIG_SCHEMA = cv.Schema(
 def _final_validate(config):
     have_defined_tas58xx_number_eq_gain = False
 
+    have_select_eq_mode = CONF_EQ_MODE in config
     have_defined_tas58xx_select_eq_preset = (CONF_EQ_PRESET_LEFT_CHANNEL in config)
 
     full_conf = fv.full_config.get()
@@ -73,6 +78,10 @@ def _final_validate(config):
 
     if (have_defined_tas58xx_select_eq_preset and have_defined_tas58xx_number_eq_gain):
         raise cv.Invalid("Select eq_presets are not allowed with Number left_eq_gains and right_eq_gains - remove one set of those configurations")
+
+    if (not have_select_eq_mode and have_defined_tas58xx_number_eq_gain):
+        raise cv.Invalid("Select eq_mode is required with Number left_eq_gains")
+
     return config
 
 FINAL_VALIDATE_SCHEMA = _final_validate

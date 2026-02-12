@@ -16,7 +16,7 @@ void EqPresetLeftSelect::setup() {
   if (!this->pref_.load(&restored_index)) {
     restored_index = 0;
   }
-
+  
   this->publish_state(restored_index);
   this->parent_->set_eq_preset(EqChannels::LEFT_CHANNEL, static_cast<uint8_t>(restored_index));
 }

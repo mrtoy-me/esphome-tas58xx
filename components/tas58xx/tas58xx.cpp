@@ -76,7 +76,7 @@ bool Tas58xxComponent::configure_registers_() {
   // only setup once here
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
 
-  // note: setup of mixer mode deferred to 'loop' once 'refresh_settings' runs
+  // note: setup of mixer mode deferred to 'loop'
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
@@ -89,32 +89,33 @@ bool Tas58xxComponent::configure_registers_() {
 
 void Tas58xxComponent::loop() {
   // 'play_file' is initiated by YAML on_boot with priority 220.0f
-  // 'refresh_settings' is set by 'eq_gainband16000hz' or 'enable_eq_switch' (defined by YAML)
-  // both have setup priority AFTER_CONNECTION = 100.0f
-  // once tas58xx has detected i2s clock then mixer mode and eq gains settings
-  // can be written within 'loop'
+  // 'refresh_eq_settings' is triggered by Number 'left_eq_gain_16000hz' or right_eq_gain_16000hz or Select 'eq_mode'
+  // each with setup priority AFTER_CONNECTION = 100.0f
+  // when tas58xx has detected i2s clock then EQ settings can be written within 'loop'
 
-  // ***** Check if EQ settings setup is finished               ******
-  // disable 'loop' once all eq gains have been written
-  if (this->eq_settings_refresh_complete_) {
-    this->disable_loop(); // requires Esphome 2025.7.0
-    return;
-  }
-  // ***** Wait for Refresh EQ settings to be trigger           ******
-  // check each loop until triggered
-  if (!this->refresh_eq_settings_triggered_) return;
+  // initially eq_setup_stage_ = WAITING_FOR_TRIGGER
 
-  // ***** Refresh eq settings has been triggered               ******
-  // ***** now wait 'DELAY_LOOPS' before proceeding to EQ setup ******
-  // ensures on boot sound has played and tas58xx has detected i2s clock
-  if (this->loop_counter_ < DELAY_LOOPS) {
-    this->loop_counter_++;
-    return;
+  // ***** Wait for Refresh EQ settings trigger
+  if (this->refresh_eq_settings_triggered_) {
+    this->eq_setup_stage_ = EqSetupStage::RUN_DELAY_LOOP;
+    this->refresh_eq_settings_triggered_ = false;
   }
 
-  // ***** Delay is finished so now start EQ setup EQ           ******
-  // ***** set mixer and channel gains if not already done      ******
-  if (!this->mixer_mode_configured_) {
+  if (this->eq_setup_stage_ == EqSetupStage::WAIT_FOR_TRIGGER) return;
+
+  // ***** Refresh eq settings has triggered, now wait 'DELAY_LOOPS'
+  // wait ensures on boot sound has played and tas58xx has detected i2s clock
+  if (this->eq_setup_stage_ == EqSetupStage::RUN_DELAY_LOOP) {
+    if (this->loop_counter_ < DELAY_LOOPS) {
+      this->loop_counter_++;
+      return;
+    } else {
+      this->eq_setup_stage_ = EqSetupStage::SETUP_EQ_MIXER;
+    }
+  }
+
+  // ***** Setup Mixer Gains
+  if (this->eq_setup_stage_ == EqSetupStage::SETUP_EQ_MIXER) {
     ESP_LOGD(TAG, "Configuring Mixer Mode");
     if (!this->set_mixer_mode(this->tas58xx_mixer_mode_)) {
       // show warning but continue as if mixer mode was set ok
@@ -124,79 +125,80 @@ void Tas58xxComponent::loop() {
     #ifdef USE_TAS58XX_CHANNEL_GAINS
     ESP_LOGD(TAG, "Configuring Channel Gains");
     if (!this->set_channel_gain(LEFT_CHANNEL, this->tas58xx_channel_gain_[LEFT_CHANNEL])) {
-      // show warning but continue as if eq gain was set ok
+      // show warning but continue as if left channel gain was set ok
       ESP_LOGW(TAG, "%sconfiguring Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[LEFT_CHANNEL]);
     }
 
     if (!this->set_channel_gain(RIGHT_CHANNEL, this->tas58xx_channel_gain_[RIGHT_CHANNEL])) {
-    // show warning but continue as if eq gain was set ok
-    ESP_LOGW(TAG, "%sconfiguring Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[RIGHT_CHANNEL]);
+      // show warning but continue as if right channel gain was set ok
+      ESP_LOGW(TAG, "%sconfiguring Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[RIGHT_CHANNEL]);
     }
     #endif
 
-    this->mixer_mode_configured_ = true;
+    #ifdef USE_TAS58XX_EQ_GAINS
+    this->eq_setup_stage_ = EqSetupStage::SETUP_EQ_GAINS;
+    #endif
 
-    // if eq gains have not been configured in YAML
-    // then once mixer mode is set, the refresh of settings is complete
-    // otherwise next loop start configuring eq_gains
-    if (!this->using_eq_gains_) {
-      this->eq_settings_refresh_complete_ =  true;
+    #ifdef USE_TAS58XX_EQ_PRESETS
+    this->eq_setup_stage_ = EqSetupStage::SETUP_EQ_PRESETS;
+    #endif
+
+    // if eq_setup_stage_ has not changed then no EQ to setup
+    if (this->eq_setup_stage_ == EqSetupStage::SETUP_EQ_MIXER) this->eq_setup_stage_ = EqSetupStage::EQ_SETUP_COMPLETE;
+    return;
+  }
+
+  // ***** Setup EQ Gains
+  // write gains one eq band per 'loop' so component does not take too long in 'loop'
+  if (this->eq_setup_stage_ == EqSetupStage::SETUP_EQ_GAINS) {
+    if (this->refresh_band_ == NUMBER_EQ_BANDS) {
+      // finished writing all gains
+      this->eq_setup_stage_ = EqSetupStage::EQ_SETUP_COMPLETE;
+      this->refresh_band_ = 0;
       return;
     }
 
-    // start writing eq gains next 'loop'
-    return;
-  }
+    // write gains of current band and increment to next band ready for when loop next runs
+    ESP_LOGD(TAG, "CONFIGURE Left Channel EQ Band %d Gain", this->refresh_band_);
+    if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
+      // show warning but continue as if eq gain was set ok
+      #ifdef USE_TAS58XX_EQ_BIAMP
+      ESP_LOGW(TAG, "%sconfiguring Left EQ Band %d Gain", ERROR, this->refresh_band_);
+      #else
+      ESP_LOGW(TAG, "%sconfiguring EQ Band %d Gain", ERROR, this->refresh_band_);
+      #endif
+    }
 
-  // ***** start configuring EQ Gains *****
-
-#ifdef USE_TAS58XX_EQ_GAINS
-  // write gains for all eq bands when triggered by boolean 'refresh_eq_settings_triggered_'
-  // write gains one eq band per 'loop' so component does not take too long in 'loop'
-
-  if (this->refresh_band_ == NUMBER_EQ_BANDS) {
-    // finished writing all gains
-    this->eq_settings_refresh_complete_ = true;
-    this->refresh_band_ = 0;
-    //this->loop_counter_ = 0;
-    return;
-  }
-
-  // write gains of current band and increment to next band ready for when loop next runs
-  ESP_LOGD(TAG, "Configuring Left Channel EQ Band %d Gain", this->refresh_band_);
-  if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
-    // show warning but continue as if eq gain was set ok
     #ifdef USE_TAS58XX_EQ_BIAMP
-    ESP_LOGW(TAG, "%sconfiguring Left EQ Band %d Gain", ERROR, this->refresh_band_);
-    #else
-    ESP_LOGW(TAG, "%sconfiguring EQ Band %d Gain", ERROR, this->refresh_band_);
+    // write gains of current band and increment to next band ready for when loop next runs
+    ESP_LOGD(TAG, "Configuring Right Channel EQ Band %d Gain", this->refresh_band_);
+    if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
+      // show warning but continue as if eq gain was set ok
+      ESP_LOGW(TAG, "%sconfiguring Right EQ Band %d Gain", ERROR, this->refresh_band_);
+    }
     #endif
+
+    this->refresh_band_++;
   }
 
-  #ifdef USE_TAS58XX_EQ_BIAMP
-  // write gains of current band and increment to next band ready for when loop next runs
-  ESP_LOGD(TAG, "Configuring Right Channel EQ Band %d Gain", this->refresh_band_);
-  if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
-    // show warning but continue as if eq gain was set ok
-    ESP_LOGW(TAG, "%sconfiguring Right EQ Band %d Gain", ERROR, this->refresh_band_);
+  // ***** Setup EQ Presets
+  if (this->eq_setup_stage_ == EqSetupStage::SETUP_EQ_PRESETS)
+    ESP_LOGD(TAG, "Configuring Channel Presets");
+    if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
+      ESP_LOGW(TAG, "%sconfiguring Left Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
+    }
+    if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
+      ESP_LOGW(TAG, "%sconfiguring Right Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
+    }
+    this->eq_setup_stage_ = EqSetupStage::EQ_SETUP_COMPLETE;
+    return;
   }
-  #endif
 
-  this->refresh_band_++;
-#endif
-
-#ifdef USE_TAS58XX_EQ_PRESETS
-   ESP_LOGD(TAG, "Configuring Channel Presets");
-   if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
-    ESP_LOGW(TAG, "%sconfiguring Left Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
-   }
-   if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
-     ESP_LOGW(TAG, "%sconfiguring Right Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
-   }
-   this->eq_settings_refresh_complete_ = true;
-#endif
-
-  return;
+  // ***** EQ settings setup completed so 'loop' can be disabled
+  if (this->eq_setup_stage_ == EqSetupStage::EQ_SETUP_COMPLETE) {
+    this->disable_loop(); // requires Esphome 2025.7.0
+    return;
+  }
 }
 
 void Tas58xxComponent::update() {

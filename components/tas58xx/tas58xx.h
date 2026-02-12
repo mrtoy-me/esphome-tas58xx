@@ -26,6 +26,15 @@ enum ExcludeIgnoreMode : uint8_t {
     CLOCK_FAULT = 1,
 };
 
+enum EqSetupStage uint8_t {
+    WAIT_FOR_TRIGGER = 0,
+    RUN_DELAY_LOOP,
+    SETUP_EQ_MIXER,
+    SETUP_EQ_GAINS,
+    SETUP_EQ_PRESETS,
+    EQ_SETUP_COMPLETE,
+};
+
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
   void setup() override;
@@ -244,7 +253,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used for counting number of 'loops' iterations for delay of starting 'loop'
    uint8_t loop_counter_{0};
 
-  EqMode eq_mode_enum_{EqMode::EQ_OFF};
+  EqSetupStage eq_setup_stage_{EqSetupStage::WAITING_FOR_TRIGGER}
 
    // number tas58xx registers configured during 'setup'
    uint16_t number_registers_configured_{0};
