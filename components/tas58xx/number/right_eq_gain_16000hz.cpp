@@ -15,7 +15,7 @@ void RightEqGain16000hz::setup() {
 #ifdef USE_TAS58XX_EQ_GAINS
   #ifdef USE_TAS58XX_EQ_BIAMP
   // if YAML configured auto_fresh: EQ_GAIN which is default then trigger refresh_settings
-  if(this->parent_->using_auto_refresh()) {
+  if(this->parent_->using_auto_eq_refresh()) {
     this->parent_->refresh_eq_settings();
     ESP_LOGD(TAG, "Right EQ Gain Number Setup triggered EQ settings refresh");
   }

@@ -16,18 +16,21 @@ void EqModeSelect::setup() {
 
   size_t initial_select_index = EqMode::EQ_OFF;
 
-  if (this->parent_->using_eq_gains()) {
-    // if auto eq refresh then trigger eq refresh now and selct Eq Mode
-    if(this->parent_->using_auto_eq_refresh()) {
-      initial_select_index = EqMode::EQ_ON;
-      this->parent_->refresh_eq_settings();
-      ESP_LOGD(TAG, "EQ Mode Select Setup triggered EQ settings refresh");
-    }
-    // if manual then set trigger for transition from Off to Eq Mode
-    if(this->parent_->using_manual_eq_refresh()) {
-      initial_select_index = EqMode::EQ_OFF;
-      this->trigger_refresh_settings_ = true;
-    }
+#ifdef USE_TAS58XX_EQ_PRESETS
+  if (this->parent_->using_auto_eq_refresh()) {
+    this->parent_->refresh_eq_settings();
+    ESP_LOGD(TAG, "EQ Mode Select Setup triggered EQ settings refresh");
+  }
+#endif
+
+  if (this->parent_->is_eq_configured()) {
+    initial_select_index = EqMode::EQ_ON;
+  }
+
+  // if manual eq refresh - start with Select EQ OFF and set trigger for transition from Off to Eq Mode
+  if(this->parent_->using_manual_eq_refresh()) {
+    initial_select_index = EqMode::EQ_OFF;
+    this->trigger_refresh_settings_ = true;
   }
 
   // based on select options enum (index) which was derived from YAML configuration

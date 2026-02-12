@@ -26,7 +26,7 @@ enum ExcludeIgnoreMode : uint8_t {
     CLOCK_FAULT = 1,
 };
 
-enum EqSetupStage uint8_t {
+enum EqSetupStage : uint8_t {
     WAIT_FOR_TRIGGER = 0,
     RUN_DELAY_LOOP,
     SETUP_EQ_MIXER,
@@ -111,7 +111,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   uint32_t times_faults_cleared();
 
-  bool using_eq_gains();
+  bool is_eq_configured();
 
   bool using_auto_eq_refresh();
   bool using_manual_eq_refresh();
@@ -224,10 +224,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used by 'loop'
    bool mixer_mode_configured_{false};
 
-   // only ever changed to true once when 'loop' has completed refreshing settings
-   // used to trigger disabling of 'loop'
-   bool eq_settings_refresh_complete_{false};
-
    // only ever changed to true once to trigger 'refresh_settings()'
    // when true 'set_eq_gains' is allowed to write eq gains
    // when 'eq_settings_refresh_complete_' is false and 'refresh_eq_settings_triggered_' is true
@@ -237,11 +233,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // use to indicate if delay before starting 'update' starting is complete
    bool update_delay_finished_{false};
 
-   // are eq gain numbers configured in YAML
    #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
-   bool using_eq_gains_{true};
+   bool eq_configured_{true};
    #else
-   bool using_eq_gains_{false};
+   bool eq_configured_{false};
    #endif
 
    // eq band currently being refreshed
@@ -253,7 +248,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used for counting number of 'loops' iterations for delay of starting 'loop'
    uint8_t loop_counter_{0};
 
-  EqSetupStage eq_setup_stage_{EqSetupStage::WAITING_FOR_TRIGGER}
+  EqSetupStage eq_setup_stage_{EqSetupStage::WAIT_FOR_TRIGGER};
 
    // number tas58xx registers configured during 'setup'
    uint16_t number_registers_configured_{0};

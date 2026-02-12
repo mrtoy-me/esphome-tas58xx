@@ -29,14 +29,14 @@ def validate_eq_presets(config):
     have_eq_preset_left = CONF_EQ_PRESET_LEFT_CHANNEL in config
     have_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
 
-    if (have_eq_preset_left and not have_eq_preset_right):
-        raise cv.Invalid("Select channel_gain_right must configured with channel_gain_left - add channel_gain_right to configuration")
+    if have_eq_preset_left and not have_eq_preset_right:
+        raise cv.Invalid("Select channel_gain_right must configured with channel_gain_left - add configuration for Number channel_gain_right")
 
-    if (have_eq_preset_right and not have_eq_preset_left):
-        raise cv.Invalid("Select channel_gain_left must configured with channel_gain_right - add channel_gain_left to configuration")
+    if have_eq_preset_right and not have_eq_preset_left:
+        raise cv.Invalid("Select channel_gain_left must configured with channel_gain_right - add configuration for Number channel_gain_left")
 
-    if (have_select_eq_mode and (not have_eq_preset_left or not have_eq_preset_right)):
-         raise cv.Invalid("Select eq_mode must configured with both left and right eq_presets")
+    if not have_select_eq_mode and (have_eq_preset_left or have_eq_preset_right):
+         raise cv.Invalid("Select eq_mode must configured with both left and right eq_presets - add configuration for Select eq_mode")
 
     return config
 
@@ -80,7 +80,7 @@ def _final_validate(config):
         raise cv.Invalid("Select eq_presets are not allowed with Number left_eq_gains and right_eq_gains - remove one set of those configurations")
 
     if (not have_select_eq_mode and have_defined_tas58xx_number_eq_gain):
-        raise cv.Invalid("Select eq_mode is required with Number left_eq_gains")
+        raise cv.Invalid("Select eq_mode is required with Number left_eq_gains - add configuration for Select eq_mode")
 
     return config
 
