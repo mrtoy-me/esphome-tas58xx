@@ -13,7 +13,7 @@ class EqPresetRightSelect : public select::Select, public Component, public Pare
 public:
   void setup() override;
   void dump_config() override;
-  float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
+  float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
 
 protected:
   ESPPreferenceObject pref_;

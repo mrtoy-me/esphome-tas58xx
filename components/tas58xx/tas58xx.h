@@ -83,16 +83,16 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   uint8_t get_configured_eq_mode();
 
-  void select_eq_mode(uint8_t select_index);
-
-  bool set_eq_preset(EqChannels eq_channel, uint8_t select_preset);
-
   uint8_t get_mixer_mode();
   bool set_mixer_mode(MixerMode mode);
 
+  bool set_channel_gain(EqChannels eq_channel, int8_t gain);
+
+  void select_eq_mode(uint8_t select_index);
+
   bool set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t gain);
 
-  bool set_channel_gain(EqChannels eq_channel, int8_t gain);
+  bool set_eq_preset(EqChannels eq_channel, uint8_t select_preset);
 
   bool is_muted() override { return this->is_muted_; }
   bool set_mute_off() override;
@@ -127,10 +127,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool get_digital_volume_(uint8_t* raw_volume);
    bool set_digital_volume_(uint8_t new_volume);
 
-   void get_eq_mode(EqMode* current_mode);
-   bool set_eq_mode(EqMode new_mode)
+   bool get_eq_mode_(EqMode* current_mode);
+   bool set_eq_mode_(EqMode new_mode);
 
-   int32_t gain_to_q9_23(int8_t gain);
+   int32_t gain_to_q9_23_(int8_t gain);
 
    bool get_state_(ControlState* state);
    bool set_state_(ControlState state);
@@ -217,11 +217,11 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // only ever changed to true once when 'loop' has completed refreshing settings
    // used to trigger disabling of 'loop'
-   bool refresh_settings_complete_{false};
+   bool eq_settings_refresh_complete_{false};
 
    // only ever changed to true once to trigger 'refresh_settings()'
    // when true 'set_eq_gains' is allowed to write eq gains
-   // when 'refresh_settings_complete_' is false and 'refresh_eq_settings_triggered_' is true
+   // when 'eq_settings_refresh_complete_' is false and 'refresh_eq_settings_triggered_' is true
    // 'loop' will write mixer mode and if setup in YAML, also eq gains
    bool refresh_eq_settings_triggered_{false};
 

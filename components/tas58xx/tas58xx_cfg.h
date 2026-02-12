@@ -44,6 +44,7 @@ namespace esphome::tas58xx {
 
   static const char* const MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
   static const char* const EQ_MODE_TEXT[]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
+  static const char* const EQ_CHANNEL_TEXT[] = {"Left", "Right"};
 
   struct Tas58xxConfiguration {
     uint8_t offset;

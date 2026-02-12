@@ -21,6 +21,7 @@ void EqModeSelect::setup() {
     if(this->parent_->using_auto_eq_refresh()) {
       initial_select_index = EqMode::EQ_ON;
       this->parent_->refresh_eq_settings();
+      ESP_LOGD(TAG, "EQ Mode Select Setup triggered EQ settings refresh");
     }
     // if manual then set trigger for transition from Off to Eq Mode
     if(this->parent_->using_manual_eq_refresh()) {
@@ -64,8 +65,8 @@ void EqModeSelect::control(size_t index) {
   // if 'refresh_settings' has somehow been already been called somewhere else
   // it does not matter as'parent_->refresh_settings()' will only run once
   if (index > EqMode::EQ_OFF) {
-    ESP_LOGD(TAG, "Triggering refresh settings");
-    this->parent_->refresh_settings();
+    ESP_LOGD(TAG, "EQ Mode Select manually triggered EQ settings refresh");
+    this->parent_->refresh_eq_settings();
     this->trigger_refresh_settings_ = false;
   }
 }

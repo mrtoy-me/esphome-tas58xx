@@ -15,7 +15,7 @@ class EqModeSelect : public select::Select, public Component, public Parented<Ta
 public:
   void setup() override;
   void dump_config() override;
-  float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
+  float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
 
 protected:
   bool trigger_refresh_settings_{false};
