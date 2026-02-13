@@ -88,6 +88,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   }
   #endif
 
+  uint8_t get_eq_mode_enum() { return this->eq_mode_enum_; }
+  uint8_t get_mixer_mode_();
+
   void enable_dac(bool enable);
 
   uint8_t get_configured_eq_mode();
