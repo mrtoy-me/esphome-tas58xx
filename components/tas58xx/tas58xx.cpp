@@ -469,10 +469,6 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
     ESP_LOGE(TAG, "Invalid %s%d Gain: %ddB", EQ_BAND, band, gain);
     return false;
   }
-  if ((eq_channel + 1) > NUMBER_EQ_CHANNELS) {
-    ESP_LOGE(TAG, "Invalid Channel:%d %s%d Gain: %ddB", eq_channel, EQ_BAND, band, gain);
-    return false;
-  }
 
   if (this->eq_setup_stage_ < EqSetupStage::SETUP_EQ_GAINS) {
     ESP_LOGD(TAG, "Save %s Channel %s:%d Gain >> %ddB", EQ_CHANNEL_TEXT[eq_channel], EQ_BAND, band, gain);
@@ -559,54 +555,6 @@ bool Tas58xxComponent::set_channel_gain(EqChannels eq_channel, int8_t gain) {
   return true;
 #endif
 }
-
-
-#ifdef USE_TAS58XX_EQ
-int32_t Tas58xxComponent::gain_to_q9_23(int8_t gain) {
-  float linear = powf(10.0f, ((float)gain) / 20.0f);
-  if (linear > TAS58XX_LINEAR_GAIN_MAX) linear = TAS58XX_LINEAR_GAIN_MAX;
-  if (linear < TAS58XX_LINEAR_GAIN_MIN) linear = TAS58XX_LINEAR_GAIN_MIN;
-
-  int32_t fixed_q9_23 = static_cast<int32_t>(linear * (1 << 23));
-  int32_t little_endian = byteswap(fixed_q9_23);
-
-  ESP_LOGV(TAG, "Gain:%ddb  = Fixed 9.23 >> 0x%08X : Convert Endian >> 0x%08X", gain, fixed_q9_23, little_endian);
-  return little_endian;
-}
-
-bool Tas58xxComponent::set_channel_gain(EqChannels eq_channel, int8_t gain) {
-  if (gain < TAS58XX_CHANNEL_GAIN_MIN_DB || gain > TAS58XX_CHANNEL_GAIN_MAX_DB) {
-    ESP_LOGE(TAG, "Invalid Gain for Channel:%d Gain:%ddB", eq_channel, gain);
-    return false;
-  }
-  if ((eq_channel + 1) > NUMBER_EQ_CHANNELS) {
-    ESP_LOGE(TAG, "Invalid Channel:%d with Gain:%ddB", eq_channel, gain);
-    return false;
-  }
-
-  // Channel Gains initially set by tas58xx number component setups
-  if (!this->refresh_settings_triggered_) {
-    ESP_LOGD(TAG, "Saving Channel:%d Gain >> %ddB", eq_channel, gain);
-    this->tas58xx_channel_gain_[eq_channel] = gain;
-    return true;
-  }
-
-  ESP_LOGD(TAG, "Set Channel Gain >> Channel:%d Gain:%ddB", eq_channel, gain);
-
-  if(!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_CHANNEL_GAIN_PAGE)) {
-    ESP_LOGE(TAG, "%sChannel Gain: setting book and page");
-    return false;
-  }
-
-  int32_t little_endian_9_23 = gain_to_q9_23(gain);
-
-  if(!this->tas58xx_write_bytes_(TAS58XX_CHANNEL_GAIN_OFFSET[eq_channel], reinterpret_cast<uint8_t *>(&little_endian_9_23), 4)) {
-    ESP_LOGE(TAG, "%s writing channel gain: Channel:%d Gain:%ddb", ERROR, eq_channel, gain);
-  }
-
-  return this->set_book_and_page_(TAS58XX_REG_BOOK_CONTROL_PORT, TAS58XX_REG_PAGE_ZERO);
-}
-#endif
 
 bool Tas58xxComponent::set_mute_off() {
   if (!this->is_muted_) return true;
