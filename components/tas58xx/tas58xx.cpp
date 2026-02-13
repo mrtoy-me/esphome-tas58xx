@@ -1,6 +1,7 @@
 #include "tas58xx.h"
 #include "tas58xx_minimal.h"
 #include "esphome/core/log.h"
+#include "esphome/core/application.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/hal.h"
 #include <cmath>
@@ -83,7 +84,7 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_state_(CTRL_PLAY)) return false;
 
   // initialise to now
-  this->start_time_ = millis();
+  this->start_time_ = App.get_loop_component_start_time();
   return true;
 }
 
@@ -205,7 +206,7 @@ void Tas58xxComponent::loop() {
 void Tas58xxComponent::update() {
   // initial delay before proceeding with updates
   if (!this->update_delay_finished_) {
-    uint32_t current_time = millis();
+    const uint32_t current_time = App.get_loop_component_start_time();
     this->update_delay_finished_ = ((current_time - this->start_time_) > INITIAL_UPDATE_DELAY);
 
     if (!this->update_delay_finished_) return;
