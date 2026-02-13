@@ -1,6 +1,5 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-import esphome.final_validate as fv
 from esphome.core import CORE
 from esphome.components import i2c
 from esphome.components.audio_dac import AudioDac
@@ -16,7 +15,6 @@ from esphome.const import (
 CODEOWNERS = ["@mrtoy-me"]
 DEPENDENCIES = ["i2c"]
 
-# yaml configuration constants
 CONF_ANALOG_GAIN = "analog_gain"
 CONF_AUDIO_DAC = "audio_dac"
 CONF_DAC_MODE = "dac_mode"
@@ -28,31 +26,23 @@ CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 
-# used for looking through CORE.config to derive eq configuration
 NUMBER_COMPONENT= "number"
 SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
 LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
 RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
-EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
+BIAMP_PRESETS = "biamp_presets"
 
-# eq mode enum and select index values
-EQ_OFF = 0
-EQ_15BAND = 1
-EQ_BIAMP = 2
-EQ_PRESETS = 3
-
-# i2c addresses of dac models
 TAS5805M_I2C_ADDR = 0x2D
 TAS5825M_I2C_ADDR = 0x4C
 
 tas58xx_ns = cg.esphome_ns.namespace("tas58xx")
 Tas58xxComponent = tas58xx_ns.class_("Tas58xxComponent", AudioDac, cg.PollingComponent, i2c.I2CDevice)
 
-EqRefreshMode = tas58xx_ns.enum("EqRefreshMode")
-EQ_REFRESH_MODES = {
-     "AUTO"  : EqRefreshMode.AUTO,
-     "MANUAL": EqRefreshMode.MANUAL,
+AutoRefreshMode = tas58xx_ns.enum("AutoRefreshMode")
+AUTO_REFRESH_MODES = {
+     "BY_GAIN"  : AutoRefreshMode.BY_GAIN,
+     "BY_SWITCH": AutoRefreshMode.BY_SWITCH,
 }
 
 TasDac = tas58xx_ns.enum("TasDac")
@@ -92,7 +82,6 @@ def validate_config(config):
         raise cv.Invalid("volume_max must at least 9db greater than volume_min")
     return config
 
-
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
@@ -113,8 +102,8 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_MIXER_MODE, default="STEREO"): cv.enum(
                         MIXER_MODES, upper=True
             ),
-            cv.Optional(CONF_REFRESH_EQ, default="AUTO"): cv.enum(
-                        EQ_REFRESH_MODES, upper=True
+            cv.Optional(CONF_REFRESH_EQ, default="BY_GAIN"): cv.enum(
+                        AUTO_REFRESH_MODES, upper=True
             ),
             cv.Optional(CONF_VOLUME_MAX, default="24dB"): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
@@ -134,6 +123,7 @@ def left_eq_gain_exists():
     all_numbers = CORE.config.get(NUMBER_COMPONENT, [])
     for num in all_numbers:
         if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            # Check if left_eq_gain key exists in this tas58xx config
             if LEFT_EQ_GAIN_20HZ in num:
                 return True
 
@@ -143,30 +133,30 @@ def right_eq_gain_exists():
     all_numbers = CORE.config.get(NUMBER_COMPONENT, [])
     for num in all_numbers:
         if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            # Check if right_eq_gain key exists in this tas58xx config
             if RIGHT_EQ_GAIN_20HZ in num:
                 return True
 
     return False
 
-def select_eq_presets_exists():
+def select_biamp_presets_exists():
     all_select = CORE.config.get(SELECT_COMPONENT, [])
-    for select in all_select:
-        if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            if EQ_PRESET_LEFT_CHANNEL in select:
+    for num in all_select:
+        if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            # Check if right_eq_gain key exists in this tas58xx config
+            if BIAMP_PRESETS in num:
                 return True
 
     return False
 
 async def to_code(config):
-    derived_eq_mode_configuration = EQ_OFF
-    if right_eq_gain_exists():
-        derived_eq_mode_configuration  = EQ_BIAMP
-    else:
-      if left_eq_gain_exists():
-          derived_eq_mode_configuration = EQ_15BAND
-      else:
-        if select_eq_presets_exists():
-            derived_eq_mode_configuration = EQ_PRESETS
+    derived_eq_mode_enum= 0
+    if left_eq_gain_exists():
+        derived_eq_mode_enum = 1
+        if right_eq_gain_exists():
+            derived_eq_mode_enum  = 2
+        # if select_biamp_presets_exists():
+        #     derived_eq_mode_enum = 3
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
     if tas58xx_dac == "TAS5825M":
@@ -184,7 +174,7 @@ async def to_code(config):
     cg.add(var.config_refresh_eq(config[CONF_REFRESH_EQ]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
-    cg.add(var.config_eq_mode(derived_eq_mode_configuration))
+    cg.add(var.set_eq_mode_enum(derived_eq_mode_enum))
 
     if config[CONF_DAC_MODE] == "PBTL":
         cg.add_define("USE_DAC_MODE_PBTL")
