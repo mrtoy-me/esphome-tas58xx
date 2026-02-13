@@ -23,15 +23,15 @@ void MixerModeSelect::setup() {
   // load saved mixer mode index
   this->pref_ = this->make_entity_preference<size_t>();
   if (!this->pref_.load(&restored_index)) {
-    restored_index = this->parent_->get_mixer_mode_();
+    restored_index = this->parent_->get_mixer_mode();
   } else {
     if (restored_index > MIXER_MODE_MAX_INDEX) {
-      this->parent_->get_mixer_mode_();
+      restored_index = this->parent_->get_mixer_mode();
     }
   }
 
   this->publish_state(restored_index);
-  this->parent_->set_mixer_mode_(static_cast<MixerMode>(restored_index));
+  this->parent_->set_mixer_mode(static_cast<MixerMode>(restored_index));
 }
 
 void MixerModeSelect::dump_config() {
@@ -42,7 +42,7 @@ void MixerModeSelect::dump_config() {
 void MixerModeSelect::control(size_t index) {
   this->publish_state(index);
   this->pref_.save(&index);
-  this->parent_->set_mixer_mode_(static_cast<MixerMode>(index));
+  this->parent_->set_mixer_mode(static_cast<MixerMode>(index));
 }
 
 }  // namespace esphome::tas58xx

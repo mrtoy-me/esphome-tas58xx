@@ -15,9 +15,11 @@ class EqModeSelect : public select::Select, public Component, public Parented<Ta
 public:
   void setup() override;
   void dump_config() override;
-  float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
+  float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
 
 protected:
+  bool trigger_refresh_settings_{false};
+
   ESPPreferenceObject pref_;
 
   //Pointers into stored_options_
@@ -25,9 +27,7 @@ protected:
 
   // Storage for actual string data (must persist for lifetime from developer blog 7th Nov 25 "Select Entity Class: Index-Based Operations and Flash Storage" @bdraco)
   // https://developers.esphome.io/blog/2025/11/07/select-entity-class-index-based-operations-and-flash-storage/
-  std::string stored_options_[MAX_SELECT_OPTIONS] = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ BIAMP Presets"};
-
-  bool trigger_refresh_settings_{false};
+  std::string stored_options_[MAX_SELECT_OPTIONS] = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
 
   void control(size_t index) override;
 };

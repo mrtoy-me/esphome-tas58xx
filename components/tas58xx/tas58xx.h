@@ -6,9 +6,9 @@
 #include "esphome/core/hal.h"
 #include "tas58xx_cfg.h"
 
-#ifdef USE_TAS58XX_EQ
+
 #include "tas58xx_eq.h"
-#endif
+#include "tas58xx_eq_profiles.h"
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -16,14 +16,23 @@
 
 namespace esphome::tas58xx {
 
-enum AutoRefreshMode : uint8_t {
-    BY_GAIN   = 0,
-    BY_SWITCH = 1,
+enum EqRefreshMode : uint8_t {
+    AUTO   = 0,
+    MANUAL = 1,
 };
 
 enum ExcludeIgnoreMode : uint8_t {
     NONE        = 0,
     CLOCK_FAULT = 1,
+};
+
+enum EqSetupStage : uint8_t {
+    WAIT_FOR_TRIGGER = 0,
+    RUN_DELAY_LOOP,
+    SETUP_EQ_MIXER,
+    SETUP_EQ_GAINS,
+    SETUP_EQ_PRESETS,
+    EQ_SETUP_COMPLETE,
 };
 
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
@@ -51,12 +60,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void config_mixer_mode(MixerMode mixer_mode) { this->tas58xx_mixer_mode_ = mixer_mode; }
 
-  void config_refresh_eq(AutoRefreshMode auto_refresh) { this->auto_refresh_ = auto_refresh; }
+  void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
 
   void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = (int8_t)(volume_max); }
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = (int8_t)(volume_min); }
 
-  void set_eq_mode_enum(uint8_t eq_mode_enum) { this->eq_mode_enum_ = (EqMode)eq_mode_enum; }
+  void config_eq_mode(uint8_t configured_eq_mode) { this->configured_eq_mode_ = static_cast<EqMode>(configured_eq_mode); }
 
   #ifdef USE_TAS58XX_BINARY_SENSOR
   SUB_BINARY_SENSOR(have_fault)
@@ -81,27 +90,31 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void enable_dac(bool enable);
 
-  // bool enable_eq(bool enable);
+  uint8_t get_configured_eq_mode();
 
-  void eq_mode_select(uint8_t index);
+  uint8_t get_mixer_mode();
+  bool set_mixer_mode(MixerMode mode);
 
-  bool set_mixer_mode_(MixerMode mode);
-
-  #ifdef USE_TAS58XX_EQ
-  bool set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t gain);
   bool set_channel_gain(EqChannels eq_channel, int8_t gain);
-  #endif
+
+  void select_eq_mode(uint8_t select_index);
+
+  bool set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t gain);
+
+  bool set_eq_preset(EqChannels eq_channel, uint8_t select_preset);
 
   bool is_muted() override { return this->is_muted_; }
   bool set_mute_off() override;
   bool set_mute_on() override;
 
-  void refresh_settings();
+  void refresh_eq_settings();
 
   uint32_t times_faults_cleared();
 
-  bool use_eq_gain_refresh();
-  bool use_eq_switch_refresh();
+  bool is_eq_configured();
+
+  bool using_auto_eq_refresh();
+  bool using_manual_eq_refresh();
 
   float volume() override;
   bool set_volume(float value) override;
@@ -123,12 +136,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool get_digital_volume_(uint8_t* raw_volume);
    bool set_digital_volume_(uint8_t new_volume);
 
-   #ifdef USE_TAS58XX_EQ
-   bool get_eq_(EqMode* current_mode);
-   #endif
+   bool get_eq_mode_(EqMode* current_mode);
+   bool set_eq_mode_(EqMode new_mode);
 
-   bool set_eq_(EqMode new_mode);
-   int32_t gain_to_q9_23(int8_t gain);
+   int32_t gain_to_q9_23_(int8_t gain);
 
    bool get_state_(ControlState* state);
    bool set_state_(ControlState state);
@@ -145,6 +156,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // low level functions
    bool set_book_and_page_(uint8_t book, uint8_t page);
+   bool write_biquad_coefficients_(uint8_t page, uint8_t sub_addr, uint8_t* data);
 
    bool tas58xx_read_byte_(uint8_t a_register, uint8_t* data);
    bool tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes);
@@ -157,8 +169,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    } error_code_{NONE};
 
    // configured by YAML
-   AutoRefreshMode auto_refresh_;  // default 'BY_GAIN' = 0
-  //  RestoreMode restore_eq_mode_;   // default 'RESTORE_DEFAULT_OFF' = 1
+   EqRefreshMode eq_refresh_;  // default 'AUTO' = 0
 
    #ifdef USE_TAS58XX_BINARY_SENSOR
    bool exclude_clock_fault_from_have_faults_; // YAML default = true
@@ -176,11 +187,16 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    MixerMode tas58xx_mixer_mode_{MixerMode::STEREO};
 
    // used if eq gain numbers are defined in YAML
-   #ifdef USE_TAS58XX_EQ
-   EqMode tas58xx_eq_mode_{EQ_OFF};
    int8_t tas58xx_eq_gain_[NUMBER_EQ_CHANNELS][NUMBER_EQ_BANDS]{0};
+
+   // derived from YAML
+   EqMode configured_eq_mode_;
+
+   // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
+   EqMode tas58xx_eq_mode_{EQ_OFF};
+
+   uint8_t tas58xx_channel_preset_[NUMBER_EQ_CHANNELS]{0};
    int8_t tas58xx_channel_gain_[NUMBER_EQ_CHANNELS]{0};
-   #endif
 
    // initialised in setup
    ControlState tas58xx_control_state_;
@@ -208,24 +224,19 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used by 'loop'
    bool mixer_mode_configured_{false};
 
-   // only ever changed to true once when 'loop' has completed refreshing settings
-   // used to trigger disabling of 'loop'
-   bool refresh_settings_complete_{false};
-
    // only ever changed to true once to trigger 'refresh_settings()'
    // when true 'set_eq_gains' is allowed to write eq gains
-   // when 'refresh_settings_complete_' is false and 'refresh_settings_triggered_' is true
+   // when 'eq_settings_refresh_complete_' is false and 'refresh_eq_settings_triggered_' is true
    // 'loop' will write mixer mode and if setup in YAML, also eq gains
-   bool refresh_settings_triggered_{false};
+   bool refresh_eq_settings_triggered_{false};
 
    // use to indicate if delay before starting 'update' starting is complete
    bool update_delay_finished_{false};
 
-   // are eq gain numbers configured in YAML
-   #ifdef USE_TAS58XX_EQ
-   bool using_eq_gains_{true};
+   #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+   bool eq_configured_{true};
    #else
-   bool using_eq_gains_{false};
+   bool eq_configured_{false};
    #endif
 
    // eq band currently being refreshed
@@ -237,7 +248,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used for counting number of 'loops' iterations for delay of starting 'loop'
    uint8_t loop_counter_{0};
 
-  EqMode eq_mode_enum_{EqMode::EQ_OFF};
+  EqSetupStage eq_setup_stage_{EqSetupStage::WAIT_FOR_TRIGGER};
 
    // number tas58xx registers configured during 'setup'
    uint16_t number_registers_configured_{0};
