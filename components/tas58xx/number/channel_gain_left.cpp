@@ -7,7 +7,6 @@ static const char *const TAG = "tas58xx.number";
 
 void ChannelGainLeft::setup() {
   float value;
-  // this->pref_ = this->make_entity_preference<float>();
   this->pref_ = this->make_entity_preference<float>();
   if (!this->pref_.load(&value)) value= 0.0;
   this->publish_state(value);

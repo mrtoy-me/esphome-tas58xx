@@ -8,7 +8,7 @@
 
 namespace esphome::tas58xx {
 
-class MixerModeSelect : public select::Select, public Component, public Parented<Tas58xxComponent> {
+class EqPresetRightSelect : public select::Select, public Component, public Parented<Tas58xxComponent> {
 
 public:
   void setup() override;
