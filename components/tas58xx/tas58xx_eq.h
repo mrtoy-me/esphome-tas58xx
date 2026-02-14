@@ -120,7 +120,7 @@ namespace esphome::tas58xx {
 #endif
 
   struct RegisterSequenceEq {
-	  uint8_t value[COEFFICIENTS_PER_BIQUAD];
+	  uint8_t coeff[COEFFICIENTS_PER_BIQUAD];
   }__attribute__((packed));
 
   static const RegisterSequenceEq TAS58XX_EQ_REGISTERS_MF[NUMBER_EQ_BANDS] = {

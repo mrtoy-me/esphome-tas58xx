@@ -26,13 +26,14 @@ enum ExcludeIgnoreMode : uint8_t {
     CLOCK_FAULT = 1,
 };
 
-enum EqSetupStage : uint8_t {
+enum LoopSetupStage : uint8_t {
     WAIT_FOR_TRIGGER = 0,
     RUN_DELAY_LOOP,
-    SETUP_EQ_MIXER,
-    SETUP_EQ_GAINS,
-    SETUP_EQ_PRESETS,
-    EQ_SETUP_COMPLETE,
+    INPUT_MIXER_SETUP,
+    LR_VOLUME_SETUP,
+    EQ_BANDS_SETUP,
+    EQ_PRESETS_SETUP,
+    SETUP_COMPLETE,
 };
 
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
@@ -224,12 +225,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used by 'loop'
    bool mixer_mode_configured_{false};
 
-   // only ever changed to true once to trigger 'refresh_settings()'
-   // when true 'set_eq_gains' is allowed to write eq gains
-   // when 'eq_settings_refresh_complete_' is false and 'refresh_eq_settings_triggered_' is true
-   // 'loop' will write mixer mode and if setup in YAML, also eq gains
-   bool refresh_eq_settings_triggered_{false};
-
    // use to indicate if delay before starting 'update' starting is complete
    bool update_delay_finished_{false};
 
@@ -248,7 +243,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // used for counting number of 'loops' iterations for delay of starting 'loop'
    uint8_t loop_counter_{0};
 
-  EqSetupStage eq_setup_stage_{EqSetupStage::WAIT_FOR_TRIGGER};
+  // used for state machine in 'loop' to implement delayed and ordered DAC EQ setup
+  LoopSetupStage loop_setup_stage_{WAIT_FOR_TRIGGER};
 
    // number tas58xx registers configured during 'setup'
    uint16_t number_registers_configured_{0};

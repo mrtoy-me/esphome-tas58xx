@@ -94,114 +94,105 @@ void Tas58xxComponent::loop() {
   // each with setup priority AFTER_CONNECTION = 100.0f
   // when tas58xx has detected i2s clock then EQ settings can be written within 'loop'
 
-  // initially eq_setup_stage_ = WAIT_FOR_TRIGGER
+  // initially loop_setup_stage_ = WAIT_FOR_TRIGGER
 
-  // ***** Wait for Refresh EQ settings trigger
-  if (this->eq_setup_stage_ == EqSetupStage::WAIT_FOR_TRIGGER) {
-    if (this->refresh_eq_settings_triggered_) {
-      this->eq_setup_stage_ = EqSetupStage::RUN_DELAY_LOOP;
-    }
-    return;
-  }
-
-  // ***** Refresh eq settings has triggered, now wait 'DELAY_LOOPS'
-  // wait ensures on boot sound has played and tas58xx has detected i2s clock
-  if (this->eq_setup_stage_ == EqSetupStage::RUN_DELAY_LOOP) {
-    if (this->loop_counter_ < DELAY_LOOPS) {
-      this->loop_counter_++;
+  switch (this->loop_setup_stage_) {
+    case WAIT_FOR_TRIGGER:
       return;
-    } else {
-      this->eq_setup_stage_ = EqSetupStage::SETUP_EQ_MIXER;
-    }
-  }
 
-  // ***** Setup Mixer Gains
-  if (this->eq_setup_stage_ == EqSetupStage::SETUP_EQ_MIXER) {
-    ESP_LOGD(TAG, "Setup Mixer Gains");
-    if (!this->set_mixer_mode(this->tas58xx_mixer_mode_)) {
-      // show warning but continue as if mixer mode was set ok
-      ESP_LOGW(TAG, "%ssetting up mixer mode: %s", ERROR, MIXER_MODE);
-    }
+    case RUN_DELAY_LOOP:
+      // wait ensures on boot sound has played and tas58xx has detected i2s clock
+      if (this->loop_counter_ < DELAY_LOOPS) {    // loop_count was initialised to 0
+        this->loop_counter_++;
+        return;
+      }
+      this->loop_setup_stage_ = INPUT_MIXER_SETUP;
+      return;
 
+    case INPUT_MIXER_SETUP:
+      ESP_LOGD(TAG, "Setup Mixer Gains");
+      if (!this->set_mixer_mode(this->tas58xx_mixer_mode_)) {
+        // show warning but continue as if mixer mode was set ok
+        ESP_LOGW(TAG, "%ssetting up mixer mode: %s", ERROR, MIXER_MODE);
+      }
+      this->loop_setup_stage_ = LR_VOLUME_SETUP;
+      return;
+
+    case LR_VOLUME_SETUP:
 #ifdef USE_TAS58XX_CHANNEL_GAINS
-    ESP_LOGD(TAG, "Setup Channel Gains");
-    if (!this->set_channel_gain(LEFT_CHANNEL, this->tas58xx_channel_gain_[LEFT_CHANNEL])) {
-      // show warning but continue as if left channel gain was set ok
-      ESP_LOGW(TAG, "%ssetting up Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[LEFT_CHANNEL]);
-    }
+      ESP_LOGD(TAG, "Setup Channel Gains");
+      if (!this->set_channel_gain(LEFT_CHANNEL, this->tas58xx_channel_gain_[LEFT_CHANNEL])) {
+        // show warning but continue as if left channel gain was set ok
+        ESP_LOGW(TAG, "%ssetting up Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[LEFT_CHANNEL]);
+      }
 
-    if (!this->set_channel_gain(RIGHT_CHANNEL, this->tas58xx_channel_gain_[RIGHT_CHANNEL])) {
-      // show warning but continue as if right channel gain was set ok
-      ESP_LOGW(TAG, "%ssetting up Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[RIGHT_CHANNEL]);
-    }
+      if (!this->set_channel_gain(RIGHT_CHANNEL, this->tas58xx_channel_gain_[RIGHT_CHANNEL])) {
+        // show warning but continue as if right channel gain was set ok
+        ESP_LOGW(TAG, "%ssetting up Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[RIGHT_CHANNEL]);
+      }
 #endif
 
 #ifdef USE_TAS58XX_EQ_GAINS
-    this->eq_setup_stage_ = EqSetupStage::SETUP_EQ_GAINS;
+      this->loop_setup_stage_ = EQ_BANDS_SETUP;
 #endif
 
 #ifdef USE_TAS58XX_EQ_PRESETS
-    this->eq_setup_stage_ = EqSetupStage::SETUP_EQ_PRESETS;
+      this->loop_setup_stage_ = EQ_PRESETS_SETUP;
 #endif
 
-    // if eq_setup_stage_ has not changed then no EQ to setup
-    if (this->eq_setup_stage_ == EqSetupStage::SETUP_EQ_MIXER) this->eq_setup_stage_ = EqSetupStage::EQ_SETUP_COMPLETE;
-    return;
-  }
-
-  // ***** Setup EQ Gains
-  // write gains one eq band per 'loop' so component does not take too long in 'loop'
-  if (this->eq_setup_stage_ == EqSetupStage::SETUP_EQ_GAINS) {
-    if (this->refresh_band_ == NUMBER_EQ_BANDS) {
-      // finished writing all gains
-      this->eq_setup_stage_ = EqSetupStage::EQ_SETUP_COMPLETE;
-      this->refresh_band_ = 0;
+      // if loop_setup_stage_ has not changed then no EQ to setup
+      if (this->loop_setup_stage_ == LR_VOLUME_SETUP) this->loop_setup_stage_ = SETUP_COMPLETE;
       return;
-    }
 
-    // write Left gains of current band and increment to next band ready for when loop next runs
-    ESP_LOGD(TAG, "Setup Left Channel EQ Band %d Gain", this->refresh_band_);
-    if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
-      // show warning but continue as if eq gain was set ok
-#ifdef USE_TAS58XX_EQ_BIAMP
-      ESP_LOGW(TAG, "%ssetting up Left EQ Band %d Gain", ERROR, this->refresh_band_);
-#else
-      ESP_LOGW(TAG, "%ssetting up EQ Band %d Gain", ERROR, this->refresh_band_);
-#endif
-    }
+    case EQ_BANDS_SETUP:
+      // write gains one eq band per 'loop' so component does not take too long in 'loop'
+      if (this->refresh_band_ == NUMBER_EQ_BANDS) {     // refresh_band_ was initialised to 0
+        // finished writing all bands
+        this->loop_setup_stage_ = SETUP_COMPLETE;
+        this->refresh_band_ = 0;
+        return;
+      }
 
-#ifdef USE_TAS58XX_EQ_BIAMP
-    // write Right gains of current band and increment to next band ready for when loop next runs
-    ESP_LOGD(TAG, "Set up Right Channel EQ Band %d Gain", this->refresh_band_);
-    if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
-      // show warning but continue as if eq gain was set ok
-      ESP_LOGW(TAG, "%ssetting up Right EQ Band %d Gain", ERROR, this->refresh_band_);
-    }
-#endif
+      // write Left gains of current band and increment to next band ready for when loop next runs
+      ESP_LOGD(TAG, "Setup Left Channel EQ Band %d Gain", this->refresh_band_);
+      if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
+        // show warning but continue as if eq gain was set ok
+  #ifdef USE_TAS58XX_EQ_BIAMP
+        ESP_LOGW(TAG, "%ssetting up Left EQ Band %d Gain", ERROR, this->refresh_band_);
+  #else
+        ESP_LOGW(TAG, "%ssetting up EQ Band %d Gain", ERROR, this->refresh_band_);
+  #endif
+      }
 
-    this->refresh_band_++;
-    return;
-  }
+  #ifdef USE_TAS58XX_EQ_BIAMP
+      // write Right gains of current band and increment to next band ready for when loop next runs
+      ESP_LOGD(TAG, "Set up Right Channel EQ Band %d Gain", this->refresh_band_);
+      if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
+        // show warning but continue as if eq gain was set ok
+        ESP_LOGW(TAG, "%ssetting up Right EQ Band %d Gain", ERROR, this->refresh_band_);
+      }
+  #endif
+      // progress to next band
+      this->refresh_band_++;
+      return;
 
-  // ***** Setup EQ Presets
-  if (this->eq_setup_stage_ == EqSetupStage::SETUP_EQ_PRESETS) {
-    ESP_LOGD(TAG, "Setup Channel Presets");
-    if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
-      ESP_LOGW(TAG, "%ssetting up Left Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
-    }
-    if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
-      ESP_LOGW(TAG, "%ssetting up Right Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
-    }
-    this->eq_setup_stage_ = EqSetupStage::EQ_SETUP_COMPLETE;
-    return;
-  }
+    case EQ_PRESETS_SETUP:
+      ESP_LOGD(TAG, "Setup Channel Presets");
+      if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
+        ESP_LOGW(TAG, "%ssetting up Left Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
+      }
+      if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
+        ESP_LOGW(TAG, "%ssetting up Right Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
+      }
+      this->loop_setup_stage_ = SETUP_COMPLETE;
+      return;
 
-  // ***** EQ settings setup completed so 'loop' can be disabled
-  if (this->eq_setup_stage_ == EqSetupStage::EQ_SETUP_COMPLETE) {
-    this->disable_loop(); // requires Esphome 2025.7.0
-    return;
+    case SETUP_COMPLETE:
+      this->disable_loop(); // requires Esphome 2025.7.0
+      return;
   }
 }
+
 
 void Tas58xxComponent::update() {
   // initial delay before proceeding with updates
@@ -407,7 +398,7 @@ bool Tas58xxComponent::set_eq_preset(EqChannels eq_channel, uint8_t select_prese
     return false;
   }
 
-  if (this->eq_setup_stage_ < EqSetupStage::SETUP_EQ_PRESETS) {
+  if (this->loop_setup_stage_ < EQ_PRESETS_SETUP) {
     ESP_LOGD(TAG, "Save %s Channel EQ Preset index >> %d", EQ_CHANNEL_TEXT[eq_channel], select_preset);
     this->tas58xx_channel_preset_[eq_channel] = select_preset;
     return true;
@@ -417,36 +408,38 @@ bool Tas58xxComponent::set_eq_preset(EqChannels eq_channel, uint8_t select_prese
 
 
 #ifdef USE_TAS5805M_DAC
-  const AddressSequenceEq* biquad1_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[0] : &TAS5805M_RIGHT_EQ_ADDRESS[0];
-  const AddressSequenceEq* biquad2_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[1] : &TAS5805M_RIGHT_EQ_ADDRESS[1];
-  const AddressSequenceEq* biquad3_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[2] : &TAS5805M_RIGHT_EQ_ADDRESS[2];
+  const AddressSequenceEq* biquad1_address = (eq_channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[0] : &TAS5805M_RIGHT_EQ_ADDRESS[0];
+  const AddressSequenceEq* biquad2_address = (eq_channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[1] : &TAS5805M_RIGHT_EQ_ADDRESS[1];
+  const AddressSequenceEq* biquad3_address = (eq_channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[2] : &TAS5805M_RIGHT_EQ_ADDRESS[2];
 #else
-  const AddressSequenceEq* biquad1_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[0] : &TAS5825M_RIGHT_EQ_ADDRESS[0];
-  const AddressSequenceEq* biquad2_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[1] : &TAS5825M_RIGHT_EQ_ADDRESS[1];
-  const AddressSequenceEq* biquad3_eq_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[2] : &TAS5825M_RIGHT_EQ_ADDRESS[2];
+  const AddressSequenceEq* biquad1_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[0] : &TAS5825M_RIGHT_EQ_ADDRESS[0];
+  const AddressSequenceEq* biquad2_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[1] : &TAS5825M_RIGHT_EQ_ADDRESS[1];
+  const AddressSequenceEq* biquad3_address = (eq_channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[2] : &TAS5825M_RIGHT_EQ_ADDRESS[2];
 #endif
 
-  const RegisterSequenceEq* biquad1_coeff = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][0] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][0];
-  const RegisterSequenceEq* biquad2_coeff = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][1] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][1];
-  const RegisterSequenceEq* biquad3_coeff = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][2] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][2];
+  const RegisterSequenceEq* biquad1 = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][0] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][0];
+  const RegisterSequenceEq* biquad2 = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][1] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][1];
+  const RegisterSequenceEq* biquad3 = (eq_channel == LEFT_CHANNEL) ? &TAS58XX_EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][2] : &TAS58XX_EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][2];
+  ESP_LOGE(TAG, "sizeof regseq.coeff %d", sizeof(*(biquad3->coeff)));
 
-  if ((biquad1_eq_address == NULL) || (biquad2_eq_address == NULL) || (biquad3_eq_address == NULL)) {
-    ESP_LOGE(TAG, "%sfound NULL Biquad Address pointer");
-    return false;
-  }
 
-  if ((biquad1_coeff == NULL) || (biquad2_coeff == NULL) || (biquad3_coeff == NULL)) {
-    ESP_LOGE(TAG, "%sfound NULL Biquad Coefficent pointer");
-    return false;
-  }
+  // if ((biquad1_address == NULL) || (biquad2_address == NULL) || (biquad3_address == NULL)) {
+  //   ESP_LOGE(TAG, "%sfound NULL Biquad Address pointer");
+  //   return false;
+  // }
 
-  if (!this->write_biquad_coefficients_(biquad1_eq_address->page, biquad1_eq_address->offset, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad1_coeff->value)))) {
+  // if ((biquad1 == NULL) || (biquad2 == NULL) || (biquad3 == NULL)) {
+  //   ESP_LOGE(TAG, "%sfound NULL Biquad Coefficent pointer");
+  //   return false;
+  // }
+
+  if (!this->write_biquad_coefficients_(biquad1_address->page, biquad1_address->offset, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad1->coeff)))) {
     ESP_LOGE(TAG, "%swriting Biquad 1 for %s Channel EQ Preset index: %d", ERROR, EQ_CHANNEL_TEXT[eq_channel], select_preset);
   }
-  if (!this->write_biquad_coefficients_(biquad2_eq_address->page, biquad2_eq_address->offset, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad2_coeff->value)))) {
+  if (!this->write_biquad_coefficients_(biquad2_address->page, biquad2_address->offset, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad2->coeff)))) {
     ESP_LOGE(TAG, "%swriting Biquad 2 for %s Channel EQ Preset index: %d", ERROR, EQ_CHANNEL_TEXT[eq_channel], select_preset);
   }
-  if (!this->write_biquad_coefficients_(biquad3_eq_address->page, biquad3_eq_address->offset, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad3_coeff->value)))) {
+  if (!this->write_biquad_coefficients_(biquad3_address->page, biquad3_address->offset, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad3->coeff)))) {
     ESP_LOGE(TAG, "%swriting Biquad 3 for %s Channel EQ Preset index: %d", ERROR, EQ_CHANNEL_TEXT[eq_channel], select_preset);
   }
 
@@ -471,7 +464,7 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
     return false;
   }
 
-  if (this->eq_setup_stage_ < EqSetupStage::SETUP_EQ_GAINS) {
+  if (this->loop_setup_stage_ < EQ_BANDS_SETUP) {
     ESP_LOGD(TAG, "Save %s Channel %s:%d Gain >> %ddB", EQ_CHANNEL_TEXT[eq_channel], EQ_BAND, band, gain);
     this->tas58xx_eq_gain_[eq_channel][band] = gain;
     return true;
@@ -495,14 +488,14 @@ bool Tas58xxComponent::set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t g
   #endif
 #endif
 
-  const RegisterSequenceEq* coeff_ptr = &TAS58XX_EQ_REGISTERS[x][band];
+  const RegisterSequenceEq* biquad_ptr = &TAS58XX_EQ_REGISTERS[x][band];
 
   if ((coeff_ptr == NULL) || (eq_address == NULL)) {
     ESP_LOGE(TAG, "%sNULL discovered: [%d][%d]",ERROR, x, band);
     return false;
   }
 
-  if (!this->write_biquad_coefficients_(eq_address->page, eq_address->offset, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(coeff_ptr->value)))) {
+  if (!this->write_biquad_coefficients_(eq_address->page, eq_address->offset, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad_ptr->coeff)))) {
     ESP_LOGE(TAG, "%swriting Biquad for %s Channel %s:%d Gain: %ddb", ERROR, EQ_CHANNEL_TEXT[eq_channel], EQ_BAND, band, gain);
   }
 
@@ -532,7 +525,7 @@ bool Tas58xxComponent::set_channel_gain(EqChannels eq_channel, int8_t gain) {
   }
 
   // Channel Gains initially set by tas58xx number component setups
-  if (this->eq_setup_stage_ < EqSetupStage::SETUP_EQ_MIXER) {
+  if (this->loop_setup_stage_ < LR_VOLUME_SETUP) {
     ESP_LOGD(TAG, "Save %s Channel Gain >> %ddB", EQ_CHANNEL_TEXT[eq_channel], gain);
     this->tas58xx_channel_gain_[eq_channel] = gain;
     return true;
@@ -575,10 +568,11 @@ bool Tas58xxComponent::set_mute_on() {
   return true;
 }
 
-// used by 'enable_eq_switch' and 'eq_gain_band16000hz'
+// used by 'left_gain_band16000hz' or 'right_gain_band16000hz' or 'select eq_mode'
+// to trigger loop setup
 void Tas58xxComponent::refresh_eq_settings() {
-  if (this->eq_setup_stage_ == EqSetupStage::WAIT_FOR_TRIGGER) {
-    this->refresh_eq_settings_triggered_ = true;
+  if (this->loop_setup_stage_ == WAIT_FOR_TRIGGER) {
+    this->loop_setup_stage_ = RUN_DELAY_LOOP;
   }
   return;
 }
@@ -588,17 +582,17 @@ uint32_t Tas58xxComponent::times_faults_cleared() {
   return this->times_faults_cleared_;
 }
 
-// used by 'select eq mode' to determibe initial select EQ mode'
+// used by 'select eq mode' to determine initially selected EQ mode
 bool Tas58xxComponent::is_eq_configured() {
   return this->eq_configured_;
 }
 
-// used by 'eq_gain_band16000hz' to determine if it should 'refresh_settings()'
+// used by 'left_gain_band16000hz' or 'right_gain_band16000hz' or 'select eq_mode'
 bool Tas58xxComponent::using_auto_eq_refresh() {
   return (this->eq_refresh_ == EqRefreshMode::AUTO);
 }
 
-// used by 'enable_eq_switch' or select to determine if it should 'refresh_settings()'
+// used by 'enable_eq_switch' or 'select eq_mode'
 bool Tas58xxComponent::using_manual_eq_refresh() {
   return (this->eq_refresh_ == EqRefreshMode::MANUAL);
 }
@@ -606,17 +600,12 @@ bool Tas58xxComponent::using_manual_eq_refresh() {
 float Tas58xxComponent::volume() {
   uint8_t raw_volume;
   this->get_digital_volume_(&raw_volume);
-
-  return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_,
-                                           this->tas58xx_raw_volume_max_,
-                                           0.0f, 1.0f);
+  return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
 }
 
 bool Tas58xxComponent::set_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
-  uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f,
-                                                         this->tas58xx_raw_volume_min_,
-                                                         this->tas58xx_raw_volume_max_);
+  uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
   if (!this->set_digital_volume_(raw_volume)) return false;
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
     int8_t dB = -(raw_volume / 2) + 24;
@@ -624,7 +613,6 @@ bool Tas58xxComponent::set_volume(float volume) {
   #endif
   return true;
 }
-
 
 // protected
 
@@ -788,7 +776,7 @@ uint8_t Tas58xxComponent::get_mixer_mode() {
 bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
   // save until eq refresh is triggered
 
-  if (this->eq_setup_stage_ < EqSetupStage::SETUP_EQ_MIXER) {
+  if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
      ESP_LOGD(TAG, "Save %s >> %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
      this->tas58xx_mixer_mode_ = mode;
      return true;
@@ -961,6 +949,9 @@ bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
 
 bool Tas58xxComponent::write_biquad_coefficients_(uint8_t page, uint8_t sub_addr, uint8_t* data) {
   // write a set of 20 biquad coefficents starting at page and subaddress
+  // if (sizeof(*data) <> COEFFICIENTS_PER_BIQUAD) {
+  //   ESP_LOGE(TAG, "Incorrect size of Biquad Coefficients");
+  // }
 
   uint8_t bytes_in_block1{COEFFICIENTS_PER_BIQUAD};
   uint8_t bytes_in_block2{0};
