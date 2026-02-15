@@ -4,16 +4,24 @@
 
 namespace esphome::tas58xx {
 
+struct Tas58xxConfiguration {
+    uint8_t offset;
+    uint8_t value;
+  }__attribute__((packed));
+
+// Startup sequence flag
+static const uint8_t TAS58XX_CFG_META_DELAY = 254;
+
 static const Tas58xxConfiguration TAS58XX_REGISTERS[] = {
 // RESET
-    { 0x00, 0x00 },
+    { 0x00, 0x00 }, // 
     { 0x7f, 0x00 },
     { 0x03, 0x02 },
     { 0x01, 0x11 },
     { 0x03, 0x02 },
     { TAS58XX_CFG_META_DELAY, 5 },
     { 0x03, 0x00 },
-    { 0x46, 0x01 },
+    { 0x46, 0x01 }, // undocumented SR 96KHz; for 48KHz use 0x11
     { 0x03, 0x02 },
     { 0x61, 0x0b },
     { 0x60, 0x01 },
@@ -28,7 +36,7 @@ static const Tas58xxConfiguration TAS58XX_REGISTERS[] = {
     { 0x30, 0x00 },
     { 0x4c, 0x30 },
     { 0x53, 0x00 },
-    { 0x54, 0x1F }, //   originally 0x00 @mrtoy-me changed to analog gain -15.5db (31 decimal) to suit 5 volt supply voltage
+    { 0x54, 0x00 }, // analog gain 0db
     { 0x03, 0x03 },
     { 0x78, 0x80 },
 };

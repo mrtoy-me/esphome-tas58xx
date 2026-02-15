@@ -96,13 +96,13 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   uint8_t get_mixer_mode();
   bool set_mixer_mode(MixerMode mode);
 
-  bool set_channel_gain(EqChannels eq_channel, int8_t gain);
+  bool set_channel_gain(Channels channel, int8_t gain);
 
   void select_eq_mode(uint8_t select_index);
 
-  bool set_eq_gain(EqChannels eq_channel, uint8_t band, int8_t gain);
+  bool set_eq_gain(Channels channel, uint8_t band, int8_t gain);
 
-  bool set_eq_preset(EqChannels eq_channel, uint8_t select_preset);
+  bool set_eq_preset(Channels channel, uint8_t select_preset);
 
   bool is_muted() override { return this->is_muted_; }
   bool set_mute_off() override;
@@ -157,12 +157,13 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // low level functions
    bool set_book_and_page_(uint8_t book, uint8_t page);
+   bool book_and_page_write_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes);
    bool write_biquad_coefficients_(uint8_t page, uint8_t sub_addr, uint8_t* data);
 
    bool tas58xx_read_byte_(uint8_t a_register, uint8_t* data);
    bool tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes);
    bool tas58xx_write_byte_(uint8_t a_register, uint8_t data);
-   bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t len);
+   bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t number_bytes);
 
    enum ErrorCode {
      NONE = 0,
@@ -188,7 +189,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    MixerMode tas58xx_mixer_mode_{MixerMode::STEREO};
 
    // used if eq gain numbers are defined in YAML
-   int8_t tas58xx_eq_gain_[NUMBER_EQ_CHANNELS][NUMBER_EQ_BANDS]{0};
+   int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0};
 
    // derived from YAML
    EqMode configured_eq_mode_;
@@ -196,8 +197,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
    EqMode tas58xx_eq_mode_{EQ_OFF};
 
-   uint8_t tas58xx_channel_preset_[NUMBER_EQ_CHANNELS]{0};
-   int8_t tas58xx_channel_gain_[NUMBER_EQ_CHANNELS]{0};
+   uint8_t tas58xx_channel_preset_[NUMBER_CHANNELS]{0};
+   int8_t tas58xx_channel_gain_[NUMBER_CHANNELS]{0};
 
    // initialised in setup
    ControlState tas58xx_control_state_;

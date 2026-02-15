@@ -29,7 +29,7 @@ namespace esphome::tas58xx {
     RIGHT_2_RIGHT_GAIN,
   };
 
-  enum EqChannels : uint8_t {
+  enum Channels : uint8_t {
 	  LEFT_CHANNEL  = 0,
 		RIGHT_CHANNEL,
   };
@@ -46,11 +46,6 @@ namespace esphome::tas58xx {
   static const char* const EQ_MODE_TEXT[]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
   static const char* const EQ_CHANNEL_TEXT[] = {"Left", "Right"};
 
-  struct Tas58xxConfiguration {
-    uint8_t offset;
-    uint8_t value;
-  }__attribute__((packed));
-
   struct Tas58xxFault {
     uint8_t channel_fault{0};                  // individual faults extracted when publishing
     uint8_t global_fault{0};                   // individual faults extracted when publishing
@@ -66,16 +61,13 @@ namespace esphome::tas58xx {
     #endif
   };
 
-  // Startup sequence constants
-  static const uint8_t TAS58XX_CFG_META_DELAY        = 254;
-
   static const float TAS58XX_MIN_ANALOG_GAIN         = -15.5;
   static const float TAS58XX_MAX_ANALOG_GAIN         = 0.0;
 
   // set book and page registers
   static const uint8_t TAS58XX_PAGE_SET              = 0x00;
   static const uint8_t TAS58XX_BOOK_SET              = 0x7F;
-  static const uint8_t TAS58XX_BOOK_CONTROL          = 0x00;
+  static const uint8_t TAS58XX_BOOK_ZERO             = 0x00;
   static const uint8_t TAS58XX_PAGE_ZERO             = 0x00;
 
   // tas58x5m registers

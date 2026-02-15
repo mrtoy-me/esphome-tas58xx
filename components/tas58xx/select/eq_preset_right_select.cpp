@@ -18,7 +18,7 @@ void EqPresetRightSelect::setup() {
   }
 
   this->publish_state(restored_index);
-  this->parent_->set_eq_preset(EqChannels::RIGHT_CHANNEL, static_cast<uint8_t>(restored_index));
+  this->parent_->set_eq_preset(Channels::RIGHT_CHANNEL, static_cast<uint8_t>(restored_index));
 }
 
 void EqPresetRightSelect::dump_config() {
@@ -29,7 +29,7 @@ void EqPresetRightSelect::dump_config() {
 void EqPresetRightSelect::control(size_t index) {
   this->publish_state(index);
   this->pref_.save(&index);
-  this->parent_->set_eq_preset(EqChannels::RIGHT_CHANNEL, static_cast<uint8_t>(index));
+  this->parent_->set_eq_preset(Channels::RIGHT_CHANNEL, static_cast<uint8_t>(index));
 }
 
 }  // namespace esphome::tas58xx
