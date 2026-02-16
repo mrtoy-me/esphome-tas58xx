@@ -119,15 +119,15 @@ namespace esphome::tas58xx {
   #ifdef USE_TAS5805M_DAC
   // TAS5805M
   static const uint8_t TAS58XX_MIXER_GAIN_PAGE          = 0x29;
-  static const uint8_t TAS58XX_MIXER_GAIN_OFFSET[]      = {0x18, 0x1c, 0x20, 0x24};
+  static const uint8_t TAS58XX_MIXER_GAIN_OFFSET[]      = {0x18, 0x1c, 0x20, 0x24}; // Left to Left, Right to Left, Left to Right, Right to Right
   static const uint8_t TAS58XX_CHANNEL_GAIN_PAGE        = 0x2A;
-  static const uint8_t TAS58XX_CHANNEL_GAIN_OFFSET[]    = {0x24, 0x28};
+  static const uint8_t TAS58XX_CHANNEL_GAIN_OFFSET[]    = {0x24, 0x28}; // Left channel, Right Channel
   #else
   // TAS5825M
   static const uint8_t TAS58XX_MIXER_GAIN_PAGE          = 0x0B;
-  static const uint8_t TAS58XX_MIXER_GAIN_OFFSET[]      = {0x14, 0x18, 0x1c, 0x20};
+  static const uint8_t TAS58XX_MIXER_GAIN_OFFSET[]      = {0x14, 0x18, 0x1c, 0x20}; // Left to Left, Right to Left, Left to Right, Right to Right
   static const uint8_t TAS58XX_CHANNEL_GAIN_PAGE        = 0x0B;
-  static const uint8_t TAS58XX_CHANNEL_GAIN_OFFSET[]    = {0x0c, 0x10};
+  static const uint8_t TAS58XX_CHANNEL_GAIN_OFFSET[]    = {0x0c, 0x10}; // Left channel, Right Channel
   #endif
 
   static const uint32_t TAS58XX_MIXER_VALUE_MUTE        = 0x00000000;

@@ -422,22 +422,28 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
   const BiquadSequence* biquad3 = (channel == LEFT_CHANNEL) ? &EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][2] : &EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][2];
 
   if ((biquad1_address == NULL) || (biquad2_address == NULL) || (biquad3_address == NULL)) {
-    ESP_LOGE(TAG, "NULL Biquad Address pointer");
+    ESP_LOGE(TAG, "NULL EQ Preset Address pointer");
     return false;
   }
 
   if ((biquad1 == NULL) || (biquad2 == NULL) || (biquad3 == NULL)) {
-    ESP_LOGE(TAG, "NULL Biquad Coefficent pointer");
+    ESP_LOGE(TAG, "NULL EQ Preset Coefficent pointer");
     return false;
   }
 
-  if (!this->write_biquad_coefficients_(biquad1_address->page, biquad1_address->sub_addr, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad1->coefficients)))) {
+  if (!this->book_and_page_write_(TAS58XX_EQ_BOOK, biquad1_address->page, biquad1_address->sub_addr,
+                                  reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad1->coefficients)), BIQUAD_SIZE)) {
+  // if (!this->write_biquad_coefficients_(biquad1_address->page, biquad1_address->sub_addr, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad1->coefficients)))) {
     ESP_LOGE(TAG, "%s writing Biquad 1 for %s Channel EQ Preset index: %d", ERROR, EQ_CHANNEL_TEXT[channel], select_preset);
   }
-  if (!this->write_biquad_coefficients_(biquad2_address->page, biquad2_address->sub_addr, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad2->coefficients)))) {
+  if (!this->book_and_page_write_(TAS58XX_EQ_BOOK, biquad2_address->page, biquad2_address->sub_addr,
+                                  reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad2->coefficients)), BIQUAD_SIZE)) {
+  // if (!this->write_biquad_coefficients_(biquad2_address->page, biquad2_address->sub_addr, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad2->coefficients)))) {
     ESP_LOGE(TAG, "%s writing Biquad 2 for %s Channel EQ Preset index: %d", ERROR, EQ_CHANNEL_TEXT[channel], select_preset);
   }
-  if (!this->write_biquad_coefficients_(biquad3_address->page, biquad3_address->sub_addr, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad3->coefficients)))) {
+  if (!this->book_and_page_write_(TAS58XX_EQ_BOOK, biquad3_address->page, biquad3_address->sub_addr,
+                                  reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad3->coefficients)), BIQUAD_SIZE)) {
+  // if (!this->write_biquad_coefficients_(biquad3_address->page, biquad3_address->sub_addr, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad3->coefficients)))) {
     ESP_LOGE(TAG, "%s writing Biquad 3 for %s Channel EQ Preset index: %d", ERROR, EQ_CHANNEL_TEXT[channel], select_preset);
   }
 
@@ -491,8 +497,8 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band, int8_t gain) 
   }
 
   if (!this->book_and_page_write_(TAS58XX_EQ_BOOK, eq_address->page, eq_address->sub_addr,
-                                  reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad->coefficients)), COEFFICIENTS_PER_BIQUAD)) {
-    ESP_LOGE(TAG, "%s writing Biquad for %s Channel %s: %d Gain: %ddB", ERROR, EQ_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+                                  reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad->coefficients)), BIQUAD_SIZE)) {
+    ESP_LOGE(TAG, "%s writing Biquad for %s Channel %s:%d Gain:%ddB", ERROR, EQ_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
   }
 
   // if (!this->write_biquad_coefficients_(eq_address->page, eq_address->sub_addr, reinterpret_cast<uint8_t *>(const_cast<uint8_t *>(biquad->coefficients)))) {
@@ -510,14 +516,14 @@ int32_t Tas58xxComponent::gain_to_q9_23_(int8_t gain) {
   int32_t fixed_q9_23 = static_cast<int32_t>(linear * (1 << 23));
   int32_t little_endian = byteswap(fixed_q9_23);
 
-  ESP_LOGV(TAG, "Gain:%ddb  = Fixed 9.23 >> 0x%08X : Convert Endian >> 0x%08X", gain, fixed_q9_23, little_endian);
+  ESP_LOGV(TAG, "Gain:%ddb = Fixed 9.23 >> 0x%08X : Convert Endian >> 0x%08X", gain, fixed_q9_23, little_endian);
   return little_endian;
 }
 
 bool Tas58xxComponent::set_channel_gain(Channels channel, int8_t gain) {
 #ifdef USE_TAS58XX_CHANNEL_GAINS
   if (gain < TAS58XX_CHANNEL_GAIN_MIN_DB || gain > TAS58XX_CHANNEL_GAIN_MAX_DB) {
-    ESP_LOGE(TAG, "Invalid %s Channel Gain: %ddB", EQ_CHANNEL_TEXT[channel], gain);
+    ESP_LOGE(TAG, "Invalid Gain:%ddB for %s Channel",  gain, EQ_CHANNEL_TEXT[channel]);
     return false;
   }
 
@@ -530,20 +536,23 @@ bool Tas58xxComponent::set_channel_gain(Channels channel, int8_t gain) {
 
   ESP_LOGD(TAG, "Set %s Channel Gain >> %ddB", EQ_CHANNEL_TEXT[channel], gain);
 
-  if (!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_CHANNEL_GAIN_PAGE)) {
-    ESP_LOGE(TAG, "%s Channel Gain: setting book and page", ERROR);
-    return false;
-  }
+  // if (!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_CHANNEL_GAIN_PAGE)) {
+  //   ESP_LOGE(TAG, "%s Channel Gain: setting book and page", ERROR);
+  //   return false;
+  // }
 
   int32_t little_endian_9_23 = gain_to_q9_23_(gain);
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_CHANNEL_GAIN_OFFSET[channel], reinterpret_cast<uint8_t *>(&little_endian_9_23), 4)) {
-    ESP_LOGE(TAG, "%s writing %s Channel Gain: %ddb", ERROR, EQ_CHANNEL_TEXT[channel], gain);
+  if (!this->book_and_page_write_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_CHANNEL_GAIN_PAGE, TAS58XX_CHANNEL_GAIN_OFFSET[channel],
+                                  reinterpret_cast<uint8_t *>(&little_endian_9_23), sizeof(little_endian_9_23))) {
+  // if (!this->tas58xx_write_bytes_(TAS58XX_CHANNEL_GAIN_OFFSET[channel], reinterpret_cast<uint8_t *>(&little_endian_9_23), 4)) {
+    ESP_LOGE(TAG, "%s writing %s Channel Gain:%ddb", ERROR, EQ_CHANNEL_TEXT[channel], gain);
+    return false;
   }
 
   // always change back to book zero and page zero
-  return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
-#else
+//   return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
+// #else
   return true;
 #endif
 }
@@ -744,13 +753,13 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
     return false;
   }
 
-  if (!this->tas58xx_write_bytes_(TAS5825M_GANG_EQ, reinterpret_cast<uint8_t *>(const_cast<uint32_t*>(&TAS5825M_CTRL_GANGED_EQ[new_mode])), 4)) {
+  if (!this->tas58xx_write_bytes_(TAS5825M_GANG_EQ, reinterpret_cast<uint8_t *>(const_cast<uint32_t*>(&TAS5825M_CTRL_GANGED_EQ[new_mode])), COEFFICIENT_SIZE)) {
     ESP_LOGE(TAG, "%s writing EQ Ganged", ERROR);
     return false;
   }
 
-  if (!this->tas58xx_write_bytes_(TAS5825M_BYPASS_EQ, reinterpret_cast<uint8_t *>(const_cast<uint32_t*>(&TAS5825M_CTRL_BYPASS_EQ[new_mode])), 4)) {
-    ESP_LOGE(TAG, "%s writing EQ on", ERROR);
+  if (!this->tas58xx_write_bytes_(TAS5825M_BYPASS_EQ, reinterpret_cast<uint8_t *>(const_cast<uint32_t*>(&TAS5825M_CTRL_BYPASS_EQ[new_mode])), COEFFICIENT_SIZE)) {
+    ESP_LOGE(TAG, "%s writing Bypass EQ", ERROR);
     return false;
   }
   if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) {
@@ -769,53 +778,60 @@ uint8_t Tas58xxComponent::get_mixer_mode() {
   return static_cast<uint8_t>(this->tas58xx_mixer_mode_);
 }
 
-// only runs once from 'loop'
-// 'mixer_mode_configured_' used by 'loop' to ensure only runs once
 bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
   // save until eq refresh is triggered
-
   if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
      ESP_LOGD(TAG, "Save %s >> %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
      this->tas58xx_mixer_mode_ = mode;
      return true;
   }
 
-  uint32_t mixer_l_to_l, mixer_r_to_r, mixer_l_to_r, mixer_r_to_l;
+  // uint32_t mixer_l_to_l, mixer_r_to_r, mixer_l_to_r, mixer_r_to_l;
+
+  // order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
+  struct InputMixerCoefficients {
+    uint32_t l_to_l;
+    uint32_t r_to_l;
+    uint32_t l_to_r;
+    uint32_t r_to_r;
+  };
+
+  InputMixerCoefficients mixer_coefficients;
 
   switch (mode) {
     case STEREO:
-      mixer_l_to_l = TAS58XX_MIXER_VALUE_0DB;
-      mixer_r_to_l = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_0DB;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_VALUE_0DB;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_VALUE_0DB;
       break;
 
     case STEREO_INVERSE:
-      mixer_l_to_l = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_r_to_l = TAS58XX_MIXER_VALUE_0DB;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_0DB;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_VALUE_0DB;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_VALUE_0DB;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_VALUE_MUTE;
       break;
 
     case MONO:
-      mixer_l_to_l = TAS58XX_MIXER_VALUE_MINUS6DB;
-      mixer_r_to_l = TAS58XX_MIXER_VALUE_MINUS6DB;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_MINUS6DB;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_MINUS6DB;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_VALUE_MINUS6DB;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_VALUE_MINUS6DB;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_VALUE_MINUS6DB;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_VALUE_MINUS6DB;
       break;
 
     case LEFT:
-      mixer_l_to_l = TAS58XX_MIXER_VALUE_0DB;
-      mixer_r_to_l = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_0DB;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_VALUE_0DB;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_VALUE_0DB;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_VALUE_MUTE;
       break;
 
     case RIGHT:
-      mixer_l_to_l = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_r_to_l = TAS58XX_MIXER_VALUE_0DB;
-      mixer_l_to_r = TAS58XX_MIXER_VALUE_MUTE;
-      mixer_r_to_r = TAS58XX_MIXER_VALUE_0DB;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_VALUE_0DB;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_VALUE_MUTE;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_VALUE_0DB;
       break;
 
     default:
@@ -823,35 +839,42 @@ bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
       return false;
   }
 
-  if (!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_MIXER_GAIN_PAGE)) {
-    ESP_LOGE(TAG, "%s begin Set %s", ERROR, MIXER_MODE);
+  // if (!this->set_book_and_page_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_MIXER_GAIN_PAGE)) {
+  //   ESP_LOGE(TAG, "%s begin Set %s", ERROR, MIXER_MODE);
+  //   return false;
+  // }
+
+  if (!this->book_and_page_write_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_OFFSET[LEFT_2_LEFT_GAIN],
+                                  reinterpret_cast<uint8_t *>(&mixer_coefficients), sizeof(mixer_coefficients))) {
+    ESP_LOGE(TAG, "%s writing Input Mixer gains", ERROR);
     return false;
   }
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[LEFT_2_LEFT_GAIN], reinterpret_cast<uint8_t *>(&mixer_l_to_l), 4)) {
-    ESP_LOGE(TAG, "%s Mixer L-L Gain", ERROR);
-    return false;
-  }
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[RIGHT_2_LEFT_GAIN], reinterpret_cast<uint8_t *>(&mixer_r_to_l), 4)) {
-    ESP_LOGE(TAG, "%s Mixer R-L Gain", ERROR);
-    return false;
-  }
+  // if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[LEFT_2_LEFT_GAIN], reinterpret_cast<uint8_t *>(&mixer_coefficients), sizeof(mixer_coefficients))) {
+  //   ESP_LOGE(TAG, "%s Mixer L-L Gain", ERROR);
+  //   return false;
+  // }
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[LEFT_2_RIGHT_GAIN], reinterpret_cast<uint8_t *>(&mixer_l_to_r), 4)) {
-    ESP_LOGE(TAG, "%s Mixer L-R Gain", ERROR);
-    return false;
-  }
+  // if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[RIGHT_2_LEFT_GAIN], reinterpret_cast<uint8_t *>(&mixer_r_to_l), 4)) {
+  //   ESP_LOGE(TAG, "%s Mixer R-L Gain", ERROR);
+  //   return false;
+  // }
 
-  if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[RIGHT_2_RIGHT_GAIN], reinterpret_cast<uint8_t *>(&mixer_r_to_r), 4)) {
-    ESP_LOGE(TAG, "%s Mixer R-R Gain", ERROR);
-    return false;
-  }
+  // if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[LEFT_2_RIGHT_GAIN], reinterpret_cast<uint8_t *>(&mixer_l_to_r), 4)) {
+  //   ESP_LOGE(TAG, "%s Mixer L-R Gain", ERROR);
+  //   return false;
+  // }
 
-  if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) {
-    ESP_LOGE(TAG, "%s end Set %s", ERROR, MIXER_MODE);
-    return false;
-  }
+  // if (!this->tas58xx_write_bytes_(TAS58XX_MIXER_GAIN_OFFSET[RIGHT_2_RIGHT_GAIN], reinterpret_cast<uint8_t *>(&mixer_r_to_r), 4)) {
+  //   ESP_LOGE(TAG, "%s Mixer R-R Gain", ERROR);
+  //   return false;
+  // }
+
+  // if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) {
+  //   ESP_LOGE(TAG, "%s end Set %s", ERROR, MIXER_MODE);
+  //   return false;
+  // }
 
   // 'tas58xx_state_' global already has mixer mode from YAML config
   // save anyway so 'set_mixer_mode' could be used more generally in future
@@ -930,18 +953,21 @@ bool Tas58xxComponent::read_fault_registers_() {
 // low level functions
 
 bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
-  if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) return false;
-  if (!this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) return false;
-  if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) return false;
-  return true;
+  if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
+    if (this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
+      if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) return true;
+    }
+  }
+  ESP_LOGE(TAG, "%s setting book and page", ERROR);
+  return false;
 }
 
 bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes) {
-  // write up to 20 biquad bytes to a book and page at subaddress
-  // limited to writing across one page boundary as required for tas5805m while tas5825m has biquads aligned to page boundaries
+  // write up to 20 bytes (BIQUAD_SIZE) to a book and page starting at subaddress
+  // limited to writing across one page boundary as is required for tas5805m while tas5825m has biquads aligned to page boundaries
   // shorter consecutive writes required by tas5805m and tas5825m do not extend over page boundaries
 
-  if (number_bytes == 0 || number_bytes > COEFFICIENTS_PER_BIQUAD) {
+  if (number_bytes == 0 || number_bytes > BIQUAD_SIZE) {
     ESP_LOGE(TAG, "Incorrect length for book and page write");
     return false;
   }
@@ -955,7 +981,8 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
   }
 
   if (!this->set_book_and_page_(book, page)) return false;
-  ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes: %d", book, page, sub_addr, bytes_in_block1);
+
+  ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, page, sub_addr, bytes_in_block1);
   if (!this->tas58xx_write_bytes_(sub_addr, data, bytes_in_block1)) return false;
 
   if (bytes_in_block2 != 0) {
@@ -963,7 +990,8 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
 
     // book already set so just change to next page
     if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, next_page)) return false;
-    ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes: %d", book, next_page, MINIMUM_PAGE_SUBADDR, bytes_in_block2);
+
+    ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, next_page, MINIMUM_PAGE_SUBADDR, bytes_in_block2);
     if (!this->tas58xx_write_bytes_(MINIMUM_PAGE_SUBADDR, data + bytes_in_block1, bytes_in_block2)) return false;
   }
 
@@ -973,11 +1001,11 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
 
 bool Tas58xxComponent::write_biquad_coefficients_(uint8_t page, uint8_t sub_addr, uint8_t* data) {
   // write a set of 20 biquad coefficents starting at page and subaddress
-  // if (sizeof(*data) <> COEFFICIENTS_PER_BIQUAD) {
+  // if (sizeof(*data) <> BIQUAD_SIZE) {
   //   ESP_LOGE(TAG, "Incorrect size of Biquad Coefficients");
   // }
 
-  uint8_t bytes_in_block1{COEFFICIENTS_PER_BIQUAD};
+  uint8_t bytes_in_block1{BIQUAD_SIZE};
   uint8_t bytes_in_block2{0};
 
   // write biquad page
@@ -986,9 +1014,9 @@ bool Tas58xxComponent::write_biquad_coefficients_(uint8_t page, uint8_t sub_addr
     return false;
   }
   ESP_LOGD(TAG, "Writing Biquad @ subaddress:0x%02X for %d bytes", sub_addr, bytes_in_block1);
-  if ((sub_addr + COEFFICIENTS_PER_BIQUAD) > PAGE_SIZE) {
+  if ((sub_addr + BIQUAD_SIZE) > PAGE_SIZE) {
     bytes_in_block1 = PAGE_SIZE - sub_addr;
-    bytes_in_block2 = COEFFICIENTS_PER_BIQUAD - bytes_in_block1;
+    bytes_in_block2 = BIQUAD_SIZE - bytes_in_block1;
   }
 
   if (!this->tas58xx_write_bytes_(sub_addr, data, bytes_in_block1)) {

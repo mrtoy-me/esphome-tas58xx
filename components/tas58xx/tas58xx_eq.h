@@ -26,14 +26,16 @@ namespace esphome::tas58xx {
   static const uint8_t NUMBER_CHANNELS         = 2;
 
   static const uint8_t NUMBER_EQ_BANDS         = 15;
-  static const uint8_t COEFFICIENTS_PER_BIQUAD = 4 * 5; // 4 registers per ooefficient, 5 cooefficents per biquad;
+
+  static const uint8_t COEFFICIENT_SIZE        = 4;                     // cooefficients = 32 bit
+  static const uint8_t BIQUAD_SIZE             = COEFFICIENT_SIZE * 5;  // 5 cooefficients per biquad ;
 
   // EQ Addressing helper constants
-	static const uint8_t PAGE_SIZE = 0x80;                // 0x7F + 1 = 0x80
-	static const uint8_t MINIMUM_PAGE_SUBADDR = 0x08;     // when page rolls over the next register offset = 0x08
+	static const uint8_t PAGE_SIZE               = 0x80;                  // 0x7F + 1 = 0x80
+	static const uint8_t MINIMUM_PAGE_SUBADDR    = 0x08;                  // start subaddr for pages = 0x08
 
   // Mixer registers
-  static const uint8_t TAS58XX_EQ_BOOK     = 0xAA;
+  static const uint8_t TAS58XX_EQ_BOOK         = 0xAA;
 
   // Frequency bands
   static const uint16_t TAS58XX_EQ_BANDS[NUMBER_EQ_BANDS] = {
@@ -120,7 +122,7 @@ namespace esphome::tas58xx {
 #endif
 
   struct BiquadSequence {
-	  uint8_t coefficients[COEFFICIENTS_PER_BIQUAD];
+	  uint8_t coefficients[BIQUAD_SIZE];
   }__attribute__((packed));
 
   static const BiquadSequence EQ_BAND_COEFFICIENTS_MF[NUMBER_EQ_BANDS] = {
