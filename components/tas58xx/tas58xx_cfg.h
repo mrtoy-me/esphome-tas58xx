@@ -42,6 +42,8 @@ namespace esphome::tas58xx {
     EQ_PRESETS_ON = 3,
   };
 
+  static const uint8_t NUMBER_EQ_MODES = 4;
+
   static const char* const MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
   static const char* const EQ_MODE_TEXT[]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
   static const char* const EQ_CHANNEL_TEXT[] = {"Left", "Right"};
@@ -94,15 +96,26 @@ namespace esphome::tas58xx {
   // EQ constants equivalent to the indexes of the eq_modes
   // Off=Bypass EQ On + Ganged On; EQ 15 Band=Bypass EQ Off + Ganged On; EQ BIAMP 15 Band and EQ Presets=Bypass EQ Off + Ganged Off
   #ifdef USE_TAS5805M_DAC
-  static const uint8_t   TAS5805M_CTRL_EQ[]           = {0b0111, 0b0110, 0b1110, 0b1110};
+  static const uint8_t   TAS5805M_CTRL_EQ[NUMBER_EQ_MODES] = {0b0111, 0b0110, 0b1110, 0b1110};
   #else
   static const uint8_t   TAS5825M_EQ_CTRL_BOOK        = 0x8C;
   static const uint8_t   TAS5825M_EQ_CTRL_PAGE        = 0x0B;
   static const uint8_t   TAS5825M_GANG_EQ             = 0x28;
   static const uint8_t   TAS5825M_BYPASS_EQ           = 0x2C;
 
-  static const uint32_t  TAS5825M_CTRL_BYPASS_EQ[]    = {0x00000001, 0x00000000, 0x00000000, 0x00000000}; // 0x00000000 Bypass EQ = false ie EQ enabled
-  static const uint32_t  TAS5825M_CTRL_GANGED_EQ[]    = {0x00000001, 0x00000001, 0x00000000, 0x00000000}; // 0x00000001 EQ Ganged ie L/R channel common coefficients
+  struct EqModeCoefficients {
+	  uint32_t gang_eq;
+	  uint32_t bypass_eq;
+  }__attribute__((packed));
+
+  // 0x00000001 EQ Ganged ie L/R channel common coefficients
+  // 0x00000000 Bypass EQ = false ie EQ enabled
+  static const EqModeCoefficients TAS5825M_CTRL_EQ[NUMBER_EQ_MODES] = {
+      {0x00000001, 0x00000001}, // EQ Off     = Ganged true  + Bypass EQ true
+      {0x00000001, 0x00000000}, // EQ 15 Band = Ganged true  + Bypass EQ false
+      {0x00000000, 0x00000000}, // EQ BIAMP   = Ganged false + Bypass EQ false
+      {0x00000000, 0x00000000}, // EQ Presets = Ganged false + Bypass EQ false
+  };
   #endif
 
   // Level meter constants
