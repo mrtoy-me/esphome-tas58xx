@@ -14,7 +14,7 @@ void ChannelGainLeft::setup() {
 }
 
 void ChannelGainLeft::dump_config() {
-  ESP_LOGCONFIG(TAG, "Tas58xx Channel Gain Numbers:");
+  ESP_LOGCONFIG(TAG, "Tas58xx Channel Volume Numbers:");
   ESP_LOGCONFIG(TAG, "  Left Channel '%s'", this->get_name().c_str());
 }
 

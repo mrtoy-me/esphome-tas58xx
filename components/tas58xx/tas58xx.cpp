@@ -14,19 +14,19 @@ static const char *const TAG               = "tas58xx";
 static const char *const TAG               = "tas5825m";
 #endif
 
-static const char *const ERROR             = "Error";
-static const char *const MIXER_MODE        = "Mixer Mode";
-static const char *const EQ_BAND           = "EQ Band";
+static const char *const ERROR = "Error";
+static const char *const MIXER_MODE = "Mixer Mode";
+static const char *const EQ_BAND = "EQ Band";
 
-static const uint8_t TAS58XX_MUTE_CONTROL = 0x08;  // LR Channel Mute
-static const uint8_t REMOVE_CLOCK_FAULT    = 0xFB;  // used to zero clock fault bit of global_fault1 register
+static const uint8_t TAS58XX_MUTE_CONTROL = 0x08;   // LR Channel Mute
+static const uint8_t REMOVE_CLOCK_FAULT = 0xFB;  // used to zero clock fault bit of global_fault1 register
 
 // maximum delay allowed in "tas58xx_minimal.h" used in configure_registers()
 static const uint8_t ESPHOME_MAXIMUM_DELAY = 5;     // milliseconds
 
 // initial delay in 'loop' before writing eq gains to ensure on boot sound has
 // played and tas58xx has detected i2s clock
-static const uint8_t DELAY_LOOPS           = 20;    // 20 loop iterations ~ 320ms
+static const uint8_t DELAY_LOOPS = 40;    // 40 loop iterations ~ 300ms
 
 // initial ms delay before starting fault updates
 static const uint16_t INITIAL_UPDATE_DELAY = 4000;
@@ -113,7 +113,7 @@ void Tas58xxComponent::loop() {
       ESP_LOGD(TAG, "Setup Mixer Gains");
       if (!this->set_mixer_mode(this->tas58xx_mixer_mode_)) {
         // show warning but continue as if mixer mode was set ok
-        ESP_LOGW(TAG, "%s setting Mixer Mode: %s", ERROR, MIXER_MODE);
+        ESP_LOGW(TAG, "%s setting %s: %s", ERROR, MIXER_MODE, MIXER_MODE_TEXT[this->tas58xx_mixer_mode_]);
       }
       this->loop_setup_stage_ = LR_VOLUME_SETUP;
       return;
@@ -121,14 +121,14 @@ void Tas58xxComponent::loop() {
     case LR_VOLUME_SETUP:
 #ifdef USE_TAS58XX_CHANNEL_GAINS
       ESP_LOGD(TAG, "Setup Channel Gains");
-      if (!this->set_channel_gain(LEFT_CHANNEL, this->tas58xx_channel_gain_[LEFT_CHANNEL])) {
+      if (!this->set_channel_volume(LEFT_CHANNEL, this->tas58xx_channel_volume_[LEFT_CHANNEL])) {
         // show warning but continue as if left channel gain was set ok
-        ESP_LOGW(TAG, "%s setting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[LEFT_CHANNEL]);
+        ESP_LOGW(TAG, "%s setting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[LEFT_CHANNEL]);
       }
 
-      if (!this->set_channel_gain(RIGHT_CHANNEL, this->tas58xx_channel_gain_[RIGHT_CHANNEL])) {
+      if (!this->set_channel_volume(RIGHT_CHANNEL, this->tas58xx_channel_volume_[RIGHT_CHANNEL])) {
         // show warning but continue as if right channel gain was set ok
-        ESP_LOGW(TAG, "%ssetting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_gain_[RIGHT_CHANNEL]);
+        ESP_LOGW(TAG, "%ssetting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[RIGHT_CHANNEL]);
       }
 #endif
 
@@ -513,27 +513,27 @@ int32_t Tas58xxComponent::gain_to_q9_23_(int8_t gain) {
   return little_endian;
 }
 
-bool Tas58xxComponent::set_channel_gain(Channels channel, int8_t gain) {
+bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB); {
 #ifdef USE_TAS58XX_CHANNEL_GAINS
-  if (gain < TAS58XX_CHANNEL_GAIN_MIN_DB || gain > TAS58XX_CHANNEL_GAIN_MAX_DB) {
-    ESP_LOGE(TAG, "Invalid Gain:%ddB for %s Channel",  gain, EQ_CHANNEL_TEXT[channel]);
+  if (volume_dB < TAS58XX_CHANNEL_GAIN_MIN_DB || volume_dB > TAS58XX_CHANNEL_GAIN_MAX_DB) {
+    ESP_LOGE(TAG, "Invalid Volume:%ddB for %s Channel",  volume_dB, EQ_CHANNEL_TEXT[channel]);
     return false;
   }
 
   // Channel Gains initially set by tas58xx number component setups
   if (this->loop_setup_stage_ < LR_VOLUME_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel Gain >> %ddB", EQ_CHANNEL_TEXT[channel], gain);
-    this->tas58xx_channel_gain_[channel] = gain;
+    ESP_LOGD(TAG, "Save %s Channel Volume >> %ddB", EQ_CHANNEL_TEXT[channel], volume_dB);
+    this->tas58xx_channel_volume_[channel] = volume_dB;
     return true;
   }
 
-  ESP_LOGD(TAG, "Set %s Channel Gain >> %ddB", EQ_CHANNEL_TEXT[channel], gain);
+  ESP_LOGD(TAG, "Set %s Channel Gain >> %ddB", EQ_CHANNEL_TEXT[channel], volume_dB);
 
-  int32_t little_endian_9_23 = gain_to_q9_23_(gain);
+  int32_t little_endian_9_23 = gain_to_q9_23_(volume_dB);
 
   if (!this->book_and_page_write_(TAS58XX_MIXER_CHANNEL_GAINS_BOOK, TAS58XX_CHANNEL_GAIN_PAGE, TAS58XX_CHANNEL_GAIN_OFFSET[channel],
                                   reinterpret_cast<uint8_t*>(&little_endian_9_23), sizeof(little_endian_9_23))) {
-    ESP_LOGE(TAG, "%s writing %s Channel Gain:%ddb", ERROR, EQ_CHANNEL_TEXT[channel], gain);
+    ESP_LOGE(TAG, "%s writing %s Channel Volume:%ddb", ERROR, EQ_CHANNEL_TEXT[channel], volume_dB);
     return false;
   }
 #endif

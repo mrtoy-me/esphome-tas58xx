@@ -63,6 +63,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
 
+  // configured maximum and minimum with units dB
   void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = (int8_t)(volume_max); }
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = (int8_t)(volume_min); }
 
@@ -96,7 +97,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   uint8_t get_mixer_mode();
   bool set_mixer_mode(MixerMode mode);
 
-  bool set_channel_gain(Channels channel, int8_t gain);
+  bool set_channel_volume(Channels channel, int8_t volume_dB);
 
   void select_eq_mode(uint8_t select_index);
 
@@ -180,8 +181,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    DacMode tas58xx_dac_mode_;
 
+
    float tas58xx_analog_gain_;
 
+   // configured maximum and minimum with units dB
    int8_t tas58xx_volume_max_;
    int8_t tas58xx_volume_min_;
 
@@ -197,11 +200,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    EqMode tas58xx_eq_mode_{EQ_OFF};
 
    uint8_t tas58xx_channel_preset_[NUMBER_CHANNELS]{0};
-   int8_t tas58xx_channel_gain_[NUMBER_CHANNELS]{0};
+   int8_t tas58xx_channel_volume_[NUMBER_CHANNELS]{0};
 
    // initialised in setup
    ControlState tas58xx_control_state_;
 
+   // maximum and minimum volume as digital volume register range 254 to 0
    uint8_t tas58xx_raw_volume_max_;
    uint8_t tas58xx_raw_volume_min_;
 
@@ -220,10 +224,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // counts number of times the faults register is cleared (used for publishing to sensor)
    uint32_t times_faults_cleared_{0};
-
-   // only ever changed to true once when mixer mode is written
-   // used by 'loop'
-   bool mixer_mode_configured_{false};
 
    // use to indicate if delay before starting 'update' starting is complete
    bool update_delay_finished_{false};
@@ -249,7 +249,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // number tas58xx registers configured during 'setup'
    uint16_t number_registers_configured_{0};
 
-   // initialised in loop, used for delay in starting 'update'
+   // initialised in setup, used for delay in starting 'update'
    uint32_t start_time_;
 };
 
