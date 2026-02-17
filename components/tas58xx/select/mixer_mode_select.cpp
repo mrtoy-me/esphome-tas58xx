@@ -6,9 +6,13 @@ namespace esphome::tas58xx {
 static const char *const TAG = "tas58xx.select";
 
 #ifdef USE_DAC_MODE_PBTL
-static const uint8_t MIXER_MODE_MAX_INDEX = 2;
+// only last three MixerModes are valid for Select
+static const uint8_t MAX_INDEX = 2;
+static const uint8_t INDEX_ADJUSTMENT = 2;
 #else
-static const uint8_t MIXER_MODE_MAX_INDEX = 4;
+// all five possible MixerModes are valid for Select
+static const uint8_t MAX_INDEX = 4;
+static const uint8_t INDEX_ADJUSTMENT = 0;
 #endif
 
 void MixerModeSelect::setup() {
@@ -21,16 +25,18 @@ void MixerModeSelect::setup() {
   size_t restored_index;
 
   // load saved mixer mode index
+  // mixed mode index saved is always the index of the all 5 MixerModes
+  // even if the reduced number of valid MixerModes is used in this select for PBTL mode
   this->pref_ = this->make_entity_preference<size_t>();
   if (!this->pref_.load(&restored_index)) {
     restored_index = this->parent_->get_mixer_mode();
   } else {
-    if (restored_index > MIXER_MODE_MAX_INDEX) {
+    if (restored_index > MAX_INDEX) {
       restored_index = this->parent_->get_mixer_mode();
     }
   }
 
-  this->publish_state(restored_index);
+  this->publish_state(restored_index - INDEX_ADJUSTMENT);
   this->parent_->set_mixer_mode(static_cast<MixerMode>(restored_index));
 }
 
@@ -41,6 +47,7 @@ void MixerModeSelect::dump_config() {
 
 void MixerModeSelect::control(size_t index) {
   this->publish_state(index);
+  index = index + INDEX_ADJUSTMENT;
   this->pref_.save(&index);
   this->parent_->set_mixer_mode(static_cast<MixerMode>(index));
 }

@@ -63,8 +63,8 @@ TAS_DACS = {
 
 DacMode = tas58xx_ns.enum("DacMode")
 DAC_MODES = {
-    "BTL" : DacMode.BTL,
-    "PBTL": DacMode.PBTL,
+    "BTL"  : DacMode.BTL,
+    "PBTL" : DacMode.PBTL,
 }
 
 ExcludeIgnoreMode = tas58xx_ns.enum("ExcludeIgnoreModes")

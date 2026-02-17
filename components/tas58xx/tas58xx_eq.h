@@ -23,8 +23,6 @@ namespace esphome::tas58xx {
   static const int8_t  TAS58XX_EQ_MAX_DB       = 15;
   static const int8_t  TAS58XX_EQ_MIN_DB       = -TAS58XX_EQ_MAX_DB;
 
-  static const uint8_t NUMBER_CHANNELS         = 2;
-
   static const uint8_t NUMBER_EQ_BANDS         = 15;
 
   static const uint8_t COEFFICIENT_SIZE        = 4;                     // cooefficients = 32 bit
@@ -34,8 +32,8 @@ namespace esphome::tas58xx {
 	static const uint8_t PAGE_SIZE               = 0x80;                  // 0x7F + 1 = 0x80
 	static const uint8_t MINIMUM_PAGE_SUBADDR    = 0x08;                  // start subaddr for pages = 0x08
 
-  // Mixer registers
-  static const uint8_t TAS58XX_EQ_BOOK         = 0xAA;
+  //  registers
+  static const uint8_t TAS58XX_EQ_CTRL_BOOK = 0xAA;
 
   // Frequency bands
   static const uint16_t TAS58XX_EQ_BANDS[NUMBER_EQ_BANDS] = {

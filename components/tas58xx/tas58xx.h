@@ -59,7 +59,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
     this->ignore_clock_faults_when_clearing_faults_ = (ignore_fault_mode == ExcludeIgnoreMode::CLOCK_FAULT);
   }
 
-  void config_mixer_mode(MixerMode mixer_mode) { this->tas58xx_mixer_mode_ = mixer_mode; }
+  void config_mixer_mode(MixerMode mixer_mode) {this->tas58xx_mixer_mode_ = mixer_mode; }
 
   void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
 
