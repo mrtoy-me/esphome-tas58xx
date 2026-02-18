@@ -145,6 +145,7 @@ void Tas58xxComponent::loop() {
       return;
 
     case EQ_BANDS_SETUP:
+#ifdef USE_TAS58XX_EQ_GAINS
       // write gains one eq band per 'loop' so component does not take too long in 'loop'
       if (this->refresh_band_ == NUMBER_EQ_BANDS) {     // refresh_band_ was initialised to 0
         // finished writing all bands
@@ -157,26 +158,28 @@ void Tas58xxComponent::loop() {
       ESP_LOGD(TAG, "Setup Left Channel EQ Band %d Gain", this->refresh_band_);
       if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
         // show warning but continue as if eq gain was set ok
-  #ifdef USE_TAS58XX_EQ_BIAMP
+#ifdef USE_TAS58XX_EQ_BIAMP
         ESP_LOGW(TAG, "%s setting Left EQ Band %d Gain", ERROR, this->refresh_band_);
-  #else
+#else
         ESP_LOGW(TAG, "%s setting EQ Band %d Gain", ERROR, this->refresh_band_);
-  #endif
+#endif
       }
 
-  #ifdef USE_TAS58XX_EQ_BIAMP
+#ifdef USE_TAS58XX_EQ_BIAMP
       // write Right gains of current band and increment to next band ready for when loop next runs
       ESP_LOGD(TAG, "Set up Right Channel EQ Band %d Gain", this->refresh_band_);
       if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
         // show warning but continue as if eq gain was set ok
         ESP_LOGW(TAG, "%s setting Right EQ Band %d Gain", ERROR, this->refresh_band_);
       }
-  #endif
-      // progress to next band
+#endif //
+
       this->refresh_band_++;
+#endif // USE_TAS58XX_EQ_GAINS
       return;
 
     case EQ_PRESETS_SETUP:
+#ifdef USE_TAS58XX_EQ_PRESETS
       ESP_LOGD(TAG, "Setup Channel Presets");
       if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
         ESP_LOGW(TAG, "%s setting Left Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
@@ -185,6 +188,7 @@ void Tas58xxComponent::loop() {
         ESP_LOGW(TAG, "%s setting Right Channel Preset using index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
       }
       this->loop_setup_stage_ = SETUP_COMPLETE;
+#endif
       return;
 
     case SETUP_COMPLETE:
@@ -450,46 +454,49 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
 }
 
 // used by eq gain numbers
-
-bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band, int8_t gain) {
+bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t gain) {
 #ifdef USE_TAS58XX_EQ_GAINS
-  if (band < 0 || band >= NUMBER_EQ_BANDS) {
-    ESP_LOGE(TAG, "Invalid %s%d", EQ_BAND, band);
+
+  if (band_index >= NUMBER_EQ_BANDS) {
+    ESP_LOGE(TAG, "Invalid Band index: %d", band_index);
     return false;
   }
+
+  const uint8_t band = band_index + 1;
+
   if (gain < TAS58XX_EQ_MIN_DB || gain > TAS58XX_EQ_MAX_DB) {
-    ESP_LOGE(TAG, "Invalid %s%d Gain: %ddB", EQ_BAND, band, gain);
+    ESP_LOGE(TAG, "Invalid %s Channel %s:%d Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
 
   if (this->loop_setup_stage_ < EQ_BANDS_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel %s:%d Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
-    this->tas58xx_eq_gain_[channel][band] = gain;
+    ESP_LOGD(TAG, "Save %s Channel %s:%d Gain:%ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+    this->tas58xx_eq_gain_[channel][band_index] = gain;
     return true;
   }
 
-  ESP_LOGD(TAG, "Set %s Channel %s:%d Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+  ESP_LOGD(TAG, "Set %s Channel %s:%d Gain:%ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
 
   uint8_t x = (gain + TAS58XX_EQ_MAX_DB);
 
 #ifdef USE_TAS5805M_DAC
   #ifdef USE_TAS58XX_EQ_BIAMP
-  const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[band] : &TAS5805M_RIGHT_EQ_ADDRESS[band];
+  const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[band_index] : &TAS5805M_RIGHT_EQ_ADDRESS[band_index];
   #else
-  const AddressSequence* eq_address = &TAS5805M_LEFT_EQ_ADDRESS[band];
+  const AddressSequence* eq_address = &TAS5805M_LEFT_EQ_ADDRESS[band_index];
   #endif
 #else
   #ifdef USE_TAS58XX_EQ_BIAMP
-  const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[band] : &TAS5825M_RIGHT_EQ_ADDRESS[band];
+  const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[band_index] : &TAS5825M_RIGHT_EQ_ADDRESS[band_index];
   #else
-  const AddressSequence* eq_address = &TAS5825M_LEFT_EQ_ADDRESS[band];
+  const AddressSequence* eq_address = &TAS5825M_LEFT_EQ_ADDRESS[band_index];
   #endif
 #endif
 
-  const BiquadSequence* biquad = &EQ_BAND_COEFFICIENTS[x][band];
+  const BiquadSequence* biquad = &EQ_BAND_COEFFICIENTS[x][band_index];
 
   if ((eq_address == NULL) || (biquad == NULL)) {
-    ESP_LOGE(TAG, "%s NULL discovered: Band: %d Gain: %d",ERROR, band, gain);
+    ESP_LOGE(TAG, "%s NULL discovered for %s Channel %s:%d Gain:%ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
 
@@ -502,6 +509,9 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band, int8_t gain) 
 }
 
 int32_t Tas58xxComponent::gain_to_q9_23_(int8_t gain) {
+  static const float TAS58XX_LINEAR_GAIN_MAX = 255.999999f;
+  static const float TAS58XX_LINEAR_GAIN_MIN = -256.0f;
+
   float linear = powf(10.0f, ((float)gain) / 20.0f);
   if (linear > TAS58XX_LINEAR_GAIN_MAX) linear = TAS58XX_LINEAR_GAIN_MAX;
   if (linear < TAS58XX_LINEAR_GAIN_MIN) linear = TAS58XX_LINEAR_GAIN_MIN;
@@ -509,25 +519,25 @@ int32_t Tas58xxComponent::gain_to_q9_23_(int8_t gain) {
   int32_t fixed_q9_23 = static_cast<int32_t>(linear * (1 << 23));
   int32_t little_endian = byteswap(fixed_q9_23);
 
-  ESP_LOGV(TAG, "Gain:%ddb = Fixed 9.23 >> 0x%08X : Convert Endian >> 0x%08X", gain, fixed_q9_23, little_endian);
+  ESP_LOGD(TAG, "Gain:%ddb >> 9.23 Fixed:0x%08X Little Endian:0x%08X", gain, fixed_q9_23, little_endian);
   return little_endian;
 }
 
 bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 #ifdef USE_TAS58XX_CHANNEL_VOLUMES
   if (volume_dB < TAS58XX_CHANNEL_VOLUME_MIN_DB || volume_dB > TAS58XX_CHANNEL_VOLUME_MAX_DB) {
-    ESP_LOGE(TAG, "Invalid Volume:%ddB for %s Channel",  volume_dB, LR_CHANNEL_TEXT[channel]);
+    ESP_LOGE(TAG, "Invalid %s Channel Volume:%ddB", LR_CHANNEL_TEXT[channel], volume_dB);
     return false;
   }
 
   // Channel Gains initially set by tas58xx number component setups
   if (this->loop_setup_stage_ < LR_VOLUME_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel Volume >> %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
+    ESP_LOGD(TAG, "Save %s Channel Volume:%ddB", LR_CHANNEL_TEXT[channel], volume_dB);
     this->tas58xx_channel_volume_[channel] = volume_dB;
     return true;
   }
 
-  ESP_LOGD(TAG, "Set %s Channel Gain >> %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
+  ESP_LOGD(TAG, "Set %s Channel Volume:%ddB", LR_CHANNEL_TEXT[channel], volume_dB);
 
   int32_t little_endian_9_23 = gain_to_q9_23_(volume_dB);
 
@@ -599,7 +609,7 @@ bool Tas58xxComponent::set_volume(float volume) {
   if (!this->set_digital_volume_(raw_volume)) return false;
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
     int8_t dB = -(raw_volume / 2) + 24;
-    ESP_LOGV(TAG, "Volume: >> %idB", dB);
+    ESP_LOGV(TAG, "Volume >> %ddB", dB);
   #endif
   return true;
 }
@@ -733,13 +743,13 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
   const EqModeCoefficients* eq_mode_coefficients = &TAS5825M_CTRL_EQ[new_mode];
   if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS5825M_EQ_MODE_CTRL_PAGE, TAS5825M_GANG_EQ,
                                   reinterpret_cast<uint8_t*>(const_cast<EqModeCoefficients*>(eq_mode_coefficients)), sizeof(EqModeCoefficients))) {
-    ESP_LOGE(TAG, "%s writing Eq Mode", ERROR);
+    ESP_LOGE(TAG, "%s writing Eq Mode: %s", ERROR, EQ_MODE_TEXT[new_mode]);
     return false;
   }
 #endif
 
   this->tas58xx_eq_mode_ = new_mode;
-  ESP_LOGD(TAG, "Set EQ mode >> %s", EQ_MODE_TEXT[new_mode]);
+  ESP_LOGD(TAG, "Set EQ mode: %s", EQ_MODE_TEXT[new_mode]);
 #endif
   return true;
 }
@@ -756,7 +766,7 @@ bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
      return true;
   }
 
-  // order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
+  // follows order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
   struct MixerCoefficients {
     uint32_t l_to_l;
     uint32_t r_to_l;
@@ -809,12 +819,12 @@ bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
 
   if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
-    ESP_LOGE(TAG, "%s writing Input Mixer gains", ERROR);
+    ESP_LOGE(TAG, "%s writing %s: %s gains", MIXER_MODE, MIXER_MODE_TEXT[mode]);
     return false;
   }
 
   this->tas58xx_mixer_mode_ = mode;
-  ESP_LOGD(TAG, "Set %s >> %s", MIXER_MODE, MIXER_MODE_TEXT[this->tas58xx_mixer_mode_]);
+  ESP_LOGD(TAG, "Set %s: %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
   return true;
 }
 
@@ -941,13 +951,13 @@ bool Tas58xxComponent::tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, ui
   i2c::ErrorCode error_code;
   error_code = this->write(&a_register, 1);
   if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code: %d >> writing address: 0x%02X to start read", ERROR, error_code, a_register);
+    ESP_LOGE(TAG, "%s code:%d writing address: 0x%02X to start read", ERROR, error_code, a_register);
     this->i2c_error_ = (uint8_t)error_code;
     return false;
   }
   error_code = this->read_register(a_register, data, number_bytes);
   if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code: %d >> reading from address: 0x%02X for %d bytes", ERROR, error_code, a_register, number_bytes);
+    ESP_LOGE(TAG, "%s code:%d reading from address: 0x%02X for %d bytes", ERROR, error_code, a_register, number_bytes);
     this->i2c_error_ = (uint8_t)error_code;
     return false;
   }
@@ -961,7 +971,7 @@ bool Tas58xxComponent::tas58xx_write_byte_(uint8_t a_register, uint8_t data) {
 bool Tas58xxComponent::tas58xx_write_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes) {
   i2c::ErrorCode error_code = this->write_register(a_register, data, number_bytes);
   if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code: %d >> writing from address: 0x%02X for %d bytes", ERROR, error_code, a_register, number_bytes);
+    ESP_LOGE(TAG, "%s code:%d writing from address: 0x%02X for %d bytes", ERROR, error_code, a_register, number_bytes);
     this->i2c_error_ = (uint8_t)error_code;
     return false;
   }

@@ -4,10 +4,10 @@
 #include "esphome/core/component.h"
 #include "esphome/components/i2c/i2c.h"
 #include "esphome/core/hal.h"
-#include "tas58xx_cfg.h"
 
-
-#include "tas58xx_eq.h"
+#include "tas58xx_defs.h"
+#include "tas58xx_eq_common.h"
+#include "tas58xx_eq_bands.h"
 #include "tas58xx_eq_profiles.h"
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
@@ -15,26 +15,6 @@
 #endif
 
 namespace esphome::tas58xx {
-
-enum EqRefreshMode : uint8_t {
-    AUTO   = 0,
-    MANUAL = 1,
-};
-
-enum ExcludeIgnoreMode : uint8_t {
-    NONE        = 0,
-    CLOCK_FAULT = 1,
-};
-
-enum LoopSetupStage : uint8_t {
-    WAIT_FOR_TRIGGER = 0,
-    RUN_DELAY_LOOP,
-    INPUT_MIXER_SETUP,
-    LR_VOLUME_SETUP,
-    EQ_BANDS_SETUP,
-    EQ_PRESETS_SETUP,
-    SETUP_COMPLETE,
-};
 
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
@@ -55,6 +35,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void config_dac_mode(DacMode dac_mode) {this->tas58xx_dac_mode_ = dac_mode; }
 
+  void config_eq_mode(uint8_t configured_eq_mode) { this->configured_eq_mode_ = static_cast<EqMode>(configured_eq_mode); }
+
   void config_ignore_fault_mode(ExcludeIgnoreMode ignore_fault_mode) {
     this->ignore_clock_faults_when_clearing_faults_ = (ignore_fault_mode == ExcludeIgnoreMode::CLOCK_FAULT);
   }
@@ -67,7 +49,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = (int8_t)(volume_max); }
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = (int8_t)(volume_min); }
 
-  void config_eq_mode(uint8_t configured_eq_mode) { this->configured_eq_mode_ = static_cast<EqMode>(configured_eq_mode); }
 
   #ifdef USE_TAS58XX_BINARY_SENSOR
   SUB_BINARY_SENSOR(have_fault)
@@ -101,7 +82,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void select_eq_mode(uint8_t select_index);
 
-  bool set_eq_gain(Channels channel, uint8_t band, int8_t gain);
+  bool set_eq_gain(Channels channel, uint8_t band_index, int8_t gain);
 
   bool set_eq_preset(Channels channel, uint8_t select_preset);
 
@@ -180,7 +161,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool ignore_clock_faults_when_clearing_faults_; // YAML default = true
 
    DacMode tas58xx_dac_mode_;
-
 
    float tas58xx_analog_gain_;
 

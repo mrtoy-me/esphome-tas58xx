@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tas58xx_eq.h"
+#include "tas58xx_eq_common.h"
 
 namespace esphome::tas58xx {
 
@@ -9,6 +9,7 @@ namespace esphome::tas58xx {
     // BIQUADS 2: Chebyshev 2nd-order low-pass or high-pass filter
     // BIQUADS 3: High Shelf
 
+#ifdef USE_TAS58XX_EQ_PRESETS
 
 static const int8_t  EQ_PROFILE_MAXIMUM_INDEX = 20;
 static const int8_t  EQ_PROFILE_BIQUADS = 3;
@@ -439,5 +440,7 @@ static const BiquadSequence* EQ_PROFILE_RIGHT_COEFFICIENTS[] = {
     EQ_PROFILE_COEFFICIENTS_RIGHT_HF_140,
     EQ_PROFILE_COEFFICIENTS_RIGHT_HF_150,
 };
+
+#endif
 
 }  // namespace esphome::tas58xx
