@@ -7,7 +7,7 @@
 
 namespace esphome::tas58xx {
 
-class ChannelGainRight : public number::Number, public Component, public Parented<Tas58xxComponent> {
+class ChannelVolumeLeft : public number::Number, public Component, public Parented<Tas58xxComponent> {
  public:
   void setup() override;
   void dump_config() override;
