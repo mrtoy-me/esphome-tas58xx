@@ -1,31 +1,27 @@
 #include "tas58xx.h"
 #include "tas58xx_minimal.h"
+#include "tas58xx_helpers.h"
+
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
-#include "esphome/core/helpers.h"
-#include "esphome/core/hal.h"
-#include <cmath>
 
 namespace esphome::tas58xx {
 
 #ifdef USE_TAS5805M_DAC
-static const char *const TAG = "tas58xx";
+static const char* const TAG = "tas58xx";
 #else
-static const char *const TAG = "tas5825m";
+static const char* const TAG = "tas5825m";
 #endif
 
-static const char *const ERROR = "Error";
-static const char *const MIXER_MODE = "Mixer Mode";
-static const char *const EQ_BAND = "EQ Band";
+static const char* const ERROR = "Error";
+static const char* const MIXER_MODE = "Mixer Mode";
+static const char* const EQ_BAND = "EQ Band";
 
 static const uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-// initial delay in 'loop' before writing eq gains to ensure on boot sound has
-// played and tas58xx has detected i2s clock
-static const uint8_t DELAY_LOOPS = 40;  // 40 loop iterations ~ 300ms
+static const uint8_t DELAY_LOOPS = 40;  // 40 loop iterations ~ 300ms initial delay in 'loop' before writing eq settings
 
-// initial ms delay before starting fault updates
-static const uint16_t INITIAL_UPDATE_DELAY = 4000;
+static const uint16_t INITIAL_UPDATE_DELAY = 4000;  // initial ms delay before starting fault updates
 
 void Tas58xxComponent::setup() {
   ESP_LOGCONFIG(TAG, "Running setup");
@@ -72,34 +68,29 @@ bool Tas58xxComponent::configure_registers_() {
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
 
-  // only setup once here
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
-
-  // mixer mode setup deferred to 'loop'
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
 
-  // initialise to now
   this->start_time_ = App.get_loop_component_start_time();
   return true;
 }
 
 void Tas58xxComponent::loop() {
   // 'play_file' is initiated by YAML on_boot with priority 220.0f
-  // 'refresh_eq_settings' is triggered by Number 'left_eq_gain_16000hz' or right_eq_gain_16000hz or Select 'eq_mode'
+  // 'refresh_eq_settings' is triggered by Number 'left_eq_gain_16000hz' or 'right_eq_gain_16000hz' or Select 'eq_mode'
   // each with setup priority AFTER_CONNECTION = 100.0f
   // delay refreshing EQ settings until refresh is triggered so tas58xx has detected i2s clock through sound being played
 
-  // loop_setup_stage_ initially equals WAIT_FOR_TRIGGER
+  // loop_setup_stage_ is initially WAIT_FOR_TRIGGER
 
   switch (this->loop_setup_stage_) {
     case WAIT_FOR_TRIGGER:
       return;
 
     case RUN_DELAY_LOOP:
-      // wait ensures on boot sound has played and tas58xx has detected i2s clock
       if (this->loop_counter_ < DELAY_LOOPS) {    // loop_count was initialised to 0
         this->loop_counter_++;
         return;
@@ -138,7 +129,7 @@ void Tas58xxComponent::loop() {
       this->loop_setup_stage_ = EQ_PRESETS_SETUP;
 #endif
 
-      // if loop_setup_stage_ has not changed then no EQ to setup
+      // if loop_setup_stage_ has not changed then no EQ configured
       if (this->loop_setup_stage_ == LR_VOLUME_SETUP) this->loop_setup_stage_ = SETUP_COMPLETE;
       return;
 
@@ -190,7 +181,7 @@ void Tas58xxComponent::loop() {
       return;
 
     case SETUP_COMPLETE:
-      this->disable_loop(); // requires Esphome 2025.7.0
+      this->disable_loop(); // requires Esphome 2025.7.0 or greater
       return;
   }
 }
@@ -216,6 +207,8 @@ void Tas58xxComponent::update() {
     // read and process faults from next update
     return;
   }
+
+  // after delay updates starts here
 
   // if there was a fault last update then clear any faults
   if (this->is_fault_to_clear_) {
@@ -406,7 +399,7 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 
   ESP_LOGD(TAG, "Set %s Channel Volume:%ddB", LR_CHANNEL_TEXT[channel], volume_dB);
 
-  int32_t little_endian_9_23 = gain_to_f9_23_(volume_dB);
+  int32_t little_endian_9_23 = tas58xx_helpers::gain_to_f9_23_(volume_dB);
 
   if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_CHANNEL_VOLUME_PAGE, TAS58XX_CHANNEL_VOLUME_SUBADDR[channel],
                                   reinterpret_cast<uint8_t*>(&little_endian_9_23), sizeof(little_endian_9_23))) {
@@ -938,21 +931,6 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
     return false;
   }
   return true;
-}
-
-int32_t Tas58xxComponent::gain_to_f9_23_(int8_t gain) {
-  static const float TAS58XX_LINEAR_GAIN_MAX = 255.999999f;
-  static const float TAS58XX_LINEAR_GAIN_MIN = -256.0f;
-
-  float linear = powf(10.0f, ((float)gain) / 20.0f);
-  if (linear > TAS58XX_LINEAR_GAIN_MAX) linear = TAS58XX_LINEAR_GAIN_MAX;
-  if (linear < TAS58XX_LINEAR_GAIN_MIN) linear = TAS58XX_LINEAR_GAIN_MIN;
-
-  int32_t fixed_9_23 = static_cast<int32_t>(linear * (1 << 23));
-  int32_t little_endian = byteswap(fixed_9_23);
-
-  ESP_LOGD(TAG, "Gain:%ddb >> 9.23Format:0x%08X Little Endian:0x%08X", gain, fixed_9_23, little_endian);
-  return little_endian;
 }
 
 bool Tas58xxComponent::tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes) {

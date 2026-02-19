@@ -100,7 +100,7 @@ static const uint8_t TAS58XX_AUDIO_CTRL_BOOK = 0x8C;
 static const uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x29;
 static const uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x18; // Left to Left = 0x18, Right to Left = 0x1c, Left to Right = 0x20, Right to Right = 0x24
 static const uint8_t TAS58XX_CHANNEL_VOLUME_PAGE = 0x2A;
-static const uint8_t TAS58XX_CHANNEL_VOLUME_SUBBADDR[NUMBER_CHANNELS] = {0x24 , 0x28};  // Left channel = 0x24, Right Channel = 0x28
+static const uint8_t TAS58XX_CHANNEL_VOLUME_SUBADDR[NUMBER_CHANNELS] = {0x24 , 0x28};  // Left channel = 0x24, Right Channel = 0x28
 #else
 // TAS5825M
 static const uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x0B;
