@@ -51,6 +51,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
 
   #ifdef USE_TAS58XX_BINARY_SENSOR
+  void config_exclude_fault(ExcludeIgnoreMode exclude_fault) {
+    this->exclude_clock_fault_from_have_faults_ = (exclude_fault == ExcludeIgnoreMode::CLOCK_FAULT);
+  }
+
   SUB_BINARY_SENSOR(have_fault)
   SUB_BINARY_SENSOR(left_channel_dc_fault)
   SUB_BINARY_SENSOR(right_channel_dc_fault)
@@ -65,10 +69,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   SUB_BINARY_SENSOR(over_temperature_shutdown_fault)
   SUB_BINARY_SENSOR(over_temperature_warning)
-
-  void config_exclude_fault(ExcludeIgnoreMode exclude_fault) {
-    this->exclude_clock_fault_from_have_faults_ = (exclude_fault == ExcludeIgnoreMode::CLOCK_FAULT);
-  }
   #endif
 
   void enable_dac(bool enable);
@@ -77,6 +77,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   uint8_t get_mixer_mode();
   bool set_mixer_mode(MixerMode mode);
+
+  bool is_eq_configured();
+
+  void refresh_eq_settings();
 
   bool set_channel_volume(Channels channel, int8_t volume_dB);
 
@@ -90,11 +94,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   bool set_mute_off() override;
   bool set_mute_on() override;
 
-  void refresh_eq_settings();
-
   uint32_t times_faults_cleared();
-
-  bool is_eq_configured();
 
   bool using_auto_eq_refresh();
   bool using_manual_eq_refresh();
@@ -122,14 +122,11 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool get_eq_mode_(EqMode* current_mode);
    bool set_eq_mode_(EqMode new_mode);
 
-   int32_t gain_to_q9_23_(int8_t gain);
-
    bool get_state_(ControlState* state);
    bool set_state_(ControlState state);
 
    // manage faults
    bool clear_fault_registers_();
-   bool read_fault_registers_();
 
    #ifdef USE_TAS58XX_BINARY_SENSOR
    void publish_faults_();
@@ -137,14 +134,20 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    void publish_global_faults_();
    #endif
 
+   bool read_fault_registers_();
+
+
    // low level functions
-  //  bool set_book_and_page_(uint8_t book, uint8_t page);
    bool book_and_page_write_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes);
 
-  //  bool tas58xx_read_byte_(uint8_t a_register, uint8_t* data);
+   int32_t gain_to_f9_23_(int8_t gain);
+
    bool tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes);
    bool tas58xx_write_byte_(uint8_t a_register, uint8_t data);
    bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t number_bytes);
+
+   //// variables
+   EqMode configured_eq_mode_; // derived from YAML
 
    enum ErrorCode {
      NONE = 0,
@@ -152,7 +155,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    } error_code_{NONE};
 
    // configured by YAML
-   EqRefreshMode eq_refresh_;  // default 'AUTO' = 0
+   EqRefreshMode eq_refresh_;  // YAML default 'AUTO' = 0
 
    #ifdef USE_TAS58XX_BINARY_SENSOR
    bool exclude_clock_fault_from_have_faults_; // YAML default = true
@@ -160,77 +163,59 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    bool ignore_clock_faults_when_clearing_faults_; // YAML default = true
 
-   DacMode tas58xx_dac_mode_;
-
-   float tas58xx_analog_gain_;
-
-   // configured maximum and minimum with units dB
-   int8_t tas58xx_volume_max_;
-   int8_t tas58xx_volume_min_;
-
-   MixerMode tas58xx_mixer_mode_{MixerMode::STEREO};
-
-   // used if eq gain numbers are defined in YAML
-   int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0};
-
-   // derived from YAML
-   EqMode configured_eq_mode_;
-
-   // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
-   EqMode tas58xx_eq_mode_{EQ_OFF};
+   float tas58xx_analog_gain_; // configured in YAML
 
    uint8_t tas58xx_channel_preset_[NUMBER_CHANNELS]{0};
    int8_t tas58xx_channel_volume_[NUMBER_CHANNELS]{0};
 
-   // initialised in setup
-   ControlState tas58xx_control_state_;
+   ControlState tas58xx_control_state_; // initialised in setup
 
-   // maximum and minimum volume as digital volume register range 254 to 0
-   uint8_t tas58xx_raw_volume_max_;
-   uint8_t tas58xx_raw_volume_min_;
+   DacMode tas58xx_dac_mode_; // configured in YAML
 
-   // fault processing
+#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+   bool eq_configured_{true};
+#else
+   bool eq_configured_{false};
+#endif
+
+   int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
+
+   EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
+
+   MixerMode tas58xx_mixer_mode_{MixerMode::STEREO};
+
+   uint8_t tas58xx_raw_volume_max_; // maximum volume as digital volume register range 254 to 0
+   uint8_t tas58xx_raw_volume_min_; // minimum volume as digital volume register range 254 to 0
+
+   int8_t tas58xx_volume_max_;  // YAML configured maximum volume dB
+   int8_t tas58xx_volume_min_;  // YAML configured maximum volume dB
+
+   //// fault processing variables
    bool is_fault_to_clear_{false}; // false so clear fault registers is skipped on first update
 
-   // has the state of any fault in group changed - used to conditionally publish binary sensors
-   // true so all binary sensors are published on first update
-   bool is_new_channel_fault_{true};
+   bool is_new_channel_fault_{true};  // conditionally publish binary sensors - initially true so published on first update
    bool is_new_common_fault_{true};
    bool is_new_global_fault_{true};
    bool is_new_over_temperature_issue_{true};
 
-   // current state of faults
-   Tas58xxFault tas58xx_faults_;
+   Tas58xxFault tas58xx_faults_;  // current state of faults
 
-   // counts number of times the faults register is cleared (used for publishing to sensor)
-   uint32_t times_faults_cleared_{0};
+   uint32_t times_faults_cleared_{0}; // counts number of times the faults register is cleared (used for publishing to sensor)
 
-   // use to indicate if delay before starting 'update' starting is complete
-   bool update_delay_finished_{false};
+   //// utility variables used by loop, update and dump_config
+   bool update_delay_finished_{false}; // use to indicate if delay before starting 'update' starting is complete
 
-   #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
-   bool eq_configured_{true};
-   #else
-   bool eq_configured_{false};
-   #endif
+   uint8_t i2c_error_{0}; // last i2c error
 
-   // eq band currently being refreshed
-   uint8_t refresh_band_{0};
+   uint8_t loop_counter_{0}; // counts number of 'loop' iterations before proceeding
 
-   // last i2c error, if there is error shown by 'dump_config'
-   uint8_t i2c_error_{0};
+   LoopSetupStage loop_setup_stage_{WAIT_FOR_TRIGGER}; // used for state machine in 'loop'
 
-   // used for counting number of 'loops' iterations for delay of starting 'loop'
-   uint8_t loop_counter_{0};
+   uint16_t number_registers_configured_{0}; // number tas58xx registers configured during 'setup'
 
-  // used for state machine in 'loop' to implement delayed and ordered DAC EQ setup
-  LoopSetupStage loop_setup_stage_{WAIT_FOR_TRIGGER};
+   uint8_t refresh_band_{0}; // eq band currently being refreshed by 'loop'
 
-   // number tas58xx registers configured during 'setup'
-   uint16_t number_registers_configured_{0};
-
-   // initialised in setup, used for delay in starting 'update'
-   uint32_t start_time_;
+   uint32_t start_time_; // initialised in setup, used for delay in starting 'update'
 };
 
 }  // namespace esphome::tas58xx

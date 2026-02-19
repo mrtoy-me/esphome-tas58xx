@@ -114,10 +114,6 @@ static const uint32_t TAS58XX_MIXER_COEFF_MUTE = 0x00000000;
 static const uint32_t TAS58XX_MIXER_COEFF_0DB = 0x00008000;
 static const uint32_t TAS58XX_MIXER_COEFF_MINUS6DB = 0x00004000;
 
-// Biquad addressing constants
-static const uint8_t PAGE_SIZE = 0x80;           		// 0x7F + 1 = 0x80
-static const uint8_t MINIMUM_PAGE_SUBADDR = 0x08;   // start subaddr for pages = 0x08
-
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
 // Biquad pages and subaddresses
 struct AddressSequence {
