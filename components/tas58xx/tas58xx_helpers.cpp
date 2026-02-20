@@ -7,8 +7,8 @@ namespace esphome::tas58xx_helpers {
   static const char *const HELPER_TAG = "tas58xx.helper";
 
   int32_t gain_to_f9_23_(int8_t gain) {
-    static const float TAS58XX_LINEAR_GAIN_MAX = 255.999999f;
-    static const float TAS58XX_LINEAR_GAIN_MIN = -256.0f;
+    static constexpr float TAS58XX_LINEAR_GAIN_MAX = 255.999999f;
+    static constexpr float TAS58XX_LINEAR_GAIN_MIN = -256.0f;
 
     float linear = powf(10.0f, ((float)gain) / 20.0f);
     if (linear > TAS58XX_LINEAR_GAIN_MAX) linear = TAS58XX_LINEAR_GAIN_MAX;

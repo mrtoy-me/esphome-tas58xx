@@ -17,11 +17,11 @@ static const char* const ERROR = "Error";
 static const char* const MIXER_MODE = "Mixer Mode";
 static const char* const EQ_BAND = "EQ Band";
 
-static const uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
+static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-static const uint8_t DELAY_LOOPS = 40;  // 40 loop iterations ~ 300ms initial delay in 'loop' before writing eq settings
+static constexpr uint8_t DELAY_LOOPS = 40;  // 40 loop iterations ~ 300ms initial delay in 'loop' before writing eq settings
 
-static const uint16_t INITIAL_UPDATE_DELAY = 4000;  // initial ms delay before starting fault updates
+static constexpr uint16_t INITIAL_UPDATE_DELAY = 4000;  // initial ms delay before starting fault updates
 
 void Tas58xxComponent::setup() {
   ESP_LOGCONFIG(TAG, "Running setup");
@@ -44,7 +44,7 @@ void Tas58xxComponent::setup() {
 }
 
 bool Tas58xxComponent::configure_registers_() {
-  static const uint8_t ESPHOME_MAXIMUM_DELAY = 5; // milliseconds
+  static constexpr uint8_t ESPHOME_MAXIMUM_DELAY = 5; // milliseconds
 
   uint16_t i = 0;
   uint16_t counter = 0;
@@ -599,7 +599,7 @@ bool Tas58xxComponent::get_analog_gain_(uint8_t* raw_gain) {
 // 11111: -15.5 dB
 // set analog gain in dB
 bool Tas58xxComponent::set_analog_gain_(float gain_db) {
-  static const uint8_t TOP_3BITS_MASK = 0xE0;
+  static constexpr uint8_t TOP_3BITS_MASK = 0xE0;
 
   if ((gain_db < TAS58XX_MIN_ANALOG_GAIN) || (gain_db > TAS58XX_MAX_ANALOG_GAIN)) return false;
 
@@ -825,7 +825,7 @@ void Tas58xxComponent::publish_global_faults_() {
 #endif
 
 bool Tas58xxComponent::read_fault_registers_() {
-  static const uint8_t REMOVE_CLOCK_FAULT = 0xFB;  // clock fault bit of global_fault1 register
+  static constexpr uint8_t REMOVE_CLOCK_FAULT = 0xFB;  // clock fault bit of global_fault1 register
 
   uint8_t current_faults[4];
 
@@ -881,8 +881,8 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
   // shorter consecutive writes required by tas5805m and tas5825m do not extend over page boundaries
 
   // Biquad addressing constants
-  static const uint8_t PAGE_SIZE = 0x80;           		// 0x7F + 1 = 0x80
-  static const uint8_t MINIMUM_PAGE_SUBADDR = 0x08;   // start subaddr for pages = 0x08
+  static constexpr uint8_t PAGE_SIZE = 0x80;           		// 0x7F + 1 = 0x80
+  static constexpr uint8_t MINIMUM_PAGE_SUBADDR = 0x08;   // start subaddr for pages = 0x08
 
   if (number_bytes == 0 || number_bytes > BIQUAD_SIZE) {
     ESP_LOGE(TAG, "Incorrect length for book and page write");
