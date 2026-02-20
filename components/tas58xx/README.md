@@ -266,7 +266,20 @@ Configuration headers:
 
 # EQ Control configuration
 
-## EQ Band Gain Numbers
+## Left/Right Channel Volume and EQ Band Gain Numbers
+
+Left and Right Channel Volume control can be configured.
+If configured, both channels must be configured as follows:
+
+```
+number:
+- platform: tas58xx
+    channel_volume_left:
+      name: _Volume Left
+    channel_volume_right:
+      name: _Volume Right
+```
+
 For each channel 15 EQ Band Gain Numbers can be configured for controlling the gain of each EQ Band
 in Home Assistant. The number configuration heading for each number is shown below
 with an example name. Defining **number: -platform: tas58xx** requires
@@ -344,10 +357,10 @@ number:
 ```
 
 ## EQ Presets
-Provides 21 possible Frequenct Cutoff selections for left and right channels
-being Flat, Low Frequency 50Hz to 150Hz and High Frequency 50Hz to 150Hz.
+Provides 21 possible Frequenct Cutoff selections for left and right channels as follows:
+- Flat, Low Frequency 50Hz to 150Hz and High Frequency 50Hz to 150Hz
 
-An example configuration EQ Prsesets adds to the typical selct configuration as follows:
+An example configuration EQ Presets adds to the typical select configuration as follows:
 ```
 select:
   - platform: tas58xx
@@ -361,6 +374,7 @@ select:
       name: EQ Preset Right Cutoff
 ```
 Either EQ Presets OR EQ Gains can be configured.
+
 
 ## Announce Volume Template Number
 The example YAML defines an Announce Volume template number which can be used in
