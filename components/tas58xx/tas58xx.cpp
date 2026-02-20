@@ -13,9 +13,9 @@ static const char* const TAG = "tas58xx";
 static const char* const TAG = "tas5825m";
 #endif
 
-static const char* const ERROR = "Error";
-static const char* const MIXER_MODE = "Mixer Mode";
-static const char* const EQ_BAND = "EQ Band";
+static constexpr const char* ERROR = "Error";
+static constexpr const char* MIXER_MODE = "Mixer Mode";
+static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
