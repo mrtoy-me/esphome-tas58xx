@@ -101,12 +101,10 @@ void Tas58xxComponent::loop() {
     case INPUT_MIXER_SETUP:
       // setup Eq Mode first
       if (!this->set_eq_mode_(this->tas58xx_eq_mode_)) {
-         // show warning but continue as if EQ mode was set ok
          ESP_LOGW(TAG, "%s setting EQ Mode: %s", ERROR, EQ_MODE_TEXT[this->tas58xx_eq_mode_]);
       }
 
       if (!this->set_mixer_mode(this->tas58xx_mixer_mode_)) {
-        // show warning but continue as if mixer mode was set ok
         ESP_LOGW(TAG, "%s setting %s:%s", ERROR, MIXER_MODE, MIXER_MODE_TEXT[this->tas58xx_mixer_mode_]);
       }
       this->loop_setup_stage_ = LR_VOLUME_SETUP;
@@ -114,14 +112,11 @@ void Tas58xxComponent::loop() {
 
     case LR_VOLUME_SETUP:
 #ifdef USE_TAS58XX_CHANNEL_VOLUMES
-      ESP_LOGD(TAG, "Setup Channel Volumes");
       if (!this->set_channel_volume(LEFT_CHANNEL, this->tas58xx_channel_volume_[LEFT_CHANNEL])) {
-        // show warning but continue as if left channel gain was set ok
         ESP_LOGW(TAG, "%s setting Left Channel Gain:%ddb", ERROR, this->tas58xx_channel_volume_[LEFT_CHANNEL]);
       }
 
       if (!this->set_channel_volume(RIGHT_CHANNEL, this->tas58xx_channel_volume_[RIGHT_CHANNEL])) {
-        // show warning but continue as if right channel gain was set ok
         ESP_LOGW(TAG, "%ssetting Right Channel Gain:%ddb", ERROR, this->tas58xx_channel_volume_[RIGHT_CHANNEL]);
       }
 #endif
@@ -140,7 +135,6 @@ void Tas58xxComponent::loop() {
 
     case EQ_BANDS_SETUP:
 #ifdef USE_TAS58XX_EQ_GAINS
-      // write gains one eq band per 'loop' so component does not take too long in 'loop'
       if (this->refresh_band_ == NUMBER_EQ_BANDS) {     // refresh_band_ was initialised to 0
         // finished writing all bands
         this->loop_setup_stage_ = SETUP_COMPLETE;
@@ -148,10 +142,7 @@ void Tas58xxComponent::loop() {
         return;
       }
 
-      // write Left gains of current band and increment to next band ready for when loop next runs
-      ESP_LOGD(TAG, "Set Gain Left Channel %s:%d ", EQ_BAND, this->refresh_band_ + 1);
       if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
-        // show warning but continue as if eq gain was set ok
 #ifdef USE_TAS58XX_EQ_BIAMP
         ESP_LOGW(TAG, "%s setting Gain Left %s:%d", ERROR, EQ_BAND, this->refresh_band_ + 1);
 #else
@@ -160,10 +151,7 @@ void Tas58xxComponent::loop() {
       }
 
 #ifdef USE_TAS58XX_EQ_BIAMP
-      // write Right gains of current band and increment to next band ready for when loop next runs
-      ESP_LOGD(TAG, "Set Gain Right Channel %s:%d", EQ_BAND, this->refresh_band_ + 1);
       if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
-        // show warning but continue as if eq gain was set ok
         ESP_LOGW(TAG, "%s setting Gain Right %s:%d", ERROR, EQ_BAND, this->refresh_band_ + 1);
       }
 #endif
@@ -174,7 +162,6 @@ void Tas58xxComponent::loop() {
 
     case EQ_PRESETS_SETUP:
 #ifdef USE_TAS58XX_EQ_PRESETS
-      ESP_LOGD(TAG, "Setup Channel Presets");
       if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
         ESP_LOGW(TAG, "%s setting Left Channel Preset index:%d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
       }
