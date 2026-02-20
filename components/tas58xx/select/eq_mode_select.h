@@ -8,7 +8,7 @@
 
 namespace esphome::tas58xx {
 
-static const uint8_t MAX_SELECT_OPTIONS = 4; // in stored_options_
+static constexpr uint8_t MAX_SELECT_OPTIONS = 4; // in stored_options_
 
 class EqModeSelect : public select::Select, public Component, public Parented<Tas58xxComponent> {
 
@@ -27,7 +27,7 @@ protected:
 
   // Storage for actual string data (must persist for lifetime from developer blog 7th Nov 25 "Select Entity Class: Index-Based Operations and Flash Storage" @bdraco)
   // https://developers.esphome.io/blog/2025/11/07/select-entity-class-index-based-operations-and-flash-storage/
-  std::string stored_options_[MAX_SELECT_OPTIONS] = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
+  static constexpr std::string stored_options_[MAX_SELECT_OPTIONS] = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
 
   void control(size_t index) override;
 };

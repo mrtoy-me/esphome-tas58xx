@@ -7,12 +7,12 @@ static const char *const TAG = "tas58xx.select";
 
 #ifdef USE_DAC_MODE_PBTL
 // only last three MixerModes are valid for Select
-static const uint8_t MAX_INDEX = 2;
-static const uint8_t INDEX_ADJUSTMENT = 2;
+static constexpr uint8_t MAX_INDEX = 2;
+static constexpr uint8_t INDEX_ADJUSTMENT = 2;
 #else
 // all five possible MixerModes are valid for Select
-static const uint8_t MAX_INDEX = 4;
-static const uint8_t INDEX_ADJUSTMENT = 0;
+static constexpr uint8_t MAX_INDEX = 4;
+static constexpr uint8_t INDEX_ADJUSTMENT = 0;
 #endif
 
 void MixerModeSelect::setup() {
