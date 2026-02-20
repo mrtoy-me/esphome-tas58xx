@@ -234,6 +234,7 @@ number:
     restore_value: true
     initial_value: 50
     optimistic: true
+
   - platform: tas58xx
     channel_volume_left:
       name: _Volume Left

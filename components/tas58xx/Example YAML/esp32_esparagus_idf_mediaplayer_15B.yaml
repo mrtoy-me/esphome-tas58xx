@@ -237,6 +237,7 @@ number:
       name: _Volume Left
     channel_volume_right:
       name: _Volume Right
+
     left_eq_gain_20Hz:
       name: Left ---20Hz
     left_eq_gain_31.5Hz:
