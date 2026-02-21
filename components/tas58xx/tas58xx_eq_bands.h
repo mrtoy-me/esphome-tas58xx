@@ -1463,7 +1463,7 @@ static constexpr BiquadSequence EQ_BAND_COEFFICIENTS_PF[NUMBER_EQ_BANDS] = {
     { 0x1a, 0xeb, 0x86, 0x5b, 0xfc, 0x17, 0x9b, 0xa8, 0xec, 0xe5, 0x42, 0x56, 0x03, 0xe8, 0x64, 0x58, 0x00, 0x2f, 0x37, 0x4f },
 };
 
-static const BiquadSequence* EQ_BAND_COEFFICIENTS[] = {
+static constexpr const BiquadSequence* EQ_BAND_COEFFICIENTS[] = {
   EQ_BAND_COEFFICIENTS_MF,
   EQ_BAND_COEFFICIENTS_ME,
   EQ_BAND_COEFFICIENTS_MD,

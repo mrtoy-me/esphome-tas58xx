@@ -393,7 +393,7 @@ static constexpr BiquadSequence EQ_PROFILE_COEFFICIENTS_RIGHT_HF_150[EQ_PROFILE_
     { 0x08, 0xf7, 0x52, 0xa3, 0xee, 0x68, 0x1c, 0x01, 0x08, 0xa1, 0x63, 0x38, 0x0f, 0xae, 0x0d, 0x5a, 0xf8, 0x51, 0x20, 0xca }
 };
 
-static const BiquadSequence* EQ_PROFILE_LEFT_COEFFICIENTS[] = {
+static constexpr const BiquadSequence* EQ_PROFILE_LEFT_COEFFICIENTS[] = {
     EQ_PROFILE_COEFFICIENTS_LEFT_FLAT,
     EQ_PROFILE_COEFFICIENTS_LEFT_LF_60,
     EQ_PROFILE_COEFFICIENTS_LEFT_LF_70,
@@ -417,7 +417,7 @@ static const BiquadSequence* EQ_PROFILE_LEFT_COEFFICIENTS[] = {
     EQ_PROFILE_COEFFICIENTS_LEFT_HF_150,
 };
 
-static const BiquadSequence* EQ_PROFILE_RIGHT_COEFFICIENTS[] = {
+static constexpr const BiquadSequence* EQ_PROFILE_RIGHT_COEFFICIENTS[] = {
     EQ_PROFILE_COEFFICIENTS_RIGHT_FLAT,
     EQ_PROFILE_COEFFICIENTS_RIGHT_LF_60,
     EQ_PROFILE_COEFFICIENTS_RIGHT_LF_70,

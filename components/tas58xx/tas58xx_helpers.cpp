@@ -4,7 +4,7 @@
 
 namespace esphome::tas58xx_helpers {
 
-  static const char *const HELPER_TAG = "tas58xx.helper";
+  static constexpr const char* HELPER_TAG = "tas58xx.helper";
 
   int32_t gain_to_f9_23_(int8_t gain) {
     static constexpr float TAS58XX_LINEAR_GAIN_MAX = 255.999999f;
