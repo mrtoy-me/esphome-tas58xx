@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static const char *const TAG = "tas58xx.select";
+static constexpr const char* TAG = "tas58xx.select";
 
 #ifdef USE_DAC_MODE_PBTL
 // only last three MixerModes are valid for Select

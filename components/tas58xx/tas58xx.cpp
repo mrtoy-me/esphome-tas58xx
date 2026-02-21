@@ -10,7 +10,6 @@ namespace esphome::tas58xx {
 #ifdef USE_TAS5805M_DAC
 static constexpr const char* TAG = "tas58xx";
 #else
-//static const char* const TAG = "tas5825m";
 static constexpr const char* TAG = "tas5825m";
 #endif
 
