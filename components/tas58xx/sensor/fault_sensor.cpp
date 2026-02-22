@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const char* TAG = "tas58xx.sensor";
+static const char *const TAG = "tas58xx.sensor";
 
 void  FaultSensor::dump_config() {
   ESP_LOGCONFIG(TAG, "Tas58xx Sensor:");

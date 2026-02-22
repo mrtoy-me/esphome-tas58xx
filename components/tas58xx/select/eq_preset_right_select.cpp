@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const char* TAG = "tas58xx.select";
+static const char *const TAG = "tas58xx.select";
 
 void EqPresetRightSelect::setup() {
   this->traits.set_options({"Flat","LF 60Hz", "LF 70Hz", "LF 80Hz", "LF 90Hz", "LF 100Hz", "LF 110Hz", "LF 120Hz", "LF 130Hz", "LF 140Hz", "LF 150Hz",

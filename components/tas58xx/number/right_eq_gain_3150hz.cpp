@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const char* TAG = "tas58xx.number";
+static const char *const TAG = "tas58xx.number";
 
 void RightEqGain3150hz::setup() {
   float value;

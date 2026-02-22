@@ -6,12 +6,12 @@ Information from this repository has also been used/reproduced in this read.me t
 a better understanding of how to use this component to generate firmware using Esphome Builder.
 
 # Usage: tas58xx component on Github
-This component requires Esphome version 2026.1.0 or later.
+This component requires Esphome version 2026.2.0 or later.
 
 The following yaml can be used so ESPHome accesses the component files:
 ```
 external_components:
-  - source: github://mrtoy-me/esphome-tas58xxm@main
+  - source: github://mrtoy-me/esphome-tas58xxm@beta
     components: [ tas58xx ]
     refresh: 0s
 ```
@@ -116,8 +116,7 @@ power, data signal, short circuits, overheating etc. The general pattern for
 fault detection is periodic check of fault registers, and when there are any
 faults, provide notification through sensor/s and clear any fault afterwards.
 
-
-# Activation of Mixer mode and EQ Gains
+# Activation of Mixer mode and EQ Gains or EQ Presets
 For software configuration of the Mixer and EQ Gains, the TAS5805M and TAS5825M
 must have received a stable I2S signal. If a Mixer setting (other than default)
 and/or EQ Band Gain Numbers are configured, what this means for this component
@@ -133,19 +132,17 @@ Configuration required to be included under **mediaplayer:** YAML is:
 ```
 files:
     id: startup_sync_sound
-    file: https://github.com/mrtoy-me/esphome-tas58xx/raw/main/components/tas58xx/tas58xx_boot.flac
+    file: https://github.com/mrtoy-me/esphome-tas58xx/raw/beta/components/tas58xx/tas58xx_boot.flac
 ```
 Configuration required to be included under **esphome:** YAML:
 ```
 on_boot:
     priority: 220.0
     then:
-      media_player.play_media:
-        id: external_media_player # speaker media player id
-        media_url: file://startup_sync_sound
+      media_player.speaker.play_on_device_media_file: startup_sync_sound
 ```
 The **audio_dac:** has an optional configuration variable called **refresh_eq:**
-The default configuration of **refresh_eq: BY_GAIN** matches the above use case and
+The default configuration of **refresh_eq: AUTO** matches the above use case and
 therefore can be omitted from the **audio_dac:** YAML configuration.
 
 ## Use Case where Speaker Mediaplayer is not used (eg using a SnapCast client component)
@@ -153,20 +150,22 @@ Another use case, is use of Snapcast client component instead of Speaker Mediapl
 to produce the required audio. In this use case, the following "workaround" is necessary
 to play audio before the component writes the Mixer andxEQ Gain settings to the DAC.
 This workaround requires the user to start playing audio
-then turn on the Enable EQ Switch. The following changed configuration is required:
+then using the EQ Mode Select choose the relevant EQ Mode.
 
-1) Configure **audio_dac:** with optional configuration variable and value **refresh_eq: BY_SWITCH**
-2) Configure **switch: - platform: tas58xx** with **enable_eq:** as follows:
+The following changed configuration is required:
+
+1) Configure **audio_dac:** with optional configuration variable and value **refresh_eq: MANUAL**
+2) Configure **select: - platform: tas58xx** with **eq_mode:** as follows:
+
 ```
-switch:
+select:
   - platform: tas58xx
-    enable_eq:
-      name: Enable EQ Control
-      restore_mode: ALWAYS_OFF
+    eq_mode:
+      name: EQ Mode
 ```
 
 3) After Louder has booted, manually initiate playing of some audio
-4) Turn Enable EQ Switch On
+4) Turn EQ Mode select from Off to relevant Eq Mode
 
 
 # YAML configuration
@@ -208,20 +207,38 @@ Configuration variables:
 - **ignore_fault:** (*Optional*): Valid options are **CLOCK_FAULT** and **NONE**. Default is **CLOCK_FAULT**.
   That is, by default clock faults are ignored when determining if fault registers require clearing. To trigger clearing of fault registers on any fault condition, specify **ignore_fault: NONE**
 
-- **refresh_eq:** (*Optional*): valid values **BY_GAIN** or **BY_SWITCH**. Default is **BY_GAIN**.
+- **refresh_eq:** (*Optional*): valid values **AUTO** or **MANUAL**. Default is **AUTO**.
   This setting is not required if you are using Speaker Mediaplayer component as the default matches this use case. The setting is mainly intended when the Snapcast client component is used instead of Speaker Mediaplayer. When a Snapcast client component is configured, the BY_SWITCH setting should be used. See information under "Activation of Mixer mode and EQ Gains" section above and the provided YAML examples.
 
 - **update_interval:** (*Optional*): defines the interval (seconds) at which faults will be
   checked and then if detected, the clearing of the fault registers will occur at next interval. Defaults to 1s. **Note:** update interval cannot be reduced below 1s.
 
+## Selects for Mixer Mode and EQ Mode
+Several selects can be configured to provide selct dropdowns in Homeassistant.
+- Eq Mode Select allows changing from EQ Mode Off to the YAML configured EQ Mode.
+- EQ Mixer Mode allow the input mixer mode to be changed between STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT
+- EQ Left and Right Channel Frequency Cutoff can be altered to the selected cutoff frequency
 
-## Switches
-Two switches can be configured to provide switches in Homeassistant.
+```select:
+  - platform: tas58xx
+    mixer_mode:
+      name: _Mixer Mode
+    eq_mode:
+      name: EQ Mode
+```
+There only two possible EQ Modes being Off and depending on configuration
+EQ 15 Band or EQ BIAMP 15 Band or EQ Presets.
+The second EQ Mode select option is determined based on the YAML configuration as follows:
+- 15 x Left EQ Gains configured -> **EQ 15 Band**
+- 15 x Left EQ Gains and 15 x Right EQ Gains configured -> **EQ BIAMP 15 Band**
+- EQ Preset Left Channel and EQ Preset Right Channel frequency cutoffs configured -> **EQ Presets**
+
+Details for configuration see EQ Control configuration section below.
+
+## DAC Enable Switch
+A switch can be configured to provide and Enable-Disable DAC switch in Homeassistant.
 - Enable Dac Switch, more specifically places the DAC into Play mode or
   into low power Sleep mode
-- Enable EQ Control Switch which switches the DAC EQ control On/Off.
-  This switch works in conjunction with configuration of the tas58xx
-  platform numbers which configure gain of EQ Bands.
 
 The example YAML also includes an **interval:** and **mediaplayer:** configuration to
 trigger Enable Louder Switch Off when there is no music player activity (idle or paused)
@@ -237,9 +254,6 @@ Configuration of tas58xx platform Switches in typical use case:
       name: Enable Louder
       id: enable_louder
       restore_mode: ALWAYS_ON
-    enable_eq:
-      name: Enable EQ Control
-      restore_mode: RESTORE_DEFAULT_ON
 ```
 Configuration headers:
 - **enable_dac:** (*Optional*): allows the definition of a switch to enable/disable
@@ -249,26 +263,35 @@ Configuration headers:
   Configuration variables:
     - **restore_mode:** (optional but recommended): **ALWAYS_ON** is recommended.
 
-- **enable_eq:** (*Optional*): allows the definition of a switch to turn on/off
-  the DAC EQ Control Mode. Switch On enables EQ Control while
-  Switch Off disables EQ Control.
 
-  Configuration variables:
-    - **restore_mode:** (optional but recommended): **RESTORE_DEFAULT_ON** is
-      recommended for typical use case where speaker mediaplayer is use for audio.
-      For use case, where SnapCast client component is used instead of
-      Speaker mediaplayer component, **ALWAYS_OFF** is recommended.
+# EQ Control configuration
 
-## EQ Band Gain Numbers
-15 EQ Band Gain Numbers can be configured for controlling the gain of each EQ Band
+## Left/Right Channel Volume and EQ Band Gain Numbers
+
+Left and Right Channel Volume control can be configured.
+If configured, both channels must be configured as follows:
+
+```
+number:
+- platform: tas58xx
+    channel_volume_left:
+      name: _Volume Left
+    channel_volume_right:
+      name: _Volume Right
+```
+
+For each channel 15 EQ Band Gain Numbers can be configured for controlling the gain of each EQ Band
 in Home Assistant. The number configuration heading for each number is shown below
 with an example name. Defining **number: -platform: tas58xx** requires
-all 15 EQ Gain Band headings to be configured.
-Note left EQ GAins are applied to the left and right channekls.
+all 15 EQ Gain Band headings for each Channel to be configured.
+
+If only 15 left EQ Gains are configured then they arebapplied to the left and right channels.
+To control left and right channels individually, the 15 left EQ Gains and 15 Right EQ Gains need
+be configured. Configuration of 15 Right EQ Gains requires the 15 left EQ Gains to be configured.
 For EQ Band Gains toc onfigure correctly requires some addition YAML configuration, refer to the
 "Activation of Mixer mode and EQ Gains" section above and the provided YAML examples.
 
-Example configuration of tas58xx platform (Band Gain) Numbers:
+Example configuration of tas58xx platform (Band Gain) Numbers for each channel:
 ```
 number:
   - platform: tas58xx
@@ -302,7 +325,56 @@ number:
       name: Left Gain -8000Hz
     left_eq_gain_16000Hz:
       name: Left Gain 16000Hz
+
+    right_eq_gain_31.5Hz:
+      name: Right ---31.5Hz
+    right_eq_gain_50Hz:
+      name: Right ---50Hz
+    right_eq_gain_80Hz:
+      name: Right ---80Hz
+    right_eq_gain_125Hz:
+      name: Right --125Hz
+    right_eq_gain_200Hz:
+      name: Right --200Hz
+    right_eq_gain_315Hz:
+      name: Right --315Hz
+    right_eq_gain_500Hz:
+      name: Right --500Hz
+    right_eq_gain_800Hz:
+      name: Right --800Hz
+    right_eq_gain_1250Hz:
+      name: Right -1250Hz
+    right_eq_gain_2000Hz:
+      name: Right -2000Hz
+    right_eq_gain_3150Hz:
+      name: Right -3150Hz
+    right_eq_gain_5000Hz:
+      name: Right -5000Hz
+    right_eq_gain_8000Hz:
+      name: Right -8000Hz
+    right_eq_gain_16000Hz:
+      name: Right 16000Hz
 ```
+
+## EQ Presets
+Provides 21 possible Frequenct Cutoff selections for left and right channels as follows:
+- Flat, Low Frequency 50Hz to 150Hz and High Frequency 50Hz to 150Hz
+
+An example configuration EQ Presets adds to the typical select configuration as follows:
+```
+select:
+  - platform: tas58xx
+    mixer_mode:
+      name: _Mixer Mode
+    eq_mode:
+      name: EQ Mode
+    eq_preset_left_channel:
+      name: EQ Preset Left Cutoff
+    eq_preset_right_channel:
+      name: EQ Preset Right Cutoff
+```
+Either EQ Presets OR EQ Gains can be configured.
+
 
 ## Announce Volume Template Number
 The example YAML defines an Announce Volume template number which can be used in

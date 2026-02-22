@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const char* TAG = "tas58xx.switch";
+static const char *const TAG = "tas58xx.switch";
 
 void EnableDacSwitch::setup() {
   optional<bool> initial_state = this->get_initial_state_with_restore_mode();

@@ -10,11 +10,11 @@ struct Tas58xxConfiguration {
   }__attribute__((packed));
 
 // Startup sequence flag
-static constexpr uint8_t TAS58XX_CFG_META_DELAY = 254;
+static const uint8_t TAS58XX_CFG_META_DELAY = 254;
 
-static constexpr Tas58xxConfiguration TAS58XX_REGISTERS[] = {
+static const Tas58xxConfiguration TAS58XX_REGISTERS[] = {
 // RESET
-    { 0x00, 0x00 }, //
+    { 0x00, 0x00 }, // 
     { 0x7f, 0x00 },
     { 0x03, 0x02 },
     { 0x01, 0x11 },
