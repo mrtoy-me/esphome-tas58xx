@@ -8,7 +8,7 @@
 
 namespace esphome::tas58xx {
 
-static const uint8_t MAX_SELECT_OPTIONS = 4; // in stored_options_
+static constexpr uint8_t MAX_SELECT_OPTIONS = 4; // in stored_options_
 
 class EqModeSelect : public select::Select, public Component, public Parented<Tas58xxComponent> {
 

@@ -3,10 +3,10 @@
 
 namespace esphome::tas58xx {
 
-static const char *const TAG = "tas58xx.select";
+static constexpr const char* TAG = "tas58xx.select";
 
-static const uint8_t EQ_OFF_NUMBER_OPTIONS = 1; // only one option if EQ is off
-static const uint8_t EQ_ON_NUMBER_OPTIONS  = 2; // two options there is an EQ option
+static constexpr uint8_t EQ_OFF_NUMBER_OPTIONS = 1; // only one option if EQ is off
+static constexpr uint8_t EQ_ON_NUMBER_OPTIONS  = 2; // two options there is an EQ option
 
 void EqModeSelect::setup() {
   // retrieve the select options index which was derived from YAML configuration
