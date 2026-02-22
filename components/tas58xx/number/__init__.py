@@ -12,6 +12,7 @@ from esphome.const import (
 
 SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
+EQ_MODE = "eq_mode"
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
@@ -148,19 +149,30 @@ def validate_eq_gain_numbers(config):
 
 def _final_validate(config):
     have_defined_tas58xx_select_eq_preset = False
+    have_defined_tas58xx_select_eq_mode = False
 
-    have_defined_tas58xx_number_eq_gains = (CONF_LEFT_EQ_GAIN_20HZ in config or CONF_RIGHT_EQ_GAIN_20HZ  in config)
+    have_defined_tas58xx_number_eq_gains = (CONF_LEFT_EQ_GAIN_20HZ in config or CONF_RIGHT_EQ_GAIN_20HZ in config)
 
     full_conf = fv.full_config.get()
     select_confs = full_conf.get(SELECT_COMPONENT, [])
+
+    for select_conf in select_confs:
+        if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+           if EQ_MODE in select_conf:
+               have_defined_tas58xx_select_eq_mode = True
+               break
+
     for select_conf in select_confs:
         if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
            if EQ_PRESET_LEFT_CHANNEL in select_conf:
                have_defined_tas58xx_select_eq_preset = True
                break
 
+    if (have_defined_tas58xx_number_eq_gains and not have_defined_tas58xx_select_eq_mode):
+        raise cv.Invalid("Select eq_mode must be configured in YAML with left_eq_gains - add configuration for Select eq_mode")
+
     if (have_defined_tas58xx_number_eq_gains and have_defined_tas58xx_select_eq_preset):
-        raise cv.Invalid("left_eq_gains and right_eq_gains are not allowed with Select eq_presets - Remove one set of those configurations")
+        raise cv.Invalid("left_eq_gains and right_eq_gains are not allowed with Select eq_presets - remove one set of those configurations")
     return config
 
 FINAL_VALIDATE_SCHEMA = _final_validate
