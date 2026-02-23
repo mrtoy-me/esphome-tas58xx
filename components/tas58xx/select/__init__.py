@@ -80,7 +80,7 @@ def _final_validate(config):
         raise cv.Invalid("Select eq_presets are not allowed with Number left_eq_gains and/or right_eq_gains - remove one set of those configurations")
 
     if (not have_select_eq_mode and have_defined_tas58xx_number_eq_gain):
-        raise cv.Invalid("Select eq_mode is required with Number left_eq_gains - add configuration for Select eq_mode")
+        raise cv.Invalid("Select eq_mode is required with Number left_eq_gains - add Select eq_mode to YAML configuration")
 
     return config
 
