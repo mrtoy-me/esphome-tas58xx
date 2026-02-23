@@ -140,10 +140,10 @@ def validate_eq_gain_numbers(config):
     have_channel_volume_right = CONF_CHANNEL_VOLUME_RIGHT in config
 
     if (have_channel_volume_left and not have_channel_volume_right):
-        raise cv.Invalid("channel_volume_right must be configured with channel_volume_left - Add channel_volume_right to configuration")
+        raise cv.Invalid("channel_volume_right must be configured with channel_volume_left - Add channel_volume_right to YAML configuration")
 
     if (have_channel_volume_right and not have_channel_volume_left):
-        raise cv.Invalid("channel_volume_left must be configured with channel_volume_right - Add channel_volume_left to configuration")
+        raise cv.Invalid("channel_volume_left must be configured with channel_volume_right - Add channel_volume_left to YAML configuration")
 
     return config
 
@@ -169,7 +169,7 @@ def _final_validate(config):
                break
 
     if (have_defined_tas58xx_number_eq_gains and not have_defined_tas58xx_select_eq_mode):
-        raise cv.Invalid("Select eq_mode must be configured in YAML with left_eq_gains - add configuration for Select eq_mode")
+        raise cv.Invalid("Select eq_mode must be configured with left_eq_gains - add Select eq_mode to YAML configuration")
 
     if (have_defined_tas58xx_number_eq_gains and have_defined_tas58xx_select_eq_preset):
         raise cv.Invalid("left_eq_gains and right_eq_gains are not allowed with Select eq_presets - remove one set of those configurations")
