@@ -1,8 +1,7 @@
 # ESPHome tas58xx component for audio boards by Sonocotta with TAS5805M or TAS5825M Audio DAC
-This ESPHome external component is based on the following ESP32 Platform TAS5805M DAC driver:
-https://github.com/sonocotta/esp32-tas5805m-dac/tree/main by Andriy Malyshenko
-which is licenced under GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007.
-Information from this repository has also been used/reproduced in this read.me to provide
+This ESPHome external component is based on work by Andriy Malyshenko at
+https://github.com/sonocotta which is licenced under GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007.
+Information from his repositories has also been used/reproduced in this read.me to provide
 a better understanding of how to use this component to generate firmware using Esphome Builder.
 
 # Usage: tas58xx component on Github
@@ -32,10 +31,11 @@ These DACs are controlled by I2C so the component requires configuration of
 **i2c:** with **sda:** and **scl:** pins.
 
 Appropriate configuration of psram, i2s_audio, speaker and mediaplayer are required.
-Example YAML configurations are provided and are listed at the end of this document.
+Typical YAML configurations are provided by sonocotta in
+[Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome)
 
 ## Component Features
-The component communicates with DAC bu I2C and provides the following features:
+The component communicates with DAC by I2C and provides the following features:
 - initialise  DAC
 - enable/disable DAC
 - adjust  maximum and minimum volume level
@@ -49,8 +49,11 @@ The component communicates with DAC bu I2C and provides the following features:
 - set Mute state
 
 YAML configuration includes:
-- two optional platform Switch configurations - Enable DAC and Enable EQ Control
-- 15 optional EQ Gain Numbers (all required or none configured) to control EQ gains
+- 1 optional Switch configuration - Enable DAC
+- 30 optional EQ Gain Numbers to control EQ gains
+- 2 optional Channel Volume Numbers to individually control the Channel Volumes
+- 2 optional Select for setting Mixer Mode and EQ Mode
+- 2 optional Select for each channel to set EQ High-pass and Low-pass filter presets
 - 12 optional Binary Sensors corresonding to DAC fault codes (all optional)
 - an optional Sensor providing the number of times a DAC fault was detected and DAC fault cleared
 
@@ -80,7 +83,7 @@ Note: the component allows defining Dac Mode in YAML and cannot be altered at ru
 Mixer mode allows mixing of channel signals and route them to the appropriate audio
 channel. The typical setup for the mixer is to send Left channel audio to the Left driver,
 and Right channel to the Right. A common alternative is to combine both channels into
-true Mono (you need to reduce both to -3Db to compensate for signal doubling).
+true Mono (you need to reduce both to -3dB to compensate for signal doubling).
 In BTL Dac Mode, the mixer mode can be set to STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT while
 in PBTL Dac Mode, the mixer mode can be set to MONO, LEFT or RIGHT.
 
@@ -110,6 +113,37 @@ even in extreme settings, but also allows a wide range of transfer characteristi
 | 14   | 8000                  | 5600–11200           | 0.6                |
 
 
+## EQ Presets - High-pass and Low-pass filter
+
+These presets allow quick setup of Subwoofer in Bi-amp configuration. These presets cover 4-order High-pass and Low-pass filters, using 2 EQ bands, 2nd order Chebyshev filter type each.
+For HF profiles additional gain compensation was applied (3rd EQ band) to flatten the response.
+Available profiles:
+
+| Number | Name      |
+|--------|-----------|
+| 0      | FLAT      |
+| 1      | LF_60HZ   |
+| 2      | LF_70HZ   |
+| 3      | LF_80HZ   |
+| 4      | LF_90HZ   |
+| 5      | LF_100HZ  |
+| 6      | LF_110HZ  |
+| 7      | LF_120HZ  |
+| 8      | LF_130HZ  |
+| 9      | LF_140HZ  |
+| 10     | LF_150HZ  |
+| 11     | HF_60HZ   |
+| 12     | HF_70HZ   |
+| 13     | HF_80HZ   |
+| 14     | HF_90HZ   |
+| 15     | HF_100HZ  |
+| 16     | HF_110HZ  |
+| 17     | HF_120HZ  |
+| 18     | HF_130HZ  |
+| 19     | HF_140HZ  |
+| 20     | HF_150HZ  |
+
+
 ## Fault States
 A fault detection system that allows these DACs to self-diagnose issues with
 power, data signal, short circuits, overheating etc. The general pattern for
@@ -118,9 +152,9 @@ faults, provide notification through sensor/s and clear any fault afterwards.
 
 # Activation of Mixer mode and EQ Gains or EQ Presets
 For software configuration of the Mixer and EQ Gains, the TAS5805M and TAS5825M
-must have received a stable I2S signal. If a Mixer setting (other than default)
-and/or EQ Band Gain Numbers are configured, what this means for this component
-is that before the component writes these settings, the DAC must have received some audio.
+must have received a stable I2S signal. If EQ Band Gain Numbers or Eq Presets
+are configured, what this means for this component is that before the component
+writes these settings, the DAC must have received some audio.
 
 ## Typical Use Case - Speaker Mediaplayer
 The typical way of handling this requirement is where speaker mediaplayer component
@@ -128,18 +162,35 @@ is configured to play audio during boot. In this case, a short sound file is
 configured under **mediaplayer:** and configuration added under **esphome:**
 to play that short sound at the correct point in the boot process.
 
-Configuration required to be included under **mediaplayer:** YAML is:
+Two alternative flac sound files are provided which have a duration of about 0.5 second.
+A substition at the start of the YAML as show below can be used to reference by
+simply commenting out the sound file not required.
+You can use your own boot sound by creating a flac file of about 0.5 second duration and
+reference it appropriately in the YAML substitution.
+
+```
+substitutions:
+  sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/tas58xx_boot.flac"'
+
+  #use instead if you don't want an audible boot sound
+  #sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/silent_boot.flac"'
+```
+
+The YAML configuration required under **mediaplayer:** to reference this file is:
 ```
 files:
-    id: startup_sync_sound
-    file: https://github.com/mrtoy-me/esphome-tas58xx/raw/beta/components/tas58xx/tas58xx_boot.flac
+      id: startup_sync_sound
+      file: file: ${sync_dac_i2s_sound}
 ```
-Configuration required to be included under **esphome:** YAML:
+
+YAML Configuration required to be included under **esphome:** YAML:
 ```
 on_boot:
     priority: 220.0
     then:
-      media_player.speaker.play_on_device_media_file: startup_sync_sound
+      media_player.play_media:
+        id: external_media_player # speaker media player id
+        media_url: file://startup_sync_sound
 ```
 The **audio_dac:** has an optional configuration variable called **refresh_eq:**
 The default configuration of **refresh_eq: AUTO** matches the above use case and
@@ -148,9 +199,9 @@ therefore can be omitted from the **audio_dac:** YAML configuration.
 ## Use Case where Speaker Mediaplayer is not used (eg using a SnapCast client component)
 Another use case, is use of Snapcast client component instead of Speaker Mediaplayer component
 to produce the required audio. In this use case, the following "workaround" is necessary
-to play audio before the component writes the Mixer andxEQ Gain settings to the DAC.
+to play audio before the component writes the Mixer Mode and EQ Gain settings to the DAC.
 This workaround requires the user to start playing audio
-then using the EQ Mode Select choose the relevant EQ Mode.
+then using the EQ Mode Select to move from Off to choose the relevant EQ Mode.
 
 The following changed configuration is required:
 
@@ -161,8 +212,7 @@ The following changed configuration is required:
 select:
   - platform: tas58xx
     eq_mode:
-      name: EQ Mode
-```
+      name: EQ Mode```
 
 3) After Louder has booted, manually initiate playing of some audio
 4) Turn EQ Mode select from Off to relevant Eq Mode
@@ -177,14 +227,15 @@ Example configuration:
 audio_dac:
   - platform: tas58xx
     id: tas5825_dac
-    tas85xx_dac: TAS5825M
+    tas85xx_dac: TAS5825M # for Tas5805m DAC use tas85xx_dac: TAS5805M
     enable_pin: GPIOxx
     analog_gain: -9db
     dac_mode: BTL
-    mixer_mode: STEREO
+    mixer_mode: STEREO # default can be omitted
     volume_max: 0dB
     volume_min: -60db
-    ignore_fault: CLOCK_FAULT
+    ignore_fault: CLOCK_FAULT # default can be omitted
+    refresh_eq: AUTO # default can be omitted
     update_interval: 1s
 ```
 Configuration variables:
@@ -208,16 +259,17 @@ Configuration variables:
   That is, by default clock faults are ignored when determining if fault registers require clearing. To trigger clearing of fault registers on any fault condition, specify **ignore_fault: NONE**
 
 - **refresh_eq:** (*Optional*): valid values **AUTO** or **MANUAL**. Default is **AUTO**.
-  This setting is not required if you are using Speaker Mediaplayer component as the default matches this use case. The setting is mainly intended when the Snapcast client component is used instead of Speaker Mediaplayer. When a Snapcast client component is configured, the BY_SWITCH setting should be used. See information under "Activation of Mixer mode and EQ Gains" section above and the provided YAML examples.
+  This setting is not required if you are using Speaker Mediaplayer component as the default matches this use case. The setting is mainly intended when the Snapcast client component is used instead of Speaker Mediaplayer. When a Snapcast client component is configured, the BY_SWITCH setting should be used. See information
+  under "Activation of Mixer mode and EQ Gains" section above.
 
 - **update_interval:** (*Optional*): defines the interval (seconds) at which faults will be
   checked and then if detected, the clearing of the fault registers will occur at next interval. Defaults to 1s. **Note:** update interval cannot be reduced below 1s.
 
+
 ## Selects for Mixer Mode and EQ Mode
-Several selects can be configured to provide selct dropdowns in Homeassistant.
+Several selects can be configured to provide select dropdowns in Homeassistant.
+- EQ Mixer Mode allow the input mixer mode to be changed between STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT (BTL)
 - Eq Mode Select allows changing from EQ Mode Off to the YAML configured EQ Mode.
-- EQ Mixer Mode allow the input mixer mode to be changed between STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT
-- EQ Left and Right Channel Frequency Cutoff can be altered to the selected cutoff frequency
 
 ```select:
   - platform: tas58xx
@@ -226,42 +278,20 @@ Several selects can be configured to provide selct dropdowns in Homeassistant.
     eq_mode:
       name: EQ Mode
 ```
-There only two possible EQ Modes being Off and depending on configuration
-EQ 15 Band or EQ BIAMP 15 Band or EQ Presets.
-The second EQ Mode select option is determined based on the YAML configuration as follows:
+The desired Mixer Mode can also be defined under audio_dac: but if Select mixer_mode is defined
+then the last selected Mixer Mode is saved and will be reloaded at next re-boot. If a Select Mixer Mode has been saved,
+this will supercede and be used instead of the Mixer Mode defined under audio_dac:
+
+For any configuration with EQ Gains or EQ Presets configured, there only two possible EQ Modes
+being Off and depending on configuration EQ 15 Band or EQ BIAMP 15 Band or EQ Presets.
+
+The EQ Mode select option (in addition to Off) is determined based on the YAML configuration as follows:
 - 15 x Left EQ Gains configured -> **EQ 15 Band**
 - 15 x Left EQ Gains and 15 x Right EQ Gains configured -> **EQ BIAMP 15 Band**
 - EQ Preset Left Channel and EQ Preset Right Channel frequency cutoffs configured -> **EQ Presets**
 
-Details for configuration see EQ Control configuration section below.
-
-## DAC Enable Switch
-A switch can be configured to provide and Enable-Disable DAC switch in Homeassistant.
-- Enable Dac Switch, more specifically places the DAC into Play mode or
-  into low power Sleep mode
-
-The example YAML also includes an **interval:** and **mediaplayer:** configuration to
-trigger Enable Louder Switch Off when there is no music player activity (idle or paused)
-for the defined time and when music player activity is detected (by mediaplayer),
-the Enable Louder Switch is triggered On. The example interval configuration also
-requires configuration of **mediaplayer:** which is also shown in the YAML examples.
-
-Configuration of tas58xx platform Switches in typical use case:
-
-```switch:
-  - platform: tas58xx
-    enable_dac:
-      name: Enable Louder
-      id: enable_louder
-      restore_mode: ALWAYS_ON
-```
-Configuration headers:
-- **enable_dac:** (*Optional*): allows the definition of a switch to enable/disable
-  the DAC. Switch On (enabled) places teh DAC into Play mode while
-  Switch Off (disabled) places the DAC into low power Sleep mode.
-
-  Configuration variables:
-    - **restore_mode:** (optional but recommended): **ALWAYS_ON** is recommended.
+If the audio_dac: refresh_eq: option is MANUAL then on start the EQ Mode Select is initially selected Off.
+Whereas, if audio_dac: option refresh_eq: AUTO then on start the EQ Mode Select is initially selected the relevant Eq Mode.
 
 
 # EQ Control configuration
@@ -285,11 +315,11 @@ in Home Assistant. The number configuration heading for each number is shown bel
 with an example name. Defining **number: -platform: tas58xx** requires
 all 15 EQ Gain Band headings for each Channel to be configured.
 
-If only 15 left EQ Gains are configured then they arebapplied to the left and right channels.
+If only 15 left EQ Gains are configured then they are applied to both the left and right channels.
 To control left and right channels individually, the 15 left EQ Gains and 15 Right EQ Gains need
 be configured. Configuration of 15 Right EQ Gains requires the 15 left EQ Gains to be configured.
-For EQ Band Gains toc onfigure correctly requires some addition YAML configuration, refer to the
-"Activation of Mixer mode and EQ Gains" section above and the provided YAML examples.
+For EQ Band Gains to activate correctly requires some addition YAML configuration, refer to the
+"Activation of Mixer mode and EQ Gains" section above.
 
 Example configuration of tas58xx platform (Band Gain) Numbers for each channel:
 ```
@@ -356,11 +386,13 @@ number:
       name: Right 16000Hz
 ```
 
-## EQ Presets
-Provides 21 possible Frequenct Cutoff selections for left and right channels as follows:
-- Flat, Low Frequency 50Hz to 150Hz and High Frequency 50Hz to 150Hz
+All Numbers configured in Homeassistant are saved every minute and restored at next reboot.
 
-An example configuration EQ Presets adds to the typical select configuration as follows:
+## EQ Presets
+Provides 21 possible Frequency Cutoff selections for left and right channels of
+Flat, Low Frequency 50Hz to 150Hz and High Frequency 50Hz to 150Hz
+
+An example configuration of EQ Presets adds to the typical select configuration as follows:
 ```
 select:
   - platform: tas58xx
@@ -373,16 +405,37 @@ select:
     eq_preset_right_channel:
       name: EQ Preset Right Cutoff
 ```
-Either EQ Presets OR EQ Gains can be configured.
+Note: Either EQ Presets OR EQ Gains can be configured not both.
 
 
-## Announce Volume Template Number
-The example YAML defines an Announce Volume template number which can be used in
-conjuction with the **mediaplayer:** YAML configurations for adjusting the
-announcement pipeline audio volume separately to the media pipeline volume.
-This is useful for a Text-to-Speech announcements that may have a different
-volume level to the audio playing through the media pipeline.
-The YAML examples provide an example of how this can be configured.
+## DAC Enable Switch
+A switch can be configured to provide and Enable-Disable DAC switch in Homeassistant.
+- Enable Dac Switch, more specifically places the DAC into Play mode or
+  into low power Sleep mode
+
+An **interval:** and **mediaplayer:** YAML configuration can be used to
+trigger Enable Louder Switch Off when there is no music player activity (idle or paused)
+for the defined time and when music player activity is detected (by mediaplayer),
+the Enable Louder Switch is triggered On. The example interval configuration also
+requires configuration of **mediaplayer:**
+
+Configuration of tas58xx platform Switches in typical use case:
+
+```switch:
+  - platform: tas58xx
+    enable_dac:
+      name: Enable Louder
+      id: enable_louder
+      restore_mode: ALWAYS_ON
+```
+Configuration headers:
+- **enable_dac:** (*Optional*): allows the definition of a switch to enable/disable
+  the DAC. Switch On (enabled) places the DAC into Play mode while
+  Switch Off (disabled) places the DAC into low power Sleep mode.
+
+  Configuration variables:
+    - **restore_mode:** (optional but recommended): **ALWAYS_ON** is recommended.
+
 
 ## Binary Sensors
 Binary sensors can be configured which correspond to DAC fault codes.
@@ -400,8 +453,9 @@ one binary sensor **have_fault:** is configured.
       Excluding clock faults by default is implemented since a clock fault is essentially a warning about unexpected behavior of the I2S clock and Esphome idf mediaplayers generate clock faults because I2S is manipulated to guarentee timing.
 
 **over_temp_warning:**
-  - To attempt to mitigate an over temperature upon receiving a over temperature, the volume can be decreased using **interval:**
-    The "..._louder_idf_media.yaml" examples provide example configuration. For this YAML to take effect, the **mediaplayer:**  configuration must include configuration of the **volume_increment:**. Typically 5-10% should be suitable but depends on the dB range defined by the **volume_max:** and **volume_min:** under **audio_dac:**. The % equivalent to around 6dB decrease
+  - To attempt to mitigate an over temperature upon receiving a over temperature, the volume can be decreased using **interval:** configuration.
+    For this YAML to take effect, the **mediaplayer:**  configuration must include configuration of the **volume_increment:**.
+    Typically 5-10% should be suitable but depends on the dB range defined by the **volume_max:** and **volume_min:** under **audio_dac:**. The % equivalent to around 6dB decrease
     should have a benficial effect, but also depends on the update interval for checking faults.
     **Note:** all binary sensors are updated at the **update interval:** defined under **audio_dac:**
 
@@ -438,7 +492,8 @@ binary_sensor:
 ```
 
 ## Sensor
-One tas58xx platform sensor can be defined configuration heading **faults_cleared:** can be optionally configured. This sensor counts the number of times a fault was detected and subsequently cleared by the component.
+One optional tas58xx platform sensor can be defined configuration heading **faults_cleared:** can be optionally configured.
+This sensor counts the number of times a fault was detected and subsequently cleared by the component.
 ```
 sensor:
   - platform: tas58xx
@@ -449,8 +504,15 @@ Configuration variables:
 - **update interval:** (*Optional*): The interval at which the sensor is updated. Defaults to 60s.
 
 
+## Announce Volume Template Number
+An Announce Volume template number which can be used in
+conjuction with the **mediaplayer:** YAML configurations for adjusting the
+announcement pipeline audio volume separately to the media pipeline volume.
+This is useful for a Text-to-Speech announcements that may have a different
+volume level to the audio playing through the media pipeline.
+
+
 # YAML examples in this Repository
-The example YAML configurations are provided under the **Example YAML** directory.
-Note that this component and these example configurations are expressly provided
-under the **Disclaimer of Warranty** and **Limititation of Liability** conditions
-of GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007.
+Extensive Esphome YAML examples are provide on github by sonocotta in
+[Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome)
+

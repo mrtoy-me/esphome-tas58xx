@@ -1,3 +1,9 @@
+substitutions:
+  sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas58xx/raw/beta/components/tas58xx/tas58xx_boot.flac"
+
+  #use instead if you don't want an audible boot sound
+  #sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas58xx/raw/beta/components/tas58xx/silent_boot.flac"
+
 esphome:
   name: louder-esparagus
   friendly_name: Louder Esparagus
@@ -85,7 +91,7 @@ audio_dac:
     mixer_mode: STEREO
     volume_max: -1dB
     volume_min: -50db
-    #refresh_eq: AUTO = default when not specified; #refresh_eq: MANUAL for snapclient - activates when a EQ Mode selected
+    #refresh_eq: AUTO = default when not specified; #refresh_eq: MANUAL for snapclient - activates when an EQ Mode selected
     update_interval: 1s
 
 speaker:
@@ -132,7 +138,7 @@ media_player:
 
     files:
       id: startup_sync_sound
-      file: https://github.com/mrtoy-me/esphome-tas58xx/raw/main/components/tas58xx/tas58xx_boot.flac
+      file: ${sync_dac_i2s_sound}
 
     on_play:
       - if:
