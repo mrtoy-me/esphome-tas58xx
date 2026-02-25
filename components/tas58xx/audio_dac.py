@@ -114,7 +114,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_DAC_MODE, default="BTL"): cv.enum(
                         DAC_MODES, upper=True
             ),
-            cv.Optional(CONF_DAC_MODE, default="BD_MODE"): cv.enum(
+            cv.Optional(CONF_MODULATION, default="BD_MODE"): cv.enum(
                         MODULATION_SCHEMES, upper=True
             ),
             cv.Optional(CONF_IGNORE_FAULT, default="CLOCK_FAULT"): cv.enum(
