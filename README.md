@@ -79,6 +79,12 @@ Note: the component allows defining Dac Mode in YAML and cannot be altered at ru
 | Speaker Connection | ![image](https://github.com/user-attachments/assets/8e5e9c38-2696-419b-9c5b-d278c655b0db) | ![image](https://github.com/user-attachments/assets/8aba6273-84c4-45a8-9808-93317d794a44)
 
 
+## Modulation Mode
+Modulation mode affects DAC efficiency. While running under lower VCC (12V or less), the efficiency benefit not using the default BD Mode is not justified. On higher VCC, lower efficiency affects DAC stability, the DAC cannot sustain full power without some kind of active cooling (heatsink, fan or both), so in this case, it would be better to choose a more power efficient modulation mode.
+
+BD Mode is default with each output switching from 0 volts to the supply voltage. The 1SPW mode alters the normal modulation scheme in order to achieve higher efficiency with a slight penalty in THD degradation. Hybrid Modulation is designed to minimize power loss without compromising the THD+N performance, however this mode is not currently implemented in this component.
+
+
 ## Mixer Mode
 Mixer mode allows mixing of channel signals and route them to the appropriate audio
 channel. The typical setup for the mixer is to send Left channel audio to the Left driver,
@@ -237,6 +243,7 @@ audio_dac:
     tas85xx_dac: TAS5825M # for Tas5805m DAC use tas85xx_dac: TAS5805M
     enable_pin: GPIOxx
     analog_gain: -9db
+    modulation: BD_MODE # default can be omitted; for 1SPW Mode use modulation: 1SPW_MODE
     dac_mode: BTL
     mixer_mode: STEREO # default can be omitted
     volume_max: 0dB
@@ -251,7 +258,9 @@ Configuration variables:
 - **enable_pin:** (*Required*): GPIOxx, enable pin
 
 - **analog_gain:** (*Optional*): dB values from -15.5dB to 0dB in 0.5dB increments.
-  Defaults to -15.5dbB. A setting of -15.5db is typical when 5v is used to power the Louder.
+  Defaults to -15.5dbB. A setting of -15.5db is typical when 5v power supply.
+
+- **modulation:** (*Optional*): valid values BD_MODE or 1SPW_MODE. Defaults to BD_MODE.
 
 - **dac_mode:** (*Optional*): valid values BTL or PBTL. Defaults to BTL.
 
