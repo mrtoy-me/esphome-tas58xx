@@ -212,7 +212,8 @@ The following changed configuration is required:
 select:
   - platform: tas58xx
     eq_mode:
-      name: EQ Mode```
+      name: EQ Mode
+```
 
 3) After Louder has booted, manually initiate playing of some audio
 4) Turn EQ Mode select from Off to relevant Eq Mode
