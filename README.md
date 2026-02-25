@@ -80,7 +80,7 @@ Note: the component allows defining Dac Mode in YAML and cannot be altered at ru
 
 
 ## Modulation Mode
-Modulation mode affects DAC efficiency. While running under lower VCC (12V or less), the efficiency benefit not using the default BD Mode is not justified. On higher VCC, lower efficiency affects DAC stability, the DAC cannot sustain full power without some kind of active cooling (heatsink, fan or both), so in this case, it would be better to choose a more power efficient modulation mode.
+Modulation mode affects DAC efficiency. While running under lower VCC (12V or less), it is not justified to change from the default BD Mode. On higher VCC, lower efficiency affects DAC stability, the DAC cannot sustain full power without some kind of active cooling (heatsink, fan or both), so in this case, it would be better to choose a more power efficient modulation mode.
 
 BD Mode is default with each output switching from 0 volts to the supply voltage. The 1SPW mode alters the normal modulation scheme in order to achieve higher efficiency with a slight penalty in THD degradation. Hybrid Modulation is designed to minimize power loss without compromising the THD+N performance, however this mode is not currently implemented in this component.
 
