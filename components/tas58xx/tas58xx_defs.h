@@ -14,6 +14,11 @@ enum DacMode : uint8_t {
   PBTL = 1, // Parallel load
 };
 
+enum class ModulationScheme : uint8_t {
+  MODE_BD = 0,
+  MODE_1SPW = 1,
+}
+
 enum EqRefreshMode : uint8_t {
     AUTO   = 0,
     MANUAL = 1,

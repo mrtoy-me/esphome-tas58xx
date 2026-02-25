@@ -35,6 +35,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void config_dac_mode(DacMode dac_mode) {this->tas58xx_dac_mode_ = dac_mode; }
 
+  void config_modulation_scheme(ModulationScheme modulation_scheme) {this->tas58xx_modulation_scheme_ = modulation_scheme; }
+
   void config_eq_mode(uint8_t configured_eq_mode) { this->configured_eq_mode_ = static_cast<EqMode>(configured_eq_mode); }
 
   void config_ignore_fault_mode(ExcludeIgnoreMode ignore_fault_mode) {
@@ -182,7 +184,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
 
-   MixerMode tas58xx_mixer_mode_{MixerMode::STEREO};
+   MixerMode tas58xx_mixer_mode_; // YAML default = STEREO
+
+   ModulationScheme tas58xx_modulation_scheme_; // YAML default = BD Mode
 
    uint8_t tas58xx_raw_volume_max_; // maximum volume as digital volume register range 254 to 0
    uint8_t tas58xx_raw_volume_min_; // minimum volume as digital volume register range 254 to 0

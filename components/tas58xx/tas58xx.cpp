@@ -70,6 +70,8 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
 
+  if (!this->set_set_modulation_scheme_(this->tas58xx_modulation_scheme_)) return false;
+
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
@@ -245,6 +247,7 @@ void Tas58xxComponent::dump_config() {
               "  Registers Configured: %i\n"
               "  Analog Gain: %3.1fdB\n"
               "  DAC Mode: %s\n"
+              "  Modulation: %s\n"
               "  Mixer Mode: %s\n"
               "  Volume Maximum: %idB\n"
               "  Volume Minimum: %idB\n"
@@ -252,6 +255,7 @@ void Tas58xxComponent::dump_config() {
               "  Refresh EQ: %s\n",
               this->number_registers_configured_, this->tas58xx_analog_gain_,
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
+              this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               MIXER_MODE_TEXT[this->tas58xx_mixer_mode_],
               this->tas58xx_volume_max_, this->tas58xx_volume_min_,
               this->ignore_clock_faults_when_clearing_faults_ ? "CLOCK FAULTS" : "NONE",
@@ -290,6 +294,10 @@ void Tas58xxComponent::enable_dac(bool enable) {
 // used by select eq mode
 uint8_t Tas58xxComponent::get_configured_eq_mode() {
   return static_cast<uint8_t>(this->configured_eq_mode_);
+}
+
+uint8_t Tas58xxComponent::get_mixer_mode() {
+  return static_cast<uint8_t>(this->tas58xx_mixer_mode_);
 }
 
 bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
@@ -641,8 +649,7 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
   }
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, current_value)) return false;
 
-  // 'tas58xx_state_' global already has dac mode from YAML config
-  // save anyway so 'set_dac_mode' could be used more generally
+  // save so 'set_dac_mode_' could be used more generally
   this->tas58xx_dac_mode_ = mode;
   ESP_LOGD(TAG, "DAC mode >> %s", this->tas58xx_dac_mode_ ? "PBTL" : "BTL");
   return true;
@@ -732,8 +739,21 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
   return true;
 }
 
-uint8_t Tas58xxComponent::get_mixer_mode() {
-  return static_cast<uint8_t>(this->tas58xx_mixer_mode_);
+// only runs once from 'setup'
+bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
+  static constexpr MODULATION_MASK = 0b11111100; // bits 0 and 1 are modulation
+
+  uint8_t current_value;
+  if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &current_value, 1)) return false;
+
+  new_value = current_value & (MODULATION_MASK + static_cast<uint8_t>(modulation));
+
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, new_value)) return false;
+
+  // save so 'set_modulation_scheme_' could be used more generally
+  this->tas58xx_modulation_scheme_ = modulation;
+  ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode");
+  return true;
 }
 
 bool Tas58xxComponent::get_state_(ControlState* state) {

@@ -79,6 +79,12 @@ Note: the component allows defining Dac Mode in YAML and cannot be altered at ru
 | Speaker Connection | ![image](https://github.com/user-attachments/assets/8e5e9c38-2696-419b-9c5b-d278c655b0db) | ![image](https://github.com/user-attachments/assets/8aba6273-84c4-45a8-9808-93317d794a44)
 
 
+## Modulation Mode
+Modulation mode affects DAC efficiency. While running under lower VCC (12V or less), the efficiency benefit not using the default BD Mode is not justified. On higher VCC, lower efficiency affects DAC stability, the DAC cannot sustain full power without some kind of active cooling (heatsink, fan or both), so in this case, it would be better to choose a more power efficient modulation mode.
+
+BD Mode is default with each output switching from 0 volts to the supply voltage. The 1SPW mode alters the normal modulation scheme in order to achieve higher efficiency with a slight penalty in THD degradation. Hybrid Modulation is designed to minimize power loss without compromising the THD+N performance, however this mode is not currently implemented in this component.
+
+
 ## Mixer Mode
 Mixer mode allows mixing of channel signals and route them to the appropriate audio
 channel. The typical setup for the mixer is to send Left channel audio to the Left driver,
@@ -238,6 +244,7 @@ audio_dac:
     enable_pin: GPIOxx
     analog_gain: -9db
     dac_mode: BTL
+    modulation: BD_MODE # default can be omitted
     mixer_mode: STEREO # default can be omitted
     volume_max: 0dB
     volume_min: -60db
@@ -254,6 +261,8 @@ Configuration variables:
   Defaults to -15.5dbB. A setting of -15.5db is typical when 5v is used to power the Louder.
 
 - **dac_mode:** (*Optional*): valid values BTL or PBTL. Defaults to BTL.
+
+- **modulation:** (*Optional*): valid values BD_MODE or 1SPW_MODE. Defaults to BD_MODE.
 
 - **mixer_mode:** (*Optional*): values STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT
   Defaults to STEREO. Note: for PBTL Dac Mode, only MONO, LEFT or RIGHT are valid.

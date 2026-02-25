@@ -20,6 +20,7 @@ DEPENDENCIES = ["i2c"]
 CONF_ANALOG_GAIN = "analog_gain"
 CONF_AUDIO_DAC = "audio_dac"
 CONF_DAC_MODE = "dac_mode"
+CONF_MODULATION = "modulation"
 CONF_TAS58XX_DAC = "tas58xx_dac"
 CONF_IGNORE_FAULT = "ignore_fault"
 CONF_MIXER_MODE = "mixer_mode"
@@ -67,6 +68,12 @@ DAC_MODES = {
     "PBTL" : DacMode.PBTL,
 }
 
+ModulationScheme = tas58xx_ns.enum("ModulationScheme")
+MODULATION_SCHEMES = {
+    "BD_MODE"   : ModulationScheme.MODE_BD,
+    "1SPW_MODE" : ModulationScheme.MODE_1SPW,
+}
+
 ExcludeIgnoreMode = tas58xx_ns.enum("ExcludeIgnoreModes")
 EXCLUDE_IGNORE_MODES = {
      "NONE"        : ExcludeIgnoreMode.NONE,
@@ -106,6 +113,9 @@ CONFIG_SCHEMA = cv.All(
             ),
             cv.Optional(CONF_DAC_MODE, default="BTL"): cv.enum(
                         DAC_MODES, upper=True
+            ),
+            cv.Optional(CONF_DAC_MODE, default="BD_MODE"): cv.enum(
+                        MODULATION_SCHEMES, upper=True
             ),
             cv.Optional(CONF_IGNORE_FAULT, default="CLOCK_FAULT"): cv.enum(
                         EXCLUDE_IGNORE_MODES, upper=True
@@ -179,6 +189,7 @@ async def to_code(config):
     cg.add(var.set_enable_pin(enable))
     cg.add(var.config_analog_gain(config[CONF_ANALOG_GAIN]))
     cg.add(var.config_dac_mode(config[CONF_DAC_MODE]))
+    cg.add(var.config_modulation_scheme(config[CONF_MODULATION]))
     cg.add(var.config_ignore_fault_mode(config[CONF_IGNORE_FAULT]))
     cg.add(var.config_mixer_mode(config[CONF_MIXER_MODE]))
     cg.add(var.config_refresh_eq(config[CONF_REFRESH_EQ]))
