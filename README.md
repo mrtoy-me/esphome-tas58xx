@@ -170,10 +170,11 @@ reference it appropriately in the YAML substitution.
 
 ```
 substitutions:
-  sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/tas58xx_boot.flac"
+  sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/tas58xx_boot.flac"'
 
   #use instead if you don't want an audible boot sound
-  #sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/silent_boot.flac"
+  #sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/silent_boot.flac"'
+```
 
 The YAML configuration required under **mediaplayer:** to reference this file is:
 ```
@@ -181,6 +182,7 @@ files:
       id: startup_sync_sound
       file: file: ${sync_dac_i2s_sound}
 ```
+
 YAML Configuration required to be included under **esphome:** YAML:
 ```
 on_boot:
@@ -190,7 +192,6 @@ on_boot:
         id: external_media_player # speaker media player id
         media_url: file://startup_sync_sound
 ```
-
 The **audio_dac:** has an optional configuration variable called **refresh_eq:**
 The default configuration of **refresh_eq: AUTO** matches the above use case and
 therefore can be omitted from the **audio_dac:** YAML configuration.
@@ -211,8 +212,7 @@ The following changed configuration is required:
 select:
   - platform: tas58xx
     eq_mode:
-      name: EQ Mode
-```
+      name: EQ Mode```
 
 3) After Louder has booted, manually initiate playing of some audio
 4) Turn EQ Mode select from Off to relevant Eq Mode
