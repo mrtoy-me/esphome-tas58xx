@@ -170,29 +170,35 @@ reference it appropriately in the YAML substitution.
 
 ```
 substitutions:
-  sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/tas58xx_boot.flac"'
+  sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas58xx/raw/main/components/tas58xx/tas58xx_boot.flac"'
 
   #use instead if you don't want an audible boot sound
-  #sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/silent_boot.flac"'
+  #sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas58xx/raw/main/components/tas58xx/silent_boot.flac"'
 ```
 
 The YAML configuration required under **mediaplayer:** to reference this file is:
 ```
 files:
-      id: startup_sync_sound
-      file: file: ${sync_dac_i2s_sound}
+  id: startup_sync_sound
+  file: file: ${sync_dac_i2s_sound}
 ```
 
-YAML Configuration required to be included under **esphome:** YAML:
+The boot sound must be configured to play in the correct boot sequence, the following YAML configuration
+under **esphome:** is required. Note: If you are also configuring the Sendspin component,
+then different YAML is required. The following example configuration shows the two alternatives:
+
 ```
 on_boot:
-    priority: 220.0
-    then:
-      media_player.play_media:
-        id: external_media_player # speaker media player id
-        media_url: file://startup_sync_sound
+  priority: 220.0
+  then:
+    media_player.speaker.play_on_device_media_file: startup_sync_sound
+
+    # if Sendspin component is also configured then use the following instead
+    media_player.play_media:
+      id: external_media_player # speaker media player id
+      media_url: file://startup_sync_sound
 ```
-The **audio_dac:** has an optional configuration variable called **refresh_eq:**
+Note: **audio_dac:** has an optional configuration variable called **refresh_eq:**
 The default configuration of **refresh_eq: AUTO** matches the above use case and
 therefore can be omitted from the **audio_dac:** YAML configuration.
 
@@ -201,21 +207,22 @@ Another use case, is use of Snapcast client component instead of Speaker Mediapl
 to produce the required audio. In this use case, the following "workaround" is necessary
 to play audio before the component writes the Mixer Mode and EQ Gain settings to the DAC.
 This workaround requires the user to start playing audio
-then using the EQ Mode Select to move from Off to choose the relevant EQ Mode.
+then use the EQ Mode Select to move from Off to choose the relevant EQ Mode.
 
 The following changed configuration is required:
 
 1) Configure **audio_dac:** with optional configuration variable and value **refresh_eq: MANUAL**
-2) Configure **select: - platform: tas58xx** with **eq_mode:** as follows:
+2) Ensure **select: - platform: tas58xx** with **eq_mode:** is configured as follows:
 
 ```
 select:
   - platform: tas58xx
     eq_mode:
-      name: EQ Mode```
+      name: EQ Mode
+```
 
 3) After Louder has booted, manually initiate playing of some audio
-4) Turn EQ Mode select from Off to relevant Eq Mode
+4) Once audio is playing, move EQ Mode select dropdown from Off to relevant Eq Mode
 
 
 # YAML configuration
@@ -259,16 +266,16 @@ Configuration variables:
   That is, by default clock faults are ignored when determining if fault registers require clearing. To trigger clearing of fault registers on any fault condition, specify **ignore_fault: NONE**
 
 - **refresh_eq:** (*Optional*): valid values **AUTO** or **MANUAL**. Default is **AUTO**.
-  This setting is not required if you are using Speaker Mediaplayer component as the default matches this use case. The setting is mainly intended when the Snapcast client component is used instead of Speaker Mediaplayer. When a Snapcast client component is configured, the BY_SWITCH setting should be used. See information
-  under "Activation of Mixer mode and EQ Gains" section above.
+  This setting is not required if you are using Speaker Mediaplayer component as the default matches this use case. The setting is mainly intended when the Snapcast client component is used instead of Speaker Mediaplayer. When a Snapcast client component is configured, the MANUAL setting should be used. See information under "Activation of Mixer mode and EQ Gains" section above.
 
 - **update_interval:** (*Optional*): defines the interval (seconds) at which faults will be
   checked and then if detected, the clearing of the fault registers will occur at next interval. Defaults to 1s. **Note:** update interval cannot be reduced below 1s.
 
 
 ## Selects for Mixer Mode and EQ Mode
-Several selects can be configured to provide select dropdowns in Homeassistant.
-- EQ Mixer Mode allow the input mixer mode to be changed between STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT (BTL)
+Several selects can be optionally configured to provide select dropdowns in Homeassistant.
+- EQ Mixer Mode allows the input mixer mode to be changed between STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT for BTL dac mode
+or for dac mode PBTL between MONO, LEFT or RIGHT
 - Eq Mode Select allows changing from EQ Mode Off to the YAML configured EQ Mode.
 
 ```select:
@@ -282,23 +289,24 @@ The desired Mixer Mode can also be defined under audio_dac: but if Select mixer_
 then the last selected Mixer Mode is saved and will be reloaded at next re-boot. If a Select Mixer Mode has been saved,
 this will supercede and be used instead of the Mixer Mode defined under audio_dac:
 
-For any configuration with EQ Gains or EQ Presets configured, there only two possible EQ Modes
+For any configuration with EQ Gains or EQ Presets configured, there are only two possible EQ Modes
 being Off and depending on configuration EQ 15 Band or EQ BIAMP 15 Band or EQ Presets.
+Note: if either EQ Gains or EQ Presets configured is defined then Eq Mode Select must be defined.
 
 The EQ Mode select option (in addition to Off) is determined based on the YAML configuration as follows:
 - 15 x Left EQ Gains configured -> **EQ 15 Band**
 - 15 x Left EQ Gains and 15 x Right EQ Gains configured -> **EQ BIAMP 15 Band**
 - EQ Preset Left Channel and EQ Preset Right Channel frequency cutoffs configured -> **EQ Presets**
 
-If the audio_dac: refresh_eq: option is MANUAL then on start the EQ Mode Select is initially selected Off.
-Whereas, if audio_dac: option refresh_eq: AUTO then on start the EQ Mode Select is initially selected the relevant Eq Mode.
+If the audio_dac: refresh_eq: option is MANUAL then on startup the EQ Mode Select is initially selected Off.
+Whereas, if audio_dac: option refresh_eq: AUTO then on startup the EQ Mode Select is initially selected the relevant Eq Mode.
 
 
 # EQ Control configuration
 
 ## Left/Right Channel Volume and EQ Band Gain Numbers
 
-Left and Right Channel Volume control can be configured.
+Left and Right Channel Volume control can be optionally configured.
 If configured, both channels must be configured as follows:
 
 ```
@@ -388,8 +396,8 @@ number:
 
 All Numbers configured in Homeassistant are saved every minute and restored at next reboot.
 
-## EQ Presets
-Provides 21 possible Frequency Cutoff selections for left and right channels of
+## EQ Presets Select
+EQ Presets Select provides 21 possible Frequency Cutoff selections for left and right channels of
 Flat, Low Frequency 50Hz to 150Hz and High Frequency 50Hz to 150Hz
 
 An example configuration of EQ Presets adds to the typical select configuration as follows:
@@ -409,7 +417,7 @@ Note: Either EQ Presets OR EQ Gains can be configured not both.
 
 
 ## DAC Enable Switch
-A switch can be configured to provide and Enable-Disable DAC switch in Homeassistant.
+A switch can be configured to provide an Enable-Disable DAC switch in Homeassistant.
 - Enable Dac Switch, more specifically places the DAC into Play mode or
   into low power Sleep mode
 
@@ -492,7 +500,7 @@ binary_sensor:
 ```
 
 ## Sensor
-One optional tas58xx platform sensor can be defined configuration heading **faults_cleared:** can be optionally configured.
+An optional tas58xx platform sensor can be defined configuration heading **faults_cleared:** can be optionally configured.
 This sensor counts the number of times a fault was detected and subsequently cleared by the component.
 ```
 sensor:
@@ -505,7 +513,7 @@ Configuration variables:
 
 
 ## Announce Volume Template Number
-An Announce Volume template number which can be used in
+An Announce Volume template number can be used in
 conjuction with the **mediaplayer:** YAML configurations for adjusting the
 announcement pipeline audio volume separately to the media pipeline volume.
 This is useful for a Text-to-Speech announcements that may have a different
@@ -513,6 +521,6 @@ volume level to the audio playing through the media pipeline.
 
 
 # YAML examples in this Repository
-Extensive Esphome YAML examples are provide on github by sonocotta in
+Extensive Esphome YAML examples are provided on github by sonocotta in
 [Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome)
 
