@@ -72,8 +72,6 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
 
-  if (!this->set_modulation_scheme_(this->tas58xx_modulation_scheme_)) return false;
-
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
