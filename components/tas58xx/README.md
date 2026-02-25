@@ -1,8 +1,7 @@
 # ESPHome tas58xx component for audio boards by Sonocotta with TAS5805M or TAS5825M Audio DAC
-This ESPHome external component is based on the following ESP32 Platform TAS5805M DAC driver:
-https://github.com/sonocotta/esp32-tas5805m-dac/tree/main by Andriy Malyshenko
-which is licenced under GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007.
-Information from this repository has also been used/reproduced in this read.me to provide
+This ESPHome external component is based on work by Andriy Malyshenko at
+https://github.com/sonocotta which is licenced under GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007.
+Information from his repositories has also been used/reproduced in this read.me to provide
 a better understanding of how to use this component to generate firmware using Esphome Builder.
 
 # Usage: tas58xx component on Github
@@ -36,7 +35,7 @@ Typical YAML configurations are provided by sonocotta in
 [Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome)
 
 ## Component Features
-The component communicates with DAC bu I2C and provides the following features:
+The component communicates with DAC by I2C and provides the following features:
 - initialise  DAC
 - enable/disable DAC
 - adjust  maximum and minimum volume level
@@ -50,7 +49,7 @@ The component communicates with DAC bu I2C and provides the following features:
 - set Mute state
 
 YAML configuration includes:
-- one optional platform Switch configurations - Enable DAC
+- 1 optional Switch configuration - Enable DAC
 - 30 optional EQ Gain Numbers to control EQ gains
 - 2 optional Channel Volume Numbers to individually control the Channel Volumes
 - 2 optional Select for setting Mixer Mode and EQ Mode
@@ -164,17 +163,17 @@ configured under **mediaplayer:** and configuration added under **esphome:**
 to play that short sound at the correct point in the boot process.
 
 Two alternative flac sound files are provided which have a duration of about 0.5 second.
-A substition at the start of teh YAML as show below can be used to reference by
+A substition at the start of the YAML as show below can be used to reference by
 simply commenting out the sound file not required.
 You can use your own boot sound by creating a flac file of about 0.5 second duration and
 reference it appropriately in the YAML substitution.
 
 ```
 substitutions:
-  sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas5805m/raw/beta/components/tas5805m/tas58xx_boot.flac"
+  sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/tas58xx_boot.flac"
 
   #use instead if you don't want an audible boot sound
-  #sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas5805m/raw/beta/components/tas5805m/silent_boot.flac"
+  #sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/silent_boot.flac"
 
 The YAML configuration required under **mediaplayer:** to reference this file is:
 ```
