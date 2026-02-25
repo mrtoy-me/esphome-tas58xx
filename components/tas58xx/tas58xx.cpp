@@ -70,7 +70,7 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
 
-  if (!this->set_set_modulation_scheme_(this->tas58xx_modulation_scheme_)) return false;
+  if (!this->set_modulation_scheme_(this->tas58xx_modulation_scheme_)) return false;
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
@@ -741,14 +741,14 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
 
 // only runs once from 'setup'
 bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
-  static constexpr MODULATION_MASK = 0b11111100; // bits 0 and 1 are modulation
+  static constexpr uint8_t MODULATION_MASK = 0b11111100; // bits 0 and 1 are modulation
 
-  uint8_t current_value;
-  if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &current_value, 1)) return false;
+  uint8_t value;
+  if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &value, 1)) return false;
 
-  new_value = current_value & (MODULATION_MASK + static_cast<uint8_t>(modulation));
+  value = value & (MODULATION_MASK + static_cast<uint8_t>(modulation));
 
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, new_value)) return false;
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, value)) return false;
 
   // save so 'set_modulation_scheme_' could be used more generally
   this->tas58xx_modulation_scheme_ = modulation;
