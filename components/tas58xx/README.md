@@ -169,10 +169,10 @@ You can use your own boot sound by creating a flac file of about 0.5 second dura
 reference it appropriately in the YAML substitution.
 ```
 substitutions:
-  sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/tas58xx_boot.flac"
+  sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/tas58xx_boot.flac"'
 
   #use instead if you don't want an audible boot sound
-  #sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/silent_boot.flac"
+  #sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas5805m/raw/main/components/tas58xx/silent_boot.flac"'
 ```
 
 The YAML configuration required under **mediaplayer:** to reference this file is:
