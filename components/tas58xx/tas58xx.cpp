@@ -68,6 +68,8 @@ bool Tas58xxComponent::configure_registers_() {
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
 
+  if (!this->set_modulation_scheme_(this->tas58xx_modulation_scheme_)) return false;
+
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
 
   if (!this->set_modulation_scheme_(this->tas58xx_modulation_scheme_)) return false;
@@ -246,6 +248,7 @@ void Tas58xxComponent::dump_config() {
       ESP_LOGCONFIG(TAG,
               "  Registers Configured: %i\n"
               "  Analog Gain: %3.1fdB\n"
+              "  Modulation: %s\n"
               "  DAC Mode: %s\n"
               "  Modulation: %s\n"
               "  Mixer Mode: %s\n"
@@ -254,6 +257,7 @@ void Tas58xxComponent::dump_config() {
               "  Ignore Fault: %s\n"
               "  Refresh EQ: %s\n",
               this->number_registers_configured_, this->tas58xx_analog_gain_,
+              this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
               this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               MIXER_MODE_TEXT[this->tas58xx_mixer_mode_],

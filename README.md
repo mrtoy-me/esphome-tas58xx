@@ -245,6 +245,7 @@ audio_dac:
     analog_gain: -9db
     modulation: BD_MODE # default can be omitted; for 1SPW Mode use modulation: 1SPW_MODE
     dac_mode: BTL
+    modulation: BD_MODE # default can be omitted
     mixer_mode: STEREO # default can be omitted
     volume_max: 0dB
     volume_min: -60db
@@ -263,6 +264,8 @@ Configuration variables:
 - **modulation:** (*Optional*): valid values BD_MODE or 1SPW_MODE. Defaults to BD_MODE.
 
 - **dac_mode:** (*Optional*): valid values BTL or PBTL. Defaults to BTL.
+
+- **modulation:** (*Optional*): valid values BD_MODE or 1SPW_MODE. Defaults to BD_MODE.
 
 - **mixer_mode:** (*Optional*): values STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT
   Defaults to STEREO. Note: for PBTL Dac Mode, only MONO, LEFT or RIGHT are valid.
