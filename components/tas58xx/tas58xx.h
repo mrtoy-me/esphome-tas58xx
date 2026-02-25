@@ -124,6 +124,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool get_eq_mode_(EqMode* current_mode);
    bool set_eq_mode_(EqMode new_mode);
 
+   bool set_modulation_scheme_(ModulationScheme modulation);
+
    bool get_state_(ControlState* state);
    bool set_state_(ControlState state);
 
