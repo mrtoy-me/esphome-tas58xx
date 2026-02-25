@@ -48,16 +48,16 @@ bool Tas58xxComponent::configure_registers_() {
 
   uint16_t i = 0;
   uint16_t counter = 0;
-  uint16_t number_configurations = sizeof(TAS58XX_REGISTERS) / sizeof(TAS58XX_REGISTERS[0]);
+  uint16_t number_configurations = sizeof(TAS58XX_CONFIG) / sizeof(TAS58XX_CONFIG[0]);
 
   while (i < number_configurations) {
-    switch (TAS58XX_REGISTERS[i].offset) {
+    switch (TAS58XX_CONFIG[i].addr) {
       case TAS58XX_CFG_META_DELAY:
-        if (TAS58XX_REGISTERS[i].value > ESPHOME_MAXIMUM_DELAY) return false;
-        delay(TAS58XX_REGISTERS[i].value);
+        if (TAS58XX_CONFIG[i].value > ESPHOME_MAXIMUM_DELAY) return false;
+        delay(TAS58XX_CONFIG[i].value);
         break;
       default:
-        if (!this->tas58xx_write_byte_(TAS58XX_REGISTERS[i].offset, TAS58XX_REGISTERS[i].value)) return false;
+        if (!this->tas58xx_write_byte_(TAS58XX_CONFIG[i].addr, TAS58XX_CONFIG[i].value)) return false;
         counter++;
         break;
     }
