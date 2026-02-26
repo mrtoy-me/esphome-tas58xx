@@ -7,12 +7,12 @@ static constexpr const char* TAG = "tas58xx.select";
 
 #ifdef USE_DAC_MODE_PBTL
 // only last three MixerModes are valid for Select
-static constexpr uint8_t MAX_INDEX = 2;
-static constexpr uint8_t INDEX_ADJUSTMENT = 2;
+static constexpr uint8_t MAX_SELECT_INDEX = 2;
+static constexpr uint8_t MIN_MIXER_MODE = 2; // Mono
 #else
 // all five possible MixerModes are valid for Select
-static constexpr uint8_t MAX_INDEX = 4;
-static constexpr uint8_t INDEX_ADJUSTMENT = 0;
+static constexpr uint8_t MAX_SELECT_INDEX = 4;
+static constexpr uint8_t MIN_MIXER_MODE = 0; // Stereo
 #endif
 
 void MixerModeSelect::setup() {
@@ -30,13 +30,13 @@ void MixerModeSelect::setup() {
   this->pref_ = this->make_entity_preference<size_t>();
   if (!this->pref_.load(&restored_index)) {
     restored_index = this->parent_->get_mixer_mode();
-  } else {
-    if (restored_index > MAX_INDEX) {
-      restored_index = this->parent_->get_mixer_mode();
-    }
   }
 
-  this->publish_state(restored_index - INDEX_ADJUSTMENT);
+  if (restored_index < MIN_MIXER_MODE) {
+    restored_index = MIN_MIXER_MODE;
+  }
+
+  this->publish_state(restored_index -  MIN_MIXER_MODE);
   this->parent_->set_mixer_mode(static_cast<MixerMode>(restored_index));
 }
 
@@ -47,7 +47,7 @@ void MixerModeSelect::dump_config() {
 
 void MixerModeSelect::control(size_t index) {
   this->publish_state(index);
-  index = index + INDEX_ADJUSTMENT;
+  index = index + MIN_MIXER_MODE;
   this->pref_.save(&index);
   this->parent_->set_mixer_mode(static_cast<MixerMode>(index));
 }

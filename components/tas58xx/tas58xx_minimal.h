@@ -5,14 +5,14 @@
 namespace esphome::tas58xx {
 
 struct Tas58xxConfiguration {
-    uint8_t offset;
+    uint8_t addr;
     uint8_t value;
   }__attribute__((packed));
 
 // Startup sequence flag
 static constexpr uint8_t TAS58XX_CFG_META_DELAY = 254;
 
-static constexpr Tas58xxConfiguration TAS58XX_REGISTERS[] = {
+static constexpr Tas58xxConfiguration TAS58XX_CONFIG[] = {
 // RESET
     { 0x00, 0x00 }, //
     { 0x7f, 0x00 },
