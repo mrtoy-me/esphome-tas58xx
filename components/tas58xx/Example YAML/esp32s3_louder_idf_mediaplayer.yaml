@@ -145,16 +145,16 @@ media_player:
     on_play:
       - if:
           condition:
-            switch.is_off: enable_louder
+            switch.is_off: enable_tas58xx
           then:
-            switch.turn_on: enable_louder
+            switch.turn_on: enable_tas58xx
 
     on_announcement:
       - if:
           condition:
-            switch.is_off: enable_louder
+            switch.is_off: enable_tas58xx
           then:
-            switch.turn_on: enable_louder
+            switch.turn_on: enable_tas58xx
 
       - lambda: id(current_volume) = id(tas58xx_dac).volume();
 
@@ -221,8 +221,8 @@ select:
 switch:
   - platform: tas58xx
     enable_dac:
-      name: Enable Louder
-      id: enable_louder
+      name: Enable-Disable
+      id: enable_tas58xx
       restore_mode: ALWAYS_ON
 
 sensor:
