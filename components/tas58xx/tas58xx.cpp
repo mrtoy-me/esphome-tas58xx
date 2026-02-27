@@ -308,7 +308,7 @@ bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
 
   // only save until ready to setup in 'loop'
   if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
-     ESP_LOGD(TAG, "Save %s: %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
+     ESP_LOGV(TAG, "Save %s: %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
      return true;
   }
 
@@ -398,7 +398,7 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 
   // only save until ready to setup in 'loop'
   if (this->loop_setup_stage_ < LR_VOLUME_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel Volume:%ddB", LR_CHANNEL_TEXT[channel], volume_dB);
+    ESP_LOGV(TAG, "Save %s Channel Volume:%ddB", LR_CHANNEL_TEXT[channel], volume_dB);
     return true;
   }
 
@@ -444,7 +444,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
 
   // only save until ready to setup in 'loop'
   if (this->loop_setup_stage_ < EQ_BANDS_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel %s:%d Gain:%ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+    ESP_LOGV(TAG, "Save %s Channel %s:%d Gain:%ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return true;
   }
 
@@ -493,7 +493,7 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
 
   // only save until ready to setup in 'loop'
   if (this->loop_setup_stage_ < EQ_PRESETS_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel EQ Preset index:%d", LR_CHANNEL_TEXT[channel], select_preset);
+    ESP_LOGV(TAG, "Save %s Channel EQ Preset index:%d", LR_CHANNEL_TEXT[channel], select_preset);
     return true;
   }
 
@@ -622,7 +622,7 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
   new_again = (current_again & TOP_3BITS_MASK) | new_again;
   if (!this->tas58xx_write_byte_(TAS58XX_AGAIN, new_again)) return false;
 
-  ESP_LOGD(TAG, "Analog Gain >> %fdB", gain_db);
+  ESP_LOGV(TAG, "Analog Gain >> %fdB", gain_db);
   return true;
 }
 
@@ -653,7 +653,7 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
 
   // save so 'set_dac_mode_' could be used more generally
   this->tas58xx_dac_mode_ = mode;
-  ESP_LOGD(TAG, "DAC mode >> %s", this->tas58xx_dac_mode_ ? "PBTL" : "BTL");
+  ESP_LOGV(TAG, "DAC mode >> %s", this->tas58xx_dac_mode_ ? "PBTL" : "BTL");
   return true;
 }
 
@@ -718,7 +718,7 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
 
   // only save until ready to setup in 'loop'
   if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
-    ESP_LOGD(TAG, "Save EQ Mode: %s", EQ_MODE_TEXT[new_mode]);
+    ESP_LOGV(TAG, "Save EQ Mode: %s", EQ_MODE_TEXT[new_mode]);
     return true;
   }
 
@@ -754,7 +754,7 @@ bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
 
   // save so 'set_modulation_scheme_' could be used more generally
   this->tas58xx_modulation_scheme_ = modulation;
-  ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode");
+  ESP_LOGV(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode");
   return true;
 }
 
@@ -937,7 +937,7 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
   }
 
   // do block write to book and page sub-address
-  ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, page, sub_addr, bytes_in_block1);
+  ESP_LOGV(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, page, sub_addr, bytes_in_block1);
   if (!this->tas58xx_write_bytes_(sub_addr, data, bytes_in_block1)) return false;
 
   if (bytes_in_block2 != 0) {
@@ -948,7 +948,7 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
       ESP_LOGE(TAG, "%s setting next page", ERROR);
       return false;
     }
-    ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, next_page, MINIMUM_PAGE_SUBADDR, bytes_in_block2);
+    ESP_LOGV(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, next_page, MINIMUM_PAGE_SUBADDR, bytes_in_block2);
     if (!this->tas58xx_write_bytes_(MINIMUM_PAGE_SUBADDR, data + bytes_in_block1, bytes_in_block2)) return false;
   }
 
