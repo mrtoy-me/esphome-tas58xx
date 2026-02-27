@@ -4,14 +4,14 @@
 
 namespace esphome::tas58xx {
 
-static const char *const TAG = "tas58xx.number";
+static constexpr const char* TAG = "tas58xx.number";
 
 void LeftEqGain31p5hz::setup() {
   float value;
-  this->pref_ = global_preferences->make_preference<float>(this->get_object_id_hash());
+  this->pref_ = this->make_entity_preference<float>();
   if (!this->pref_.load(&value)) value= 0.0;
   this->publish_state(value);
-  this->parent_->set_eq_gain(BAND_31_5HZ, static_cast<int>(value));
+  this->parent_->set_eq_gain(LEFT_CHANNEL, BAND_31_5HZ, static_cast<int>(value));
 }
 
 void LeftEqGain31p5hz::dump_config() {
@@ -20,7 +20,7 @@ void LeftEqGain31p5hz::dump_config() {
 
 void LeftEqGain31p5hz::control(float value) {
   this->publish_state(value);
-  this->parent_->set_eq_gain(BAND_31_5HZ, static_cast<int>(value));
+  this->parent_->set_eq_gain(LEFT_CHANNEL, BAND_31_5HZ, static_cast<int>(value));
   this->pref_.save(&value);
 }
 
