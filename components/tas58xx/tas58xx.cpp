@@ -8,7 +8,7 @@
 namespace esphome::tas58xx {
 
 #ifdef USE_TAS5805M_DAC
-static constexpr const char* TAG = "tas58xx";
+static constexpr const char* TAG = "tas5805m";
 #else
 static constexpr const char* TAG = "tas5825m";
 #endif
@@ -231,7 +231,7 @@ void Tas58xxComponent::update() {
 
 void Tas58xxComponent::dump_config() {
 #ifdef USE_TAS5805M_DAC
-  ESP_LOGCONFIG(TAG, "Tas58xx Audio Dac:");
+  ESP_LOGCONFIG(TAG, "Tas5805m Audio Dac:");
 #else
   ESP_LOGCONFIG(TAG, "Tas5825m Audio Dac:");
 #endif
