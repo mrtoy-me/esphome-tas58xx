@@ -38,6 +38,7 @@ enum LoopSetupStage : uint8_t {
     EQ_PRESETS_SETUP,
     SETUP_COMPLETE,
 };
+
 struct Tas58xxFault {
   uint8_t channel_fault{0};                  // individual faults extracted when publishing
   uint8_t global_fault{0};                   // individual faults extracted when publishing
