@@ -33,12 +33,20 @@ enum EqMode : uint8_t {
   EQ_PRESETS_ON = 3,
 };
 
-enum MixerMode : uint8_t {
+enum InputMixerMode : uint8_t {
   STEREO = 0,
   STEREO_INVERSE,
   MONO,
   RIGHT,
   LEFT,
+};
+
+enum class MonoMixerMode: uint8_t {
+  LEFT = 0,
+  RIGHT,
+  STEREO,
+  EQ_LEFT,
+  EQ_RIGHT,
 };
 
 static constexpr uint8_t NUMBER_CHANNELS = 2;
@@ -47,7 +55,9 @@ static constexpr uint8_t NUMBER_EQ_MODES = 4;
 
 static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
 static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"};
-static constexpr const char* MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
+static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
+
+static constexpr const char* MONO_MIXER_MODE_TEXT[] = {"LEFT", "RIGHT", "STEREO", "EQ_LEFT", "EQ_RIGHT"};
 
 // EQ Gain constants
 static constexpr int8_t  TAS58XX_EQ_MAX_DB = 15;
@@ -99,6 +109,7 @@ static constexpr uint8_t TAS58XX_AUDIO_CTRL_BOOK = 0x8C;
 // TAS5805M
 static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x29;
 static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x18; // Left to Left = 0x18, Right to Left = 0x1c, Left to Right = 0x20, Right to Right = 0x24
+static constexpr uint8_t SUB_CHANNEL_MIXER_GAIN_SUBADDR = 0x28; // Left to Sub = 0x28, Right to Sub = 0x2c, Left EQ to Sub = 0x30, Right EQ to Sub = 0x34
 static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_PAGE = 0x2A;
 static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_SUBADDR[NUMBER_CHANNELS] = {0x24 , 0x28};  // Left channel = 0x24, Right Channel = 0x28
 #else

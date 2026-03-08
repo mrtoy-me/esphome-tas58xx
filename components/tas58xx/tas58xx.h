@@ -43,7 +43,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
     this->ignore_clock_faults_when_clearing_faults_ = (ignore_fault_mode == ExcludeIgnoreMode::CLOCK_FAULT);
   }
 
-  void config_mixer_mode(MixerMode mixer_mode) {this->tas58xx_mixer_mode_ = mixer_mode; }
+  void config_input_mixer_mode(InputMixerMode mixer_mode) {this->tas58xx_input_mixer_mode_ = mixer_mode; }
+
+  //void config_mono_mixer_mode(MonoMixerMode mixer_mode) {this->tas58xx_mono_mixer_mode_ = mixer_mode; }
 
   void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
 
@@ -78,7 +80,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   uint8_t get_configured_eq_mode();
 
   uint8_t get_mixer_mode();
-  bool set_mixer_mode(MixerMode mode);
+  bool set_input_mixer_mode(InputMixerMode mode);
 
   bool is_eq_configured();
 
@@ -125,6 +127,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool set_eq_mode_(EqMode new_mode);
 
    bool set_modulation_scheme_(ModulationScheme modulation);
+
+   #ifdef USE_TAS5805M_DAC
+   bool set_mono_mixer_mode_(MonoMixerMode mode);
+   #endif
 
    bool get_state_(ControlState* state);
    bool set_state_(ControlState state);
@@ -186,7 +192,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
 
-   MixerMode tas58xx_mixer_mode_; // YAML default = STEREO
+   InputMixerMode tas58xx_input_mixer_mode_; // YAML default = STEREO
+
+   MonoMixerMode tas58xx_mono_mixer_mode_; // YAML default = ???
 
    ModulationScheme tas58xx_modulation_scheme_; // YAML default = BD Mode
 

@@ -80,13 +80,13 @@ EXCLUDE_IGNORE_MODES = {
      "CLOCK_FAULT" : ExcludeIgnoreMode.CLOCK_FAULT,
 }
 
-MixerMode = tas58xx_ns.enum("MixerMode")
-MIXER_MODES = {
-    "STEREO"         : MixerMode.STEREO,
-    "STEREO_INVERSE" : MixerMode.STEREO_INVERSE,
-    "MONO"           : MixerMode.MONO,
-    "RIGHT"          : MixerMode.RIGHT,
-    "LEFT"           : MixerMode.LEFT,
+InputMixerMode = tas58xx_ns.enum("InputMixerMode")
+INPUT_MIXER_MODES = {
+    "STEREO"         : InputMixerMode.STEREO,
+    "STEREO_INVERSE" : InputMixerMode.STEREO_INVERSE,
+    "MONO"           : InputMixerMode.MONO,
+    "RIGHT"          : InputMixerMode.RIGHT,
+    "LEFT"           : InputMixerMode.LEFT,
 }
 
 ANALOG_GAINS = [-15.5, -15, -14.5, -14, -13.5, -13, -12.5, -12, -11.5, -11, -10.5, -10, -9.5, -9, -8.5, -8,
@@ -121,7 +121,7 @@ CONFIG_SCHEMA = cv.All(
                         EXCLUDE_IGNORE_MODES, upper=True
             ),
             cv.Optional(CONF_MIXER_MODE, default="STEREO"): cv.enum(
-                        MIXER_MODES, upper=True
+                        INPUT_MIXER_MODES, upper=True
             ),
             cv.Optional(CONF_REFRESH_EQ, default="AUTO"): cv.enum(
                         EQ_REFRESH_MODES, upper=True
@@ -191,7 +191,7 @@ async def to_code(config):
     cg.add(var.config_dac_mode(config[CONF_DAC_MODE]))
     cg.add(var.config_modulation_scheme(config[CONF_MODULATION]))
     cg.add(var.config_ignore_fault_mode(config[CONF_IGNORE_FAULT]))
-    cg.add(var.config_mixer_mode(config[CONF_MIXER_MODE]))
+    cg.add(var.config_input_mixer_mode(config[CONF_MIXER_MODE]))
     cg.add(var.config_refresh_eq(config[CONF_REFRESH_EQ]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))

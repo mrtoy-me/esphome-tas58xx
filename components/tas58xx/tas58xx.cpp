@@ -106,8 +106,8 @@ void Tas58xxComponent::loop() {
          ESP_LOGW(TAG, "%s setting EQ Mode: %s", ERROR, EQ_MODE_TEXT[this->tas58xx_eq_mode_]);
       }
 
-      if (!this->set_mixer_mode(this->tas58xx_mixer_mode_)) {
-        ESP_LOGW(TAG, "%s setting %s:%s", ERROR, MIXER_MODE, MIXER_MODE_TEXT[this->tas58xx_mixer_mode_]);
+      if (!this->set_input_mixer_mode(this->tas58xx_input_mixer_mode_)) {
+        ESP_LOGW(TAG, "%s setting %s:%s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_]);
       }
       this->loop_setup_stage_ = LR_VOLUME_SETUP;
       return;
@@ -256,7 +256,7 @@ void Tas58xxComponent::dump_config() {
               this->number_registers_configured_, this->tas58xx_analog_gain_,
               this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
-              MIXER_MODE_TEXT[this->tas58xx_mixer_mode_],
+              INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_],
               this->tas58xx_volume_max_, this->tas58xx_volume_min_,
               this->ignore_clock_faults_when_clearing_faults_ ? "CLOCK FAULTS" : "NONE",
               this->eq_refresh_ ? "MANUAL" : "AUTO"
@@ -297,16 +297,16 @@ uint8_t Tas58xxComponent::get_configured_eq_mode() {
 }
 
 uint8_t Tas58xxComponent::get_mixer_mode() {
-  return static_cast<uint8_t>(this->tas58xx_mixer_mode_);
+  return static_cast<uint8_t>(this->tas58xx_input_mixer_mode_);
 }
 
-bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
+bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
 
-  this->tas58xx_mixer_mode_ = mode;
+  this->tas58xx_input_mixer_mode_ = mode;
 
   // only save until ready to setup in 'loop'
   if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
-     ESP_LOGD(TAG, "Save %s: %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
+     ESP_LOGD(TAG, "Save %s: %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
      return true;
   }
 
@@ -322,38 +322,38 @@ bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
 
   switch (mode) {
     case STEREO:
-      mixer_coefficients.l_to_l =TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_l =TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.l_to_r =TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_r =TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_0DB;
       break;
 
     case STEREO_INVERSE:
-      mixer_coefficients.l_to_l =TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_l =TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.l_to_r =TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_r =TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MUTE;
       break;
 
     case MONO:
-      mixer_coefficients.l_to_l =TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.r_to_l =TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.l_to_r =TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.r_to_r =TAS58XX_MIXER_COEFF_MINUS6DB;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MINUS6DB;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MINUS6DB;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MINUS6DB;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MINUS6DB;
       break;
 
     case LEFT:
-      mixer_coefficients.l_to_l =TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_l =TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.l_to_r =TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_r =TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MUTE;
       break;
 
     case RIGHT:
-      mixer_coefficients.l_to_l =TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_l =TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.l_to_r =TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_r =TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_0DB;
       break;
 
     default:
@@ -363,13 +363,86 @@ bool Tas58xxComponent::set_mixer_mode(MixerMode mode) {
 
   if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
-    ESP_LOGE(TAG, "%s writing %s: %s gains", MIXER_MODE, MIXER_MODE_TEXT[mode]);
+    ESP_LOGE(TAG, "%s writing %s: %s gains", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
     return false;
   }
 
-  ESP_LOGD(TAG, "Set %s: %s", MIXER_MODE, MIXER_MODE_TEXT[mode]);
+  ESP_LOGD(TAG, "Set Input %s: %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
   return true;
 }
+
+#ifdef USE_TAS5805M_DAC
+bool Tas58xxComponent::set_mono_mixer_mode_(MonoMixerMode mode) {
+
+  this->tas58xx_mono_mixer_mode_ = mode;
+
+  // only save until ready to setup in 'loop'
+  if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
+     ESP_LOGD(TAG, "Save Mono %s: %s", MIXER_MODE, MONO_MIXER_MODE_TEXT[static_cast<uint8_t>(mode)]);
+     return true;
+  }
+
+  // follows order of sub channel mixer registers = Left to Sub, Right to Sub, Left EQ to Sub, Right EQ to Sub
+  struct MixerCoefficients {
+    uint32_t l_to_sub;
+    uint32_t r_to_sub;
+    uint32_t leq_to_sub;
+    uint32_t req_to_sub;
+  }__attribute__((packed));
+
+  MixerCoefficients mixer_coefficients;
+
+  switch (mode) {
+    case MonoMixerMode::LEFT:
+      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      break;
+
+    case MonoMixerMode::RIGHT:
+      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      break;
+
+    case MonoMixerMode::STEREO:
+      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MINUS6DB;
+      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MINUS6DB;
+      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      break;
+
+    case MonoMixerMode::EQ_LEFT:
+      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_0DB;
+      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      break;
+
+    case MonoMixerMode::EQ_RIGHT:
+      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
+      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_0DB;
+      break;
+
+    default:
+      ESP_LOGW(TAG, "Invalid Mono %s", MIXER_MODE);
+      return false;
+  }
+
+  if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, SUB_CHANNEL_MIXER_GAIN_SUBADDR,
+                                  reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
+    ESP_LOGE(TAG, "%s writing Mono %s: %s gains", MIXER_MODE, MONO_MIXER_MODE_TEXT[static_cast<uint8_t>(mode)]);
+    return false;
+  }
+
+  ESP_LOGD(TAG, "Set Mono %s: %s", MIXER_MODE, MONO_MIXER_MODE_TEXT[static_cast<uint8_t>(mode)]);
+  return true;
+}
+#endif
 
 // used by 'select eq mode' to determine initially selected EQ mode
 bool Tas58xxComponent::is_eq_configured() {

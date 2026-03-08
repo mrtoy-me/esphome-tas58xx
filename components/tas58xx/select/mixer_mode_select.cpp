@@ -37,7 +37,7 @@ void MixerModeSelect::setup() {
   }
 
   this->publish_state(restored_index -  MIN_MIXER_MODE);
-  this->parent_->set_mixer_mode(static_cast<MixerMode>(restored_index));
+  this->parent_->set_input_mixer_mode(static_cast<InputMixerMode>(restored_index));
 }
 
 void MixerModeSelect::dump_config() {
@@ -49,7 +49,7 @@ void MixerModeSelect::control(size_t index) {
   this->publish_state(index);
   index = index + MIN_MIXER_MODE;
   this->pref_.save(&index);
-  this->parent_->set_mixer_mode(static_cast<MixerMode>(index));
+  this->parent_->set_input_mixer_mode(static_cast<InputMixerMode>(index));
 }
 
 }  // namespace esphome::tas58xx
