@@ -8,7 +8,7 @@
 namespace esphome::tas58xx {
 
 #ifdef USE_TAS5805M_DAC
-static constexpr const char* TAG = "tas58xx";
+static constexpr const char* TAG = "tas5805m";
 #else
 static constexpr const char* TAG = "tas5825m";
 #endif
@@ -231,7 +231,7 @@ void Tas58xxComponent::update() {
 
 void Tas58xxComponent::dump_config() {
 #ifdef USE_TAS5805M_DAC
-  ESP_LOGCONFIG(TAG, "Tas58xx Audio Dac:");
+  ESP_LOGCONFIG(TAG, "Tas5805m Audio Dac:");
 #else
   ESP_LOGCONFIG(TAG, "Tas5825m Audio Dac:");
 #endif
@@ -248,7 +248,6 @@ void Tas58xxComponent::dump_config() {
               "  Analog Gain: %3.1fdB\n"
               "  Modulation: %s\n"
               "  DAC Mode: %s\n"
-              "  Modulation: %s\n"
               "  Mixer Mode: %s\n"
               "  Volume Maximum: %idB\n"
               "  Volume Minimum: %idB\n"
@@ -257,7 +256,6 @@ void Tas58xxComponent::dump_config() {
               this->number_registers_configured_, this->tas58xx_analog_gain_,
               this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
-              this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               MIXER_MODE_TEXT[this->tas58xx_mixer_mode_],
               this->tas58xx_volume_max_, this->tas58xx_volume_min_,
               this->ignore_clock_faults_when_clearing_faults_ ? "CLOCK FAULTS" : "NONE",
