@@ -475,6 +475,24 @@ bool Tas58xxComponent::set_crossbar_() {
   ESP_LOGD(TAG, "Crossbar set");
   return true;
 }
+
+// Adds a single Butterworth2 lowpass into the subwoofer eq
+bool Tas58xxComponent::set_subchannel_eq_(float crossover_frequency) {
+  static constexpr uint8_t EQ_SUB_PAGE = 0x29;
+  static constexpr uint8_t EQ_SUB_BQ1_SUBADDR = 0x38;
+  static constexpr float EQ_SUB_SAMPLE_RATE = 48000.0;
+
+  tas58xx_helpers::BiquadCoefficients biquad =
+    tas58xx_helpers::butterworth2_(EQ_SUB_SAMPLE_RATE, crossover_frequency, tas58xx_helpers::LOWPASS);
+
+  if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, EQ_SUB_PAGE, EQ_SUB_BQ1_SUBADDR,
+                                  reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
+    ESP_LOGE(TAG, "%s setting Subchannel EQ for crossover frequency: %fHz", ERROR, crossover_frequency);
+    return false;
+  }
+  ESP_LOGD(TAG, "Subchannel EQ set");
+  return true;
+}
 #endif
 
 // used by 'select eq mode' to determine initially selected EQ mode

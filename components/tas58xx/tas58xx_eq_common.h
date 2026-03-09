@@ -42,11 +42,11 @@ enum InputMixerMode : uint8_t {
 };
 
 enum SubchannelMixerMode: uint8_t {
-  SUB_LEFT = 0,
-  SUB_RIGHT,
-  SUB_STEREO,
-  SUB_LEFT_EQ,
-  SUB_RIGHT_EQ,
+  LEFT_SUB = 0,
+  RIGHT_SUB,
+  STEREO_SUB,
+  LEFT_EQ_SUB,
+  RIGHT_EQ_SUB,
 };
 
 enum CrossbarOutputs: uint8_t {

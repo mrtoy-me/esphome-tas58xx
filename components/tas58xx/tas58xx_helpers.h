@@ -12,7 +12,7 @@ struct BiquadCoefficients {
     int32_t a2;
 };
 
-enum class Butterworth2Type {
+enum Butterworth2Type {
     HIGHPASS = 0,
     LOWPASS = 1,
 };

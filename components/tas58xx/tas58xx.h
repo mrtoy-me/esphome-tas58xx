@@ -138,6 +138,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 #ifdef USE_SPEAKER_CONFIG
    bool set_mono_mixer_mode_(SubchannelMixerMode mode);
    bool set_crossbar_();
+   bool set_subchannel_eq_(float crossover_frequency);
 #endif
 
    bool get_state_(ControlState* state);
