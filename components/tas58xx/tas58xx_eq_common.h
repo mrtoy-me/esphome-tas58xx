@@ -41,23 +41,30 @@ enum InputMixerMode : uint8_t {
   LEFT,
 };
 
-enum class MonoMixerMode: uint8_t {
-  LEFT = 0,
-  RIGHT,
-  STEREO,
-  EQ_LEFT,
-  EQ_RIGHT,
+enum SubchannelMixerMode: uint8_t {
+  SUB_LEFT = 0,
+  SUB_RIGHT,
+  SUB_STEREO,
+  SUB_LEFT_EQ,
+  SUB_RIGHT_EQ,
+};
+
+enum CrossbarOutputs: uint8_t {
+    FROM_LEFT = 0,
+    FROM_RIGHT,
+    FROM_SUB,
 };
 
 static constexpr uint8_t NUMBER_CHANNELS = 2;
 static constexpr uint8_t NUMBER_EQ_BANDS = 15;
 static constexpr uint8_t NUMBER_EQ_MODES = 4;
+static constexpr uint8_t NUMBER_OUTPUT_CROSSBAR = 4; // Analog Left, Analog Right, Digital Left, Digital Right
 
 static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
 static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"};
 static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
 
-static constexpr const char* MONO_MIXER_MODE_TEXT[] = {"LEFT", "RIGHT", "STEREO", "EQ_LEFT", "EQ_RIGHT"};
+static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"LEFT", "RIGHT", "STEREO", "LEFT EQ", "RIGHT EQ"};
 
 // EQ Gain constants
 static constexpr int8_t  TAS58XX_EQ_MAX_DB = 15;
@@ -109,9 +116,15 @@ static constexpr uint8_t TAS58XX_AUDIO_CTRL_BOOK = 0x8C;
 // TAS5805M
 static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x29;
 static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x18; // Left to Left = 0x18, Right to Left = 0x1c, Left to Right = 0x20, Right to Right = 0x24
-static constexpr uint8_t SUB_CHANNEL_MIXER_GAIN_SUBADDR = 0x28; // Left to Sub = 0x28, Right to Sub = 0x2c, Left EQ to Sub = 0x30, Right EQ to Sub = 0x34
 static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_PAGE = 0x2A;
 static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_SUBADDR[NUMBER_CHANNELS] = {0x24 , 0x28};  // Left channel = 0x24, Right Channel = 0x28
+
+#ifdef USE_SPEAKER_CONFIG
+static constexpr uint8_t TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR = 0x28; // Left to Sub = 0x28, Right to Sub = 0x2c, Left EQ to Sub = 0x30, Right EQ to Sub = 0x34
+static constexpr uint8_t TAS5805M_OUTPUT_CROSSBAR_PAGE = 0x2C;
+static constexpr uint8_t TAS5805M_OUTPUT_CROSSBAR_SUBADDR[NUMBER_OUTPUT_CROSSBAR] = {0x1C, 0x28, 0x34, 0x4c}; // Analog Left, Analog Right, Digital Left, Digital Right
+#endif
+
 #else
 // TAS5825M
 static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x0B;

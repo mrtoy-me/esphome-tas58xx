@@ -29,6 +29,16 @@ CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 
+# speaker config constants
+CONF_SPEAKER_CONFIG = "speaker_config"
+CONF_MONO_MIXER_MODE = "mono_mixer_mode"
+CONF_CROSSOVER_FREQUENCY = "crossover_frequency"
+CONF_CROSSBAR = "crossbar"
+CONF_LEFT_AMP = "left_amp"
+CONF_RIGHT_AMP = "right_amp"
+CONF_LEFT_I2S = "left_i2s"
+CONF_RIGHT_I2S = "right_i2s"
+
 # used for looking through CORE.config to derive eq configuration
 NUMBER_COMPONENT= "number"
 SELECT_COMPONENT = "select"
@@ -42,6 +52,10 @@ EQ_OFF = 0
 EQ_15BAND = 1
 EQ_BIAMP = 2
 EQ_PRESETS = 3
+
+# dac names
+TAS5805M_DAC = "TAS5805M"
+TAS5825M_DAC = "TAS5825M"
 
 # i2c addresses of dac models
 TAS5805M_I2C_ADDR = 0x2D
@@ -89,6 +103,52 @@ INPUT_MIXER_MODES = {
     "LEFT"           : InputMixerMode.LEFT,
 }
 
+SubchannelMixerMode = tas58xx_ns.enum("SubchannelMixerMode")
+SUBCHANNEL_MIXER_MODES = {
+    "SUB_LEFT"     : SubchannelMixerMode.SUB_LEFT,
+    "SUB_RIGHT"    : SubchannelMixerMode.SUB_RIGHT,
+    "SUB_STEREO"   : SubchannelMixerMode.SUB_STEREO,
+    "SUB_LEFT_EQ"  : SubchannelMixerMode.SUB_LEFT_EQ,
+    "SUB_RIGHT_EQ" : SubchannelMixerMode.SUB_RIGHT_EQ,
+}
+
+CrossbarOutput = tas58xx_ns.enum("CrossbarOutput")
+CROSSBAR_OUTPUTS = {
+    "FROM_LEFT" : CrossbarOutput.FROM_LEFT,
+    "FROM_RIGHT": CrossbarOutput.FROM_RIGHT,
+    "FROM_SUB"  : CrossbarOutput.FROM_SUB,
+}
+
+CROSSBAR_CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_LEFT_AMP, default="FROM_LEFT"): cv.enum(
+            CROSSBAR_OUTPUTS, upper=True
+        ),
+        cv.Optional(CONF_RIGHT_AMP, default="FROM_SUB"): cv.enum(
+            CROSSBAR_OUTPUTS, upper=True
+        ),
+        cv.Optional(CONF_LEFT_I2S, default="FROM_RIGHT"): cv.enum(
+            CROSSBAR_OUTPUTS, upper=True
+        ),
+        cv.Optional(CONF_RIGHT_I2S, default="FROM_SUB"): cv.enum(
+            CROSSBAR_OUTPUTS, upper=True
+        ),
+    }
+)
+
+SPEAKER_CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_MONO_MIXER_MODE, default="SUB_STEREO"): cv.enum(
+            SUBCHANNEL_MIXER_MODES, upper=True
+        ),
+        cv.Optional(CONF_CROSSOVER_FREQUENCY, default="1000Hz"): cv.All(
+            cv.frequency, cv.int_range(1, 25000)
+        ),
+        cv.Optional(CONF_CROSSBAR): CROSSBAR_CONFIG_SCHEMA,
+    }
+)
+
+
 ANALOG_GAINS = [-15.5, -15, -14.5, -14, -13.5, -13, -12.5, -12, -11.5, -11, -10.5, -10, -9.5, -9, -8.5, -8,
                  -7.5,  -7,  -6.5,  -6,  -5.5,  -5,  -4.5,  -4,  -3.5,  -3,  -2.5,  -2, -1.5, -1, -0.5,  0]
 
@@ -97,15 +157,16 @@ def validate_config(config):
         raise cv.Invalid("dac_mode: PBTL must have mixer_mode: MONO or RIGHT or LEFT")
     if (config[CONF_VOLUME_MAX] - config[CONF_VOLUME_MIN]) < 9:
         raise cv.Invalid("volume_max must at least 9db greater than volume_min")
+    if config.get(CONF_SPEAKER_CONFIG) and (config[CONF_TAS58XX_DAC] == TAS5825M_DAC):
+        raise cv.Invalid("speaker_config is only valid for TAS5805M DAC - remove speaker_config from YAML when using TAS5825M DAC")
     return config
-
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(Tas58xxComponent),
             cv.Required(CONF_ENABLE_PIN): pins.gpio_output_pin_schema,
-            cv.Optional(CONF_TAS58XX_DAC, default="TAS5805M"): cv.enum(
+            cv.Optional(CONF_TAS58XX_DAC, default=TAS5805M_DAC): cv.enum(
                         TAS_DACS, upper=True
             ),
             cv.Optional(CONF_ANALOG_GAIN, default="-15.5dB"): cv.All(
@@ -132,6 +193,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_VOLUME_MIN, default="-103dB"): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
+            cv.Optional(CONF_SPEAKER_CONFIG): SPEAKER_CONFIG_SCHEMA,
         }
     )
     .extend(cv.polling_component_schema("1s"))
@@ -179,7 +241,7 @@ async def to_code(config):
             derived_eq_mode_configuration = EQ_PRESETS
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
-    if tas58xx_dac == "TAS5825M":
+    if tas58xx_dac == TAS5825M_DAC:
         config[CONF_ADDRESS] = TAS5825M_I2C_ADDR
 
     var = cg.new_Pvariable(config[CONF_ID])
@@ -197,10 +259,20 @@ async def to_code(config):
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
 
+    if config.get(CONF_SPEAKER_CONFIG):
+        cg.add_define("USE_SPEAKER_CONFIG")
+        cg.add(var.config_mono_mixer_mode(config[CONF_SPEAKER_CONFIG][CONF_MONO_MIXER_MODE]))
+        cg.add(var.config_crossover_frequency(config[CONF_SPEAKER_CONFIG][CONF_CROSSOVER_FREQUENCY]))
+        #crossbar = config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR]
+        cg.add(var.config_crossbar_left_amp(config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR][CONF_LEFT_AMP]))
+        cg.add(var.config_crossbar_right_amp(config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR][CONF_RIGHT_AMP]))
+        cg.add(var.config_crossbar_left_i2s(config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR][CONF_LEFT_I2S]))
+        cg.add(var.config_crossbar_right_i2s(config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR][CONF_RIGHT_I2S]))
+
     if config[CONF_DAC_MODE] == "PBTL":
         cg.add_define("USE_DAC_MODE_PBTL")
 
-    if tas58xx_dac == "TAS5805M":
+    if tas58xx_dac == TAS5805M_DAC:
         cg.add_define("USE_TAS5805M_DAC")
     else:
         cg.add_define("USE_TAS5825M_DAC")
