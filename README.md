@@ -33,7 +33,7 @@ These DACs are controlled by I2C so the component requires configuration of
 Appropriate configuration of psram, i2s_audio, speaker and mediaplayer are required.
 YAML configurations for Esparagus and ESP32 Audio boards are provided by sonocotta in
 [Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome) and
-[ESP32-Audio-Dock repository]https://github.com/sonocotta/esp32-audio-dock/tree/main/firmware/esphome
+[ESP32 Audio Dock](https://github.com/sonocotta/esp32-audio-dock/tree/main/firmware/esphome)
 
 ## Component Features
 The component communicates with DAC by I2C and provides the following features:
@@ -534,6 +534,6 @@ volume level to the audio playing through the media pipeline.
 
 # YAML Examples
 Extensive Esphome YAML configurations are now provided on github by sonocotta in
-[Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome) and
-[ESP32-Audio-Dock repository]https://github.com/sonocotta/esp32-audio-dock/tree/main/firmware/esphome
+in [Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome) and
+[ESP32 Audio Dock](https://github.com/sonocotta/esp32-audio-dock/tree/main/firmware/esphome)
 
