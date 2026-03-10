@@ -31,8 +31,9 @@ These DACs are controlled by I2C so the component requires configuration of
 **i2c:** with **sda:** and **scl:** pins.
 
 Appropriate configuration of psram, i2s_audio, speaker and mediaplayer are required.
-Typical YAML configurations are provided by sonocotta in
-[Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome)
+YAML configurations for Esparagus and ESP32 Audio boards are provided by sonocotta in
+[Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome) and
+[ESP32-Audio-Dock repository]https://github.com/sonocotta/esp32-audio-dock/tree/main/firmware/esphome
 
 ## Component Features
 The component communicates with DAC by I2C and provides the following features:
@@ -245,7 +246,6 @@ audio_dac:
     analog_gain: -9db
     modulation: BD_MODE # default can be omitted; for 1SPW Mode use modulation: 1SPW_MODE
     dac_mode: BTL
-    modulation: BD_MODE # default can be omitted
     mixer_mode: STEREO # default can be omitted
     volume_max: 0dB
     volume_min: -60db
@@ -532,7 +532,8 @@ This is useful for a Text-to-Speech announcements that may have a different
 volume level to the audio playing through the media pipeline.
 
 
-# YAML examples in this Repository
-Extensive Esphome YAML examples are provided on github by sonocotta in
-[Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome)
+# YAML Examples
+Extensive Esphome YAML configurations are now provided on github by sonocotta in
+[Esparagus Media Center repository](https://github.com/sonocotta/esparagus-media-center/tree/main/firmware/esphome) and
+[ESP32-Audio-Dock repository]https://github.com/sonocotta/esp32-audio-dock/tree/main/firmware/esphome
 
