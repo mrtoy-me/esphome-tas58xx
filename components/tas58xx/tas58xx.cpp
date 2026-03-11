@@ -393,35 +393,35 @@ bool Tas58xxComponent::set_mono_mixer_mode_(SubchannelMixerMode mode) {
   MixerCoefficients mixer_coefficients;
 
   switch (mode) {
-    case SubchannelMixerMode::SUB_LEFT:
+    case SubchannelMixerMode::LEFT_SUB:
       mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_0DB;
       mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       break;
 
-    case SubchannelMixerMode::SUB_RIGHT:
+    case SubchannelMixerMode::RIGHT_SUB:
       mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_0DB;
       mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       break;
 
-    case SubchannelMixerMode::SUB_STEREO:
+    case SubchannelMixerMode::STEREO_SUB:
       mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MINUS6DB;
       mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MINUS6DB;
       mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       break;
 
-    case SubchannelMixerMode::SUB_LEFT_EQ:
+    case SubchannelMixerMode::LEFT_EQ_SUB:
       mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_0DB;
       mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       break;
 
-    case SubchannelMixerMode::SUB_RIGHT_EQ:
+    case SubchannelMixerMode::RIGHT_EQ_SUB:
       mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
       mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
@@ -1053,18 +1053,21 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
   if (!this->set_book_and_page_(book, page)) return false;
 
   // do block write to book and page sub-address
-  ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, page, sub_addr, bytes_in_block1);
+  //ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, page, sub_addr, bytes_in_block1);
   if (!this->tas58xx_write_bytes_(sub_addr, data, bytes_in_block1)) return false;
 
   if (bytes_in_block2 != 0) {
     uint8_t next_page = page + 1;
+
+    ESP_LOGD(TAG, "Writing new page:0x%02X", next_page);
 
     // book already set so just change to next page
     if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, next_page)) {
       ESP_LOGE(TAG, "%s setting next page", ERROR);
       return false;
     }
-    ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, next_page, MINIMUM_PAGE_SUBADDR, bytes_in_block2);
+
+    //ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X subaddress:0x%02X bytes:%d", book, next_page, MINIMUM_PAGE_SUBADDR, bytes_in_block2);
     if (!this->tas58xx_write_bytes_(MINIMUM_PAGE_SUBADDR, data + bytes_in_block1, bytes_in_block2)) return false;
   }
 
@@ -1077,6 +1080,7 @@ bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
     ESP_LOGE(TAG, "%s setting page: 0x00", ERROR);
     return false;
   }
+  ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
   if (!this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
     ESP_LOGE(TAG, "%s setting book: 0x%02X", ERROR, book);
     return false;
@@ -1106,7 +1110,7 @@ bool Tas58xxComponent::tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, ui
 }
 
 bool Tas58xxComponent::tas58xx_write_byte_(uint8_t a_register, uint8_t data) {
-   i2c::ErrorCode error_code = this->write_register(a_register, &data, 1);
+  i2c::ErrorCode error_code = this->write_register(a_register, &data, 1);
   if (error_code != i2c::ERROR_OK) {
     ESP_LOGE(TAG, "%s code:%d writing to address:0x%02X", ERROR, error_code, a_register);
     this->i2c_error_ = (uint8_t)error_code;
@@ -1116,6 +1120,7 @@ bool Tas58xxComponent::tas58xx_write_byte_(uint8_t a_register, uint8_t data) {
 }
 
 bool Tas58xxComponent::tas58xx_write_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes) {
+  ESP_LOGD(TAG, "Writing address:0x%02X bytes:%d", a_register, number_bytes);
   i2c::ErrorCode error_code = this->write_register(a_register, data, number_bytes);
   if (error_code != i2c::ERROR_OK) {
     ESP_LOGE(TAG, "%s code:%d writing %d bytes to address:0x%02X", ERROR, error_code, number_bytes, a_register);
