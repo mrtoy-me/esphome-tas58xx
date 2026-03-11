@@ -120,11 +120,11 @@ CROSSBAR_OUTPUTS = {
 
 SPEAKER_CONFIG_SCHEMA = cv.Schema(
     {
+        cv.Required(CONF_CROSSOVER_FREQUENCY): cv.All(
+            cv.frequency, cv.int_range(1, 25000)
+        ),
         cv.Optional(CONF_MONO_MIXER_MODE, default="STEREO_SUB"): cv.enum(
             SUBCHANNEL_MIXER_MODES, upper=True
-        ),
-        cv.Optional(CONF_CROSSOVER_FREQUENCY, default="1000Hz"): cv.All(
-            cv.frequency, cv.int_range(1, 25000)
         ),
         cv.Optional(CONF_CROSSBAR_LEFT_AMP, default="FROM_LEFT"): cv.enum(
             CROSSBAR_OUTPUTS, upper=True
