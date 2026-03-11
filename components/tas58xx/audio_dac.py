@@ -118,27 +118,29 @@ CROSSBAR_OUTPUTS = {
     "FROM_SUB"  : CrossbarOutput.FROM_SUB,
 }
 
-SPEAKER_CONFIG_SCHEMA = cv.Schema(
-    {
-        cv.Required(CONF_CROSSOVER_FREQUENCY): cv.All(
-            cv.frequency, cv.int_range(1, 25000)
-        ),
-        cv.Optional(CONF_MONO_MIXER_MODE, default="STEREO_SUB"): cv.enum(
-            SUBCHANNEL_MIXER_MODES, upper=True
-        ),
-        cv.Optional(CONF_CROSSBAR_LEFT_AMP, default="FROM_LEFT"): cv.enum(
-            CROSSBAR_OUTPUTS, upper=True
-        ),
-        cv.Optional(CONF_CROSSBAR_RIGHT_AMP, default="FROM_SUB"): cv.enum(
-            CROSSBAR_OUTPUTS, upper=True
-        ),
-        cv.Optional(CONF_CROSSBAR_LEFT_I2S, default="FROM_RIGHT"): cv.enum(
-            CROSSBAR_OUTPUTS, upper=True
-        ),
-        cv.Optional(CONF_CROSSBAR_RIGHT_I2S, default="FROM_SUB"): cv.enum(
-            CROSSBAR_OUTPUTS, upper=True
-        ),
-    }
+SPEAKER_CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.Required(CONF_CROSSOVER_FREQUENCY): cv.All(
+                cv.frequency, cv.int_range(1, 25000)
+            ),
+            cv.Optional(CONF_MONO_MIXER_MODE, default="STEREO_SUB"): cv.enum(
+                SUBCHANNEL_MIXER_MODES, upper=True
+            ),
+            cv.Optional(CONF_CROSSBAR_LEFT_AMP, default="FROM_LEFT"): cv.enum(
+                CROSSBAR_OUTPUTS, upper=True
+            ),
+            cv.Optional(CONF_CROSSBAR_RIGHT_AMP, default="FROM_SUB"): cv.enum(
+                CROSSBAR_OUTPUTS, upper=True
+            ),
+            cv.Optional(CONF_CROSSBAR_LEFT_I2S, default="FROM_RIGHT"): cv.enum(
+                CROSSBAR_OUTPUTS, upper=True
+            ),
+            cv.Optional(CONF_CROSSBAR_RIGHT_I2S, default="FROM_SUB"): cv.enum(
+                CROSSBAR_OUTPUTS, upper=True
+            ),
+        }
+    )
 )
 
 
