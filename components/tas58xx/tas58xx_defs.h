@@ -36,6 +36,11 @@ enum LoopSetupStage : uint8_t {
     LR_VOLUME_SETUP,
     EQ_BANDS_SETUP,
     EQ_PRESETS_SETUP,
+#ifdef USE_SPEAKER_CONFIG
+    EQ_SUBCHANNEL_SETUP,
+    CROSSBAR_SETUP,
+    MONO_MIXER_SETUP,
+#endif
     SETUP_COMPLETE,
 };
 

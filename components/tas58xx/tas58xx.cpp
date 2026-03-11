@@ -131,15 +131,26 @@ void Tas58xxComponent::loop() {
       this->loop_setup_stage_ = EQ_PRESETS_SETUP;
 #endif
 
-      // if loop_setup_stage_ has not changed then no EQ configured
-      if (this->loop_setup_stage_ == LR_VOLUME_SETUP) this->loop_setup_stage_ = SETUP_COMPLETE;
+      // if loop_setup_stage_ has not changed then no EQ Gains or EQ Presets configured
+      if (this->loop_setup_stage_ == LR_VOLUME_SETUP)
+#ifdef USE_SPEAKER_CONFIG
+        // but have speaker_config continue with that setup
+        this->loop_setup_stage_ = EQ_SUBCHANNEL_SETUP;
+#else
+        // nothing more to setup so complete
+        this->loop_setup_stage_ = SETUP_COMPLETE;
+#endif
       return;
 
     case EQ_BANDS_SETUP:
 #ifdef USE_TAS58XX_EQ_GAINS
-      if (this->refresh_band_ == NUMBER_EQ_BANDS) {     // refresh_band_ was initialised to 0
-        // finished writing all bands
+      if (this->refresh_band_ == NUMBER_EQ_BANDS) { // refresh_band_ starts as initialised to 0
+        // finished writing all bands so either continue with speaker config or setup is complete
+#ifdef USE_SPEAKER_CONFIG
+        this->loop_setup_stage_ = EQ_SUBCHANNEL_SETUP;
+#else
         this->loop_setup_stage_ = SETUP_COMPLETE;
+#endif
         this->refresh_band_ = 0;
         return;
       }
@@ -170,11 +181,33 @@ void Tas58xxComponent::loop() {
       if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
         ESP_LOGW(TAG, "%s setting Right Channel Preset index:%d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
       }
+#ifdef USE_SPEAKER_CONFIG
+      this->loop_setup_stage_ = EQ_SUBCHANNEL_SETUP;
+#else
       this->loop_setup_stage_ = SETUP_COMPLETE;
 #endif
+#endif // USE_TAS58XX_EQ_PRESETS
       return;
 
+#ifdef USE_SPEAKER_CONFIG
+    case EQ_SUBCHANNEL_SETUP:
+      ESP_LOGD(TAG, "EQ_SUBCHANNEL_SETUP");
+      this->loop_setup_stage_ = CROSSBAR_SETUP;
+      return;
+
+    case CROSSBAR_SETUP:
+      ESP_LOGD(TAG, "CROSSBAR_SETUP");
+      this->loop_setup_stage_ = MONO_MIXER_SETUP;
+      return;
+
+    case MONO_MIXER_SETUP:
+      ESP_LOGD(TAG, "CROSSBAR_SETUP");
+      this->loop_setup_stage_ = SETUP_COMPLETE;
+      return;
+#endif
+
     case SETUP_COMPLETE:
+      ESP_LOGD(TAG, "SETUP_COMPLETE");
       this->disable_loop(); // requires Esphome 2025.7.0 or greater
       return;
   }
