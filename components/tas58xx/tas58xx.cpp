@@ -396,7 +396,7 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
 
   if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
-    ESP_LOGE(TAG, "%s writing %s: %s gains", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
+    ESP_LOGE(TAG, "%s writing Input %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
     return false;
   }
 
@@ -405,15 +405,7 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
 }
 
 #ifdef USE_SPEAKER_CONFIG
-bool Tas58xxComponent::set_mono_mixer_mode_(SubchannelMixerMode mode) {
-
-  this->tas5805m_mono_mixer_mode_ = mode;
-
-  // only save until ready to setup in 'loop'
-  if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
-     ESP_LOGD(TAG, "Save Mono %s: %s", MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(mode)]);
-     return true;
-  }
+bool Tas58xxComponent::set_mono_mixer_mode_() {
 
   // follows order of sub channel mixer registers = Left to Sub, Right to Sub, Left EQ to Sub, Right EQ to Sub
   struct MixerCoefficients {
@@ -468,7 +460,7 @@ bool Tas58xxComponent::set_mono_mixer_mode_(SubchannelMixerMode mode) {
 
   if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
-    ESP_LOGE(TAG, "%s writing Mono %s: %s gains", MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(mode)]);
+    ESP_LOGE(TAG, "%s writing Mono %s: %s", ERROR, MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(mode)]);
     return false;
   }
 
@@ -483,24 +475,24 @@ bool Tas58xxComponent::set_crossbar_() {
 
   // zero all Crossbar subaddresses
   for (int i = 0; i < CROSSBAR_CONFIG_COUNT; i++) {
-    if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[0] + (COEFFICIENT_SIZE * i),
+    if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * i),
                                       reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_MUTE)), COEFFICIENT_SIZE)) return false;
   }
 
   // set Analog Left
-  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[0] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_amp_)),
+  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_amp_)),
                                     reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
 
   // set Analog Right
-  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[1] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_amp_)),
+  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_RIGHT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_amp_)),
                                     reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
 
   // set Digital Left
-  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[2] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_i2s_)),
+  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(DIGITAL_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_i2s_)),
                                     reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
 
   // set Digital Right
-  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[3] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_i2s_)),
+  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(DIGITAL_RIGHT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_i2s_)),
                                     reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
 
   if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) return false;
