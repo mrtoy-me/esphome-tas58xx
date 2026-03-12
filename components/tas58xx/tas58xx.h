@@ -46,12 +46,13 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   void config_input_mixer_mode(InputMixerMode mixer_mode) {this->tas58xx_input_mixer_mode_ = mixer_mode; }
 
 #ifdef USE_SPEAKER_CONFIG
-  void config_mono_mixer_mode(SubchannelMixerMode mono_mixer_mode) {this->tas5805m_mono_mixer_mode_ = mono_mixer_mode; }
   void config_crossover_frequency(float crossover_frequency) { this->tas5805m_crossover_frequency_ = crossover_frequency; }
-  void config_crossbar_left_amp(CrossbarOutputs from_output) { this->tas5805m_crossover_left_amp_ = from_output; }
-  void config_crossbar_right_amp(CrossbarOutputs from_output) { this->tas5805m_crossover_right_amp_ = from_output; }
-  void config_crossbar_left_i2s(CrossbarOutputs from_output) { this->tas5805m_crossover_left_i2s_ = from_output; }
-  void config_crossbar_right_i2s(CrossbarOutputs from_output) { this->tas5805m_crossover_right_i2s_ = from_output; }
+
+  void config_mono_mixer_mode(SubchannelMixerMode mono_mixer_mode) {this->tas5805m_mono_mixer_mode_ = mono_mixer_mode; }
+  void config_crossbar_left_amp(CrossbarInput from) { this->tas5805m_crossover_left_amp_ = from; }
+  void config_crossbar_right_amp(CrossbarInput from) { this->tas5805m_crossover_right_amp_ = from; }
+  void config_crossbar_left_i2s(CrossbarInput from) { this->tas5805m_crossover_left_i2s_ = from; }
+  void config_crossbar_right_i2s(CrossbarInput from) { this->tas5805m_crossover_right_i2s_ = from; }
 #endif
 
   void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
@@ -204,12 +205,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    InputMixerMode tas58xx_input_mixer_mode_; // YAML default = STEREO
 
 #ifdef USE_SPEAKER_CONFIG
-   SubchannelMixerMode tas5805m_mono_mixer_mode_; // YAML default = STEREO
-   float tas5805m_crossover_frequency_; // YAML default = 1000Hz
-   CrossbarOutputs tas5805m_crossover_left_amp_;  // YAML default = FROM_LEFT
-   CrossbarOutputs tas5805m_crossover_right_amp_; // YAML default = FROM_SUB
-   CrossbarOutputs tas5805m_crossover_left_i2s_;  // YAML default = FROM_RIGHT
-   CrossbarOutputs tas5805m_crossover_right_i2s_; // YAML default = FROM_SUB
+   float tas5805m_crossover_frequency_;
+   SubchannelMixerMode tas5805m_mono_mixer_mode_; // YAML default = STEREO_SUB
+   CrossbarInputs tas5805m_crossover_left_amp_;  // YAML default = FROM_LEFT
+   CrossbarInputs tas5805m_crossover_right_amp_; // YAML default = FROM_SUB
+   CrossbarInputs tas5805m_crossover_left_i2s_;  // YAML default = FROM_RIGHT
+   CrossbarInputs tas5805m_crossover_right_i2s_; // YAML default = FROM_SUB
 #endif
 
    ModulationScheme tas58xx_modulation_scheme_; // YAML default = BD Mode

@@ -49,10 +49,17 @@ enum SubchannelMixerMode: uint8_t {
   RIGHT_EQ_SUB,
 };
 
-enum CrossbarOutputs: uint8_t {
-    FROM_LEFT = 0,
-    FROM_RIGHT,
-    FROM_SUB,
+enum CrossbarOutputs uint8_t {
+  ANALOG_LEFT = 0.
+  ANALOG_RIGHT,
+  DIGITAL_LEFT,
+  DIGITAL_RIGHT,
+}
+
+enum CrossbarInputs: uint8_t {
+  FROM_LEFT = 0,
+  FROM_RIGHT,
+  FROM_SUB,
 };
 
 static constexpr uint8_t NUMBER_CHANNELS = 2;
