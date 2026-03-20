@@ -191,17 +191,20 @@ void Tas58xxComponent::loop() {
 
 #ifdef USE_SPEAKER_CONFIG
     case EQ_SUBCHANNEL_SETUP:
-      ESP_LOGD(TAG, "EQ_SUBCHANNEL_SETUP");
+      ESP_LOGD(TAG, "EQ SUBCHANNEL SETUP");
+      this->set_subchannel_eq_(this->tas5805m_crossover_frequency_);
       this->loop_setup_stage_ = CROSSBAR_SETUP;
       return;
 
     case CROSSBAR_SETUP:
-      ESP_LOGD(TAG, "CROSSBAR_SETUP");
+      ESP_LOGD(TAG, "CROSSBAR SETUP");
+      this->set_crossbar_();
       this->loop_setup_stage_ = MONO_MIXER_SETUP;
       return;
 
     case MONO_MIXER_SETUP:
-      ESP_LOGD(TAG, "CROSSBAR_SETUP");
+      ESP_LOGD(TAG, "MONO MIXER SETUP");
+      this->set_mono_mixer_mode_();
       this->loop_setup_stage_ = SETUP_COMPLETE;
       return;
 #endif
@@ -417,7 +420,7 @@ bool Tas58xxComponent::set_mono_mixer_mode_() {
 
   MixerCoefficients mixer_coefficients;
 
-  switch (mode) {
+  switch (this->tas5805m_mono_mixer_mode_) {
     case SubchannelMixerMode::LEFT_SUB:
       mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_0DB;
       mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
@@ -460,17 +463,17 @@ bool Tas58xxComponent::set_mono_mixer_mode_() {
 
   if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
-    ESP_LOGW(TAG, "%s writing Mono %s: %s", ERROR, MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(mode)]);
+    ESP_LOGW(TAG, "%s writing Mono %s: %s", ERROR, MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(this->tas5805m_mono_mixer_mode_)]);
     return false;
   }
 
-  ESP_LOGD(TAG, "Mono %s >> %s", MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(mode)]);
+  ESP_LOGD(TAG, "Mono %s >> %s", MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(this->tas5805m_mono_mixer_mode_)]);
   return true;
 }
 
 bool Tas58xxComponent::set_crossbar_() {
   static constexpr uint8_t CROSSBAR_CONFIG_COUNT = 16; // number Output Crossbar subaddresses
-  static constexpr uint8_t CROSSBAR_INDEX[4] = {0, 3, 6, 11};
+  static constexpr uint8_t CROSSBAR_INDEX[NUMBER_OUTPUT_CROSSBAR] = {0, 3, 6, 11};
 
   uint32_t crossbar_coefficients[CROSSBAR_CONFIG_COUNT] = {0x00000000};
 
@@ -479,18 +482,22 @@ bool Tas58xxComponent::set_crossbar_() {
   crossbar_coefficients[CROSSBAR_INDEX[DIGITAL_LEFT] + this->tas5805m_crossover_left_i2s_] = TAS58XX_MIXER_COEFF_0DB;
   crossbar_coefficients[CROSSBAR_INDEX[DIGITAL_RIGHT] + this->tas5805m_crossover_right_i2s_] = TAS58XX_MIXER_COEFF_0DB;
 
-  if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE, TAS5805M_OUTPUT_CROSSBAR_SUBADDR[0],
-                                  reinterpret_cast<uint8_t*>(&crossbar_coefficients), sizeof(crossbar_coefficients))) {
-    ESP_LOGW(TAG, "%s setting Crossbar coefficients");
-    return false;
-  }
-  // if (!this->set_book_and_page_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE)) return false;
+  if (!this->set_book_and_page_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE)) return false;
 
-  // // zero all Crossbar subaddresses
-  // for (int i = 0; i < CROSSBAR_CONFIG_COUNT; i++) {
-  //   if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * i),
-  //                                     reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_MUTE)), COEFFICIENT_SIZE)) return false;
+  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)],
+  //                                  reinterpret_cast<uint8_t*>(crossbar_coefficients), sizeof(crossbar_coefficients))) {
+  //   ESP_LOGW(TAG, "%s setting Crossbar coefficients");
+  //   return false;
   // }
+
+  // write all Crossbar subaddresses
+  for (int i = 0; i < CROSSBAR_CONFIG_COUNT; i++) {
+    uint8_t subaddr = TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * i);
+    ESP_LOGD(TAG, "Writing Crossbar >> subaddr:0x%02X value:0x%08X", subaddr, crossbar_coefficients[i]);
+    if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * i),
+                                      reinterpret_cast<uint8_t*>(&crossbar_coefficients[i]), COEFFICIENT_SIZE)) return false;
+  }
+  if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) return false;
 
   // // set Analog Left
   // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_amp_)),

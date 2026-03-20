@@ -49,10 +49,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   void config_crossover_frequency(float crossover_frequency) { this->tas5805m_crossover_frequency_ = crossover_frequency; }
 
   void config_mono_mixer_mode(SubchannelMixerMode mono_mixer_mode) {this->tas5805m_mono_mixer_mode_ = mono_mixer_mode; }
-  void config_crossbar_left_amp(CrossbarInput from) { this->tas5805m_crossover_left_amp_ = from; }
-  void config_crossbar_right_amp(CrossbarInput from) { this->tas5805m_crossover_right_amp_ = from; }
-  void config_crossbar_left_i2s(CrossbarInput from) { this->tas5805m_crossover_left_i2s_ = from; }
-  void config_crossbar_right_i2s(CrossbarInput from) { this->tas5805m_crossover_right_i2s_ = from; }
+  void config_crossbar_left_amp(CrossbarInputs from) { this->tas5805m_crossover_left_amp_ = from; }
+  void config_crossbar_right_amp(CrossbarInputs from) { this->tas5805m_crossover_right_amp_ = from; }
+  void config_crossbar_left_i2s(CrossbarInputs from) { this->tas5805m_crossover_left_i2s_ = from; }
+  void config_crossbar_right_i2s(CrossbarInputs from) { this->tas5805m_crossover_right_i2s_ = from; }
 #endif
 
   void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
@@ -137,7 +137,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool set_modulation_scheme_(ModulationScheme modulation);
 
 #ifdef USE_SPEAKER_CONFIG
-   bool set_mono_mixer_mode_(SubchannelMixerMode mode);
+   bool set_mono_mixer_mode_();
    bool set_crossbar_();
    bool set_subchannel_eq_(float crossover_frequency);
 #endif
