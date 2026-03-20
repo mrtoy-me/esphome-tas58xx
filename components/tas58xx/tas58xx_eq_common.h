@@ -69,9 +69,9 @@ static constexpr uint8_t NUMBER_OUTPUT_CROSSBAR = 4; // Analog Left, Analog Righ
 
 static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
 static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"};
-static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
+static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
 
-static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"LEFT", "RIGHT", "STEREO", "LEFT EQ", "RIGHT EQ"};
+static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"LEFT SUB", "RIGHT SUB", "STEREO SUB ", "LEFT EQ SUB", "RIGHT EQ SUB"};
 
 // EQ Gain constants
 static constexpr int8_t  TAS58XX_EQ_MAX_DB = 15;
