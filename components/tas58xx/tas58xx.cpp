@@ -470,32 +470,45 @@ bool Tas58xxComponent::set_mono_mixer_mode_() {
 
 bool Tas58xxComponent::set_crossbar_() {
   static constexpr uint8_t CROSSBAR_CONFIG_COUNT = 16; // number Output Crossbar subaddresses
+  static constexpr uint8_t CROSSBAR_INDEX[4] = {0, 3, 6, 11};
 
-  if (!this->set_book_and_page_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE)) return false;
+  uint32_t crossbar_coefficients[CROSSBAR_CONFIG_COUNT] = {0x00000000};
 
-  // zero all Crossbar subaddresses
-  for (int i = 0; i < CROSSBAR_CONFIG_COUNT; i++) {
-    if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * i),
-                                      reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_MUTE)), COEFFICIENT_SIZE)) return false;
+  crossbar_coefficients[CROSSBAR_INDEX[ANALOG_LEFT] + this->tas5805m_crossover_left_amp_] = TAS58XX_MIXER_COEFF_0DB;
+  crossbar_coefficients[CROSSBAR_INDEX[ANALOG_RIGHT] + this->tas5805m_crossover_right_amp_] = TAS58XX_MIXER_COEFF_0DB;
+  crossbar_coefficients[CROSSBAR_INDEX[DIGITAL_LEFT] + this->tas5805m_crossover_left_i2s_] = TAS58XX_MIXER_COEFF_0DB;
+  crossbar_coefficients[CROSSBAR_INDEX[DIGITAL_RIGHT] + this->tas5805m_crossover_right_i2s_] = TAS58XX_MIXER_COEFF_0DB;
+
+  if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE, TAS5805M_OUTPUT_CROSSBAR_SUBADDR[0],
+                                  reinterpret_cast<uint8_t*>(&crossbar_coefficients), sizeof(crossbar_coefficients))) {
+    ESP_LOGW(TAG, "%s setting Crossbar coefficients");
+    return false;
   }
+  // if (!this->set_book_and_page_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE)) return false;
 
-  // set Analog Left
-  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_amp_)),
-                                    reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
+  // // zero all Crossbar subaddresses
+  // for (int i = 0; i < CROSSBAR_CONFIG_COUNT; i++) {
+  //   if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * i),
+  //                                     reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_MUTE)), COEFFICIENT_SIZE)) return false;
+  // }
 
-  // set Analog Right
-  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_RIGHT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_amp_)),
-                                    reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
+  // // set Analog Left
+  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_amp_)),
+  //                                   reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
 
-  // set Digital Left
-  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(DIGITAL_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_i2s_)),
-                                    reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
+  // // set Analog Right
+  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_RIGHT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_amp_)),
+  //                                   reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
 
-  // set Digital Right
-  if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(DIGITAL_RIGHT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_i2s_)),
-                                    reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
+  // // set Digital Left
+  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(DIGITAL_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_i2s_)),
+  //                                   reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
 
-  if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) return false;
+  // // set Digital Right
+  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(DIGITAL_RIGHT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_i2s_)),
+  //                                   reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
+
+  // if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) return false;
 
   ESP_LOGD(TAG, "Set Crossbar");
   return true;
