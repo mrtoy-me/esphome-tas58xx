@@ -21,7 +21,7 @@ namespace esphome::tas58xx_helpers {
     int32_t fixed_9_23 = static_cast<int32_t>(linear * SCALE);
     int32_t little_endian = byteswap(fixed_9_23);
 
-    ESP_LOGD(HELPER_TAG, "Gain:%ddb  Fixed 9.23: 0x%08X  Little Endian: 0x%08X", gain, fixed_9_23, little_endian);
+    ESP_LOGD(HELPER_TAG, "Gain:%ddb >> Fixed 9.23: 0x%08X  Little Endian: 0x%08X", gain, fixed_9_23, little_endian);
     return little_endian;
   }
 
@@ -45,7 +45,11 @@ namespace esphome::tas58xx_helpers {
     if (q <  std::numeric_limits<int32_t>::min()) q =  std::numeric_limits<int32_t>::min();
 
     // convert to 32 bit little endian
-    return byteswap(static_cast<int32_t>(q));
+    int32_t q_32bit = static_cast<int32_t>(q);
+    int32_t q_little_endian = byteswap(q_32bit);
+
+    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Fixed 5.27: 0x%08X  Little Endian: 0x%08X", q_32bit, q_little_endian);
+    return q_little_endian;
   }
 
   BiquadCoefficients butterworth2_(float fs, float fc, Butterworth2Type type) {
