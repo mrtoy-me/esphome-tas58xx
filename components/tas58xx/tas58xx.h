@@ -45,10 +45,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void config_input_mixer_mode(InputMixerMode mixer_mode) {this->tas58xx_input_mixer_mode_ = mixer_mode; }
 
-#ifdef USE_SPEAKER_CONFIG
-  void config_crossover_frequency(float crossover_frequency) { this->tas5805m_crossover_frequency_ = crossover_frequency; }
-
+#ifdef USE_MONO_MIXER
   void config_mono_mixer_mode(SubchannelMixerMode mono_mixer_mode) {this->tas5805m_mono_mixer_mode_ = mono_mixer_mode; }
+  void config_crossover_frequency(float crossover_frequency) { this->tas5805m_crossover_frequency_ = crossover_frequency; }
+#endif
+
+#ifdef USE_SPEAKER_CONFIG
   void config_crossbar_left_amp(CrossbarInputs from) { this->tas5805m_crossover_left_amp_ = from; }
   void config_crossbar_right_amp(CrossbarInputs from) { this->tas5805m_crossover_right_amp_ = from; }
   void config_crossbar_left_i2s(CrossbarInputs from) { this->tas5805m_crossover_left_i2s_ = from; }
@@ -136,10 +138,13 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    bool set_modulation_scheme_(ModulationScheme modulation);
 
-#ifdef USE_SPEAKER_CONFIG
+#ifdef USE_MONO_MIXER
    bool set_mono_mixer_mode_();
-   bool set_crossbar_();
    bool set_subchannel_eq_(float crossover_frequency);
+#endif
+
+#ifdef USE_SPEAKER_CONFIG
+   bool set_crossbar_();
 #endif
 
    bool get_state_(ControlState* state);
@@ -204,9 +209,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    InputMixerMode tas58xx_input_mixer_mode_; // YAML default = STEREO
 
-#ifdef USE_SPEAKER_CONFIG
+#ifdef USE_MONO_MIXER
    float tas5805m_crossover_frequency_;
    SubchannelMixerMode tas5805m_mono_mixer_mode_; // YAML default = STEREO_SUB
+#endif
+
+#ifdef USE_SPEAKER_CONFIG
    CrossbarInputs tas5805m_crossover_left_amp_;  // YAML default = FROM_LEFT
    CrossbarInputs tas5805m_crossover_right_amp_; // YAML default = FROM_SUB
    CrossbarInputs tas5805m_crossover_left_i2s_;  // YAML default = FROM_RIGHT
