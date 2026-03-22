@@ -517,10 +517,10 @@ bool Tas58xxComponent::set_subchannel_eq_(uint16_t crossover_frequency) {
 
   if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, EQ_SUB_PAGE, EQ_SUB_BQ1_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
-    ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %fHz", ERROR, crossover_frequency);
+    ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %dHz", ERROR, crossover_frequency);
     return false;
   }
-  ESP_LOGD(TAG, "Set Subchannel EQ using crossover frequency: %fHz", crossover_frequency);
+  ESP_LOGD(TAG, "Set Subchannel EQ using crossover frequency: %dHz", crossover_frequency);
   return true;
 }
 #endif
