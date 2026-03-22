@@ -19,6 +19,6 @@ enum Butterworth2Type {
 
 int32_t gain_to_f9_23_(int8_t gain);
 
-BiquadCoefficients butterworth2_(float fs, float fc, Butterworth2Type type);
+BiquadCoefficients butterworth2_(uint16_t fs, uint16_t fc, Butterworth2Type type);
 
 }  // namespace esphome::tas58xx_helpers

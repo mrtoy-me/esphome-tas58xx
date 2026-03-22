@@ -312,6 +312,27 @@ void Tas58xxComponent::dump_config() {
               this->eq_refresh_ ? "MANUAL" : "AUTO"
               );
       LOG_UPDATE_INTERVAL(this);
+      #ifdef USE_SPEAKER_CONFIG
+      ESP_LOGCONFIG(TAG, "  Speaker Config:");
+      #ifdef USE_MONO_MIXER
+      ESP_LOGCONFIG(TAG,
+              "    Mono Mixer Mode: %s\n"
+              "    Crossover Frequency: %d\n",
+              SUBCHANNEL_MIXER_MODE_TEXT[this->tas5805m_mono_mixer_mode_],
+              this->tas5805m_crossover_frequency_
+              );
+      #endif
+      ESP_LOGCONFIG(TAG,
+              "    Crossbar Left Amp: %s\n"
+              "    Crossbar Right Amp: %s\n"
+              "    Crossbar Left I2S: %s\n"
+              "    Crossbar Right I2S: %s\n",
+              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_left_amp_],
+              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_amp_],
+              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_left_i2s_],
+              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_i2s_],
+              );
+      #endif
       break;
   }
 
@@ -486,10 +507,10 @@ bool Tas58xxComponent::set_mono_mixer_mode_() {
 }
 
 // Adds a single Butterworth2 lowpass into the subwoofer eq
-bool Tas58xxComponent::set_subchannel_eq_(float crossover_frequency) {
+bool Tas58xxComponent::set_subchannel_eq_(uint16_t crossover_frequency) {
   static constexpr uint8_t EQ_SUB_PAGE = 0x29;
   static constexpr uint8_t EQ_SUB_BQ1_SUBADDR = 0x38;
-  static constexpr float EQ_SUB_SAMPLE_RATE = 48000.0;
+  static constexpr uint16_t EQ_SUB_SAMPLE_RATE = 48000;
 
   tas58xx_helpers::BiquadCoefficients biquad =
     tas58xx_helpers::butterworth2_(EQ_SUB_SAMPLE_RATE, crossover_frequency, tas58xx_helpers::LOWPASS);

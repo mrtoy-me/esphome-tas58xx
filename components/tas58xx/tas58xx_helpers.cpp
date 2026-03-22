@@ -52,9 +52,9 @@ namespace esphome::tas58xx_helpers {
     return q_little_endian;
   }
 
-  BiquadCoefficients butterworth2_(float fs, float fc, Butterworth2Type type) {
+  BiquadCoefficients butterworth2_(uint16_t fs, uint16_t fc, Butterworth2Type type) {
     static constexpr double Q = 1.0 / std::sqrt(2.0);
-    const double w0 = 2.0 * std::numbers::pi * fc / fs;
+    const double w0 = 2.0 * std::numbers::pi * static_cast<float>(fc) / static_cast<float>(fs);
     const double alpha = std::sin(w0) / (2.0 * Q);
     const double cosw0 = std::cos(w0);
 

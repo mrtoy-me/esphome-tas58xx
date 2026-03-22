@@ -47,7 +47,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
 #ifdef USE_MONO_MIXER
   void config_mono_mixer_mode(SubchannelMixerMode mono_mixer_mode) {this->tas5805m_mono_mixer_mode_ = mono_mixer_mode; }
-  void config_crossover_frequency(float crossover_frequency) { this->tas5805m_crossover_frequency_ = crossover_frequency; }
+  void config_crossover_frequency(float crossover_frequency) { this->tas5805m_crossover_frequency_ = static_cast<int16_t>(crossover_frequency); }
 #endif
 
 #ifdef USE_SPEAKER_CONFIG
@@ -60,8 +60,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
 
   // configured maximum and minimum with units dB
-  void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = (int8_t)(volume_max); }
-  void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = (int8_t)(volume_min); }
+  void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = static_cast<int8_t>(volume_max); }
+  void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = static_cast<int8_t>(volume_min); }
 
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
@@ -140,7 +140,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
 #ifdef USE_MONO_MIXER
    bool set_mono_mixer_mode_();
-   bool set_subchannel_eq_(float crossover_frequency);
+   bool set_subchannel_eq_(uint16_t crossover_frequency);
 #endif
 
 #ifdef USE_SPEAKER_CONFIG
@@ -210,7 +210,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    InputMixerMode tas58xx_input_mixer_mode_; // YAML default = STEREO
 
 #ifdef USE_MONO_MIXER
-   float tas5805m_crossover_frequency_;
+   uint16_t tas5805m_crossover_frequency_;
    SubchannelMixerMode tas5805m_mono_mixer_mode_; // YAML default = STEREO_SUB
 #endif
 
