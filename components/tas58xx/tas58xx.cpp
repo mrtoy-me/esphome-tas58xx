@@ -317,7 +317,7 @@ void Tas58xxComponent::dump_config() {
       #ifdef USE_MONO_MIXER
       ESP_LOGCONFIG(TAG,
               "    Mono Mixer Mode: %s\n"
-              "    Crossover Frequency: %d\n",
+              "    Crossover Frequency: %dHz\n",
               SUBCHANNEL_MIXER_MODE_TEXT[this->tas5805m_mono_mixer_mode_],
               this->tas5805m_crossover_frequency_
               );
@@ -330,7 +330,7 @@ void Tas58xxComponent::dump_config() {
               CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_left_amp_],
               CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_amp_],
               CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_left_i2s_],
-              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_i2s_],
+              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_i2s_]
               );
       #endif
       break;
