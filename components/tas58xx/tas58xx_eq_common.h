@@ -42,7 +42,7 @@ enum InputMixerMode : uint8_t {
 };
 
 enum SubchannelMixerMode: uint8_t {
-  NO_SUB,
+  NO_SUB = 0,
   LEFT_SUB,
   RIGHT_SUB,
   STEREO_SUB,
@@ -71,7 +71,7 @@ static constexpr uint8_t NUMBER_OUTPUT_CROSSBAR = 4; // Analog Left, Analog Righ
 static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
 static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"};
 static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
-static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};
+static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"NO SUB", "LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};
 static constexpr const char* CROSSBAR_INPUT_TEXT[] = {"FROM LEFT", "FROM RIGHT", "FROM SUB"};
 
 // EQ Gain constants

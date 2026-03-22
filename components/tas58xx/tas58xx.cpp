@@ -317,7 +317,7 @@ void Tas58xxComponent::dump_config() {
       #ifdef USE_MONO_MIXER
       ESP_LOGCONFIG(TAG,
               "    Mono Mixer Mode: %s\n"
-              "    Crossover Frequency: %d\n",
+              "    Crossover Frequency: %dHz\n",
               SUBCHANNEL_MIXER_MODE_TEXT[this->tas5805m_mono_mixer_mode_],
               this->tas5805m_crossover_frequency_
               );
@@ -330,7 +330,7 @@ void Tas58xxComponent::dump_config() {
               CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_left_amp_],
               CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_amp_],
               CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_left_i2s_],
-              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_i2s_],
+              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_i2s_]
               );
       #endif
       break;
@@ -517,10 +517,10 @@ bool Tas58xxComponent::set_subchannel_eq_(uint16_t crossover_frequency) {
 
   if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, EQ_SUB_PAGE, EQ_SUB_BQ1_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
-    ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %fHz", ERROR, crossover_frequency);
+    ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %dHz", ERROR, crossover_frequency);
     return false;
   }
-  ESP_LOGD(TAG, "Set Subchannel EQ using crossover frequency: %fHz", crossover_frequency);
+  ESP_LOGD(TAG, "Set Subchannel EQ using crossover frequency: %dHz", crossover_frequency);
   return true;
 }
 #endif
