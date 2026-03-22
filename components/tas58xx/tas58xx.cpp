@@ -499,7 +499,7 @@ bool Tas58xxComponent::set_subchannel_eq_(float crossover_frequency) {
     ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %fHz", ERROR, crossover_frequency);
     return false;
   }
-  ESP_LOGD(TAG, "Set Subchannel EQ");
+  ESP_LOGD(TAG, "Set Subchannel EQ using crossover frequency: %fHz", crossover_frequency);
   return true;
 }
 #endif
