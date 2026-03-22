@@ -527,6 +527,11 @@ bool Tas58xxComponent::set_subchannel_eq_(float crossover_frequency) {
   static constexpr uint8_t EQ_SUB_BQ1_SUBADDR = 0x38;
   static constexpr float EQ_SUB_SAMPLE_RATE = 48000.0;
 
+  if ((crossover_frequency < 1.0) || (crossover_frequency > 25000.0)) {
+    ESP_LOGD(TAG, "Invalid crossover frequency: %d", static_cast<uint32>(crossover_frequency));
+    return false;
+  }
+
   tas58xx_helpers::BiquadCoefficients biquad =
     tas58xx_helpers::butterworth2_(EQ_SUB_SAMPLE_RATE, crossover_frequency, tas58xx_helpers::LOWPASS);
 
