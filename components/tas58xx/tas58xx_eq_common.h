@@ -42,7 +42,8 @@ enum InputMixerMode : uint8_t {
 };
 
 enum SubchannelMixerMode: uint8_t {
-  LEFT_SUB = 0,
+  NO_SUB,
+  LEFT_SUB,
   RIGHT_SUB,
   STEREO_SUB,
   LEFT_EQ_SUB,

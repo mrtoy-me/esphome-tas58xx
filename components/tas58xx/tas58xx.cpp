@@ -134,8 +134,12 @@ void Tas58xxComponent::loop() {
       // if loop_setup_stage_ has not changed then no EQ Gains or EQ Presets configured
       if (this->loop_setup_stage_ == LR_VOLUME_SETUP)
 #ifdef USE_SPEAKER_CONFIG
-        // but have speaker_config continue with that setup
-        this->loop_setup_stage_ = EQ_SUBCHANNEL_SETUP;
+  // but have speaker_config so continue with that setup
+  #ifdef USE_MONO_MIXER
+        this->loop_setup_stage_ = MONO_MIXER_SETUP;
+  #else
+        this->loop_setup_stage_ = CROSSBAR_SETUP;
+  #endif
 #else
         // nothing more to setup so complete
         this->loop_setup_stage_ = SETUP_COMPLETE;
@@ -146,28 +150,32 @@ void Tas58xxComponent::loop() {
 #ifdef USE_TAS58XX_EQ_GAINS
       if (this->refresh_band_ == NUMBER_EQ_BANDS) { // refresh_band_ starts as initialised to 0
         // finished writing all bands so either continue with speaker config or setup is complete
-#ifdef USE_SPEAKER_CONFIG
-        this->loop_setup_stage_ = EQ_SUBCHANNEL_SETUP;
-#else
+  #ifdef USE_SPEAKER_CONFIG
+    #ifdef USE_MONO_MIXER
+        this->loop_setup_stage_ = MONO_MIXER_SETUP;
+    #else
+        this->loop_setup_stage_ = CROSSBAR_SETUP;
+    #endif
+  #else
         this->loop_setup_stage_ = SETUP_COMPLETE;
-#endif
+  #endif
         this->refresh_band_ = 0;
         return;
       }
 
       if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
-#ifdef USE_TAS58XX_EQ_BIAMP
+  #ifdef USE_TAS58XX_EQ_BIAMP
         ESP_LOGW(TAG, "%s setting Gain Left %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-#else
+  #else
         ESP_LOGW(TAG, "%s setting Gain %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-#endif
+  #endif
       }
 
-#ifdef USE_TAS58XX_EQ_BIAMP
+  #ifdef USE_TAS58XX_EQ_BIAMP
       if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
         ESP_LOGW(TAG, "%s setting Gain Right %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
       }
-#endif
+  #endif
 
       this->refresh_band_++;
 #endif // USE_TAS58XX_EQ_GAINS
@@ -181,30 +189,36 @@ void Tas58xxComponent::loop() {
       if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
         ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
       }
-#ifdef USE_SPEAKER_CONFIG
-      this->loop_setup_stage_ = EQ_SUBCHANNEL_SETUP;
-#else
+  #ifdef USE_SPEAKER_CONFIG
+    #ifdef USE_MONO_MIXER
+        this->loop_setup_stage_ = MONO_MIXER_SETUP;
+    #else
+        this->loop_setup_stage_ = CROSSBAR_SETUP;
+    #endif
+  #else
       this->loop_setup_stage_ = SETUP_COMPLETE;
-#endif
+  #endif
 #endif // USE_TAS58XX_EQ_PRESETS
       return;
 
 #ifdef USE_SPEAKER_CONFIG
+  #ifdef USE_MONO_MIXER
+    case MONO_MIXER_SETUP:
+      ESP_LOGD(TAG, "MONO MIXER SETUP");
+      this->set_mono_mixer_mode_();
+      this->loop_setup_stage_ = EQ_SUBCHANNEL_SETUP;
+      return;
+
+
     case EQ_SUBCHANNEL_SETUP:
       ESP_LOGD(TAG, "EQ SUBCHANNEL SETUP");
       this->set_subchannel_eq_(this->tas5805m_crossover_frequency_);
       this->loop_setup_stage_ = CROSSBAR_SETUP;
       return;
-
+  #endif
     case CROSSBAR_SETUP:
       ESP_LOGD(TAG, "CROSSBAR SETUP");
       this->set_crossbar_();
-      this->loop_setup_stage_ = MONO_MIXER_SETUP;
-      return;
-
-    case MONO_MIXER_SETUP:
-      ESP_LOGD(TAG, "MONO MIXER SETUP");
-      this->set_mono_mixer_mode_();
       this->loop_setup_stage_ = SETUP_COMPLETE;
       return;
 #endif
@@ -407,7 +421,7 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
   return true;
 }
 
-#ifdef USE_SPEAKER_CONFIG
+#ifdef USE_MONO_MIXER
 bool Tas58xxComponent::set_mono_mixer_mode_() {
 
   // follows order of sub channel mixer registers = Left to Sub, Right to Sub, Left EQ to Sub, Right EQ to Sub
@@ -471,6 +485,26 @@ bool Tas58xxComponent::set_mono_mixer_mode_() {
   return true;
 }
 
+// Adds a single Butterworth2 lowpass into the subwoofer eq
+bool Tas58xxComponent::set_subchannel_eq_(float crossover_frequency) {
+  static constexpr uint8_t EQ_SUB_PAGE = 0x29;
+  static constexpr uint8_t EQ_SUB_BQ1_SUBADDR = 0x38;
+  static constexpr float EQ_SUB_SAMPLE_RATE = 48000.0;
+
+  tas58xx_helpers::BiquadCoefficients biquad =
+    tas58xx_helpers::butterworth2_(EQ_SUB_SAMPLE_RATE, crossover_frequency, tas58xx_helpers::LOWPASS);
+
+  if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, EQ_SUB_PAGE, EQ_SUB_BQ1_SUBADDR,
+                                  reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
+    ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %fHz", ERROR, crossover_frequency);
+    return false;
+  }
+  ESP_LOGD(TAG, "Set Subchannel EQ");
+  return true;
+}
+#endif
+
+#ifdef USE_SPEAKER_CONFIG
 bool Tas58xxComponent::set_crossbar_() {
   static constexpr uint8_t CROSSBAR_CONFIG_COUNT = 16; // number Output Crossbar subaddresses
   static constexpr uint8_t CROSSBAR_INDEX[NUMBER_OUTPUT_CROSSBAR] = {0, 3, 6, 11};
@@ -520,25 +554,8 @@ bool Tas58xxComponent::set_crossbar_() {
   ESP_LOGD(TAG, "Set Crossbar");
   return true;
 }
-
-// Adds a single Butterworth2 lowpass into the subwoofer eq
-bool Tas58xxComponent::set_subchannel_eq_(float crossover_frequency) {
-  static constexpr uint8_t EQ_SUB_PAGE = 0x29;
-  static constexpr uint8_t EQ_SUB_BQ1_SUBADDR = 0x38;
-  static constexpr float EQ_SUB_SAMPLE_RATE = 48000.0;
-
-  tas58xx_helpers::BiquadCoefficients biquad =
-    tas58xx_helpers::butterworth2_(EQ_SUB_SAMPLE_RATE, crossover_frequency, tas58xx_helpers::LOWPASS);
-
-  if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, EQ_SUB_PAGE, EQ_SUB_BQ1_SUBADDR,
-                                  reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
-    ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %fHz", ERROR, crossover_frequency);
-    return false;
-  }
-  ESP_LOGD(TAG, "Set Subchannel EQ");
-  return true;
-}
 #endif
+
 
 // used by 'select eq mode' to determine initially selected EQ mode
 bool Tas58xxComponent::is_eq_configured() {
