@@ -157,15 +157,16 @@ def validate_config(config):
     speaker_config = config.get(CONF_SPEAKER_CONFIG)
     if speaker_config and (config[CONF_TAS58XX_DAC] == TAS5825M_DAC):
         raise cv.Invalid("speaker_config is only valid for TAS5805M DAC - remove speaker_config from YAML when using TAS5825M DAC")
-    if speaker_config[CONF_MONO_MIXER_MODE] == "NO_SUB":
-        have_from_sub = (
-            (speaker_config[CONF_CROSSBAR_LEFT_AMP] == FROM_SUB) or
-            (speaker_config[CONF_CROSSBAR_RIGHT_AMP] == FROM_SUB) or
-            (speaker_config[CONF_CROSSBAR_LEFT_I2S] == FROM_SUB) or
-            (speaker_config[CONF_CROSSBAR_RIGHT_I2S] == FROM_SUB)
-        )
-        if have_from_sub:
-            raise cv.Invalid("FROM_SUB is not allowed in crossbar with mono_mixer_mode: NO_SUB - use FROM_LEFT or FROM_RIGHT")
+    if speaker_config:
+        if config[CONF_SPEAKER_CONFIG][CONF_MONO_MIXER_MODE] == "NO_SUB":
+            have_from_sub = (
+                (config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR_LEFT_AMP] == FROM_SUB) or
+                (config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR_RIGHT_AMP] == FROM_SUB) or
+                (config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR_LEFT_I2S] == FROM_SUB) or
+                (config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR_RIGHT_I2S] == FROM_SUB)
+            )
+            if have_from_sub:
+                raise cv.Invalid("FROM_SUB is not allowed in crossbar with mono_mixer_mode: NO_SUB - use FROM_LEFT or FROM_RIGHT")
 
     return config
 
@@ -267,17 +268,17 @@ async def to_code(config):
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
 
-    if speaker_config := config.get(CONF_SPEAKER_CONFIG):
+    if config.get(CONF_SPEAKER_CONFIG):
         cg.add_define("USE_SPEAKER_CONFIG")
         if config[CONF_SPEAKER_CONFIG][CONF_MONO_MIXER_MODE] != "NO_SUB":
             cg.add_define("USE_MONO_MIXER")
-            cg.add(var.config_mono_mixer_mode(speaker_config[CONF_MONO_MIXER_MODE]))
-            cg.add(var.config_crossover_frequency(speaker_config[CONF_CROSSOVER_FREQUENCY]))
+            cg.add(var.config_mono_mixer_mode(config[CONF_SPEAKER_CONFIG][CONF_MONO_MIXER_MODE]))
+            cg.add(var.config_crossover_frequency(config[CONF_SPEAKER_CONFIG][CONF_CROSSOVER_FREQUENCY]))
 
-        cg.add(var.config_crossbar_left_amp(speaker_config[CONF_CROSSBAR_LEFT_AMP]))
-        cg.add(var.config_crossbar_right_amp(speaker_config[CONF_CROSSBAR_RIGHT_AMP]))
-        cg.add(var.config_crossbar_left_i2s(speaker_config[CONF_CROSSBAR_LEFT_I2S]))
-        cg.add(var.config_crossbar_right_i2s(speaker_config[CONF_CROSSBAR_RIGHT_I2S]))
+        cg.add(var.config_crossbar_left_amp(config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR_LEFT_AMP]))
+        cg.add(var.config_crossbar_right_amp(config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR_RIGHT_AMP]))
+        cg.add(var.config_crossbar_left_i2s(config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR_LEFT_I2S]))
+        cg.add(var.config_crossbar_right_i2s(config[CONF_SPEAKER_CONFIG][CONF_CROSSBAR_RIGHT_I2S]))
 
     if config[CONF_DAC_MODE] == "PBTL":
         cg.add_define("USE_DAC_MODE_PBTL")
