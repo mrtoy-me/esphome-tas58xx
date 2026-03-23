@@ -269,7 +269,7 @@ async def to_code(config):
 
     if speaker_config := config.get(CONF_SPEAKER_CONFIG):
         cg.add_define("USE_SPEAKER_CONFIG")
-        if speaker_config[CONF_MONO_MIXER_MODE] != "NO_SUB":
+        if config[CONF_SPEAKER_CONFIG][CONF_MONO_MIXER_MODE] != "NO_SUB":
             cg.add_define("USE_MONO_MIXER")
             cg.add(var.config_mono_mixer_mode(speaker_config[CONF_MONO_MIXER_MODE]))
             cg.add(var.config_crossover_frequency(speaker_config[CONF_CROSSOVER_FREQUENCY]))
