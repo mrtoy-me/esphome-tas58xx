@@ -161,6 +161,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    bool read_fault_registers_();
 
+   void calc_eq_biquad_();
 
    // low level functions
    bool book_and_page_write_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes);
