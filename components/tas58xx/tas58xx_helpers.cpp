@@ -92,4 +92,91 @@ namespace esphome::tas58xx_helpers {
     return result;
   }
 
+
+  /**
+ * Equalizer Bandwidth filter calculation
+ * @param Gain
+ * @param Bandwidth
+ * @param Sample rate
+ * @param Frequency
+ * @returns Coefficient values
+ */
+
+  BiquadCoefficients equalizer_bandwidth_calc(int16_t gain, uint16_t bandwidth, uint16_t sample_rate, uint16_t frequency) {
+
+    double b0, b1, b2, a1, a2;
+
+    double qFactor = static_cast<float>(frequency) / static_cast<float>(bandwidth);
+    float linear_gain = powf(10.0f, ((float)gain) / 20.0f);
+    double t0 = 2 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
+
+    double beta = 0.0;
+
+    if (linear_gain >= 1.0) {
+        beta = t0 / (2.0 * qFactor);
+    } else {
+        beta = t0 / (2.0 * linear_gain * qFactor);
+    }
+
+    a2 = -0.5 * (1 - beta) / (1 + beta);
+    a1 = (0.5 - a2) * std::cos(t0);
+    b0 = (linear_gain - 1.0) * (0.25 + 0.5 * a2) + 0.5;
+    b1 = -a1;
+    b2 = -(linear_gain - 1) * (0.25 + 0.5 * a2) - a2;
+
+    b0 = 2.0 * b0;
+    b1 = 2.0 * b1;
+    b2 = 2.0 * b2;
+    a1 = -2.0 * a1;
+    a2 = -2.0 * a2;
+
+    BiquadCoefficients result{};
+
+    result.b0 = double_to_5_27(b0);
+    result.b1 = double_to_5_27(b1);
+    result.b2 = double_to_5_27(b2);
+    result.a1 = double_to_5_27(-a1);
+    result.a2 = double_to_5_27(-a2);
+
+    return result;
+  }
+
+  BiquadCoefficients equalizer_qfactor_calc(int16_t gain, uint16_t bandwidth, uint16_t sample_rate, uint16_t frequency, float qFactor) {
+
+    double b0, b1, b2, a1, a2;
+
+    float linear_gain = powf(10.0f, ((float)gain) / 20.0f);
+    double t0 = 2 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
+
+    double beta = 0.0;
+
+    if (linear_gain >= 1.0) {
+        beta = t0 / (2.0 * qFactor);
+    } else {
+        beta = t0 / (2.0 * linear_gain * qFactor);
+    }
+
+    a2 = -0.5 * (1 - beta) / (1 + beta);
+    a1 = (0.5 - a2) * std::cos(t0);
+    b0 = (linear_gain - 1.0) * (0.25 + 0.5 * a2) + 0.5;
+    b1 = -a1;
+    b2 = -(linear_gain - 1) * (0.25 + 0.5 * a2) - a2;
+
+    b0 = 2.0 * b0;
+    b1 = 2.0 * b1;
+    b2 = 2.0 * b2;
+    a1 = -2.0 * a1;
+    a2 = -2.0 * a2;
+
+    BiquadCoefficients result{};
+
+    result.b0 = double_to_5_27(b0);
+    result.b1 = double_to_5_27(b1);
+    result.b2 = double_to_5_27(b2);
+    result.a1 = double_to_5_27(-a1);
+    result.a2 = double_to_5_27(-a2);
+
+    return result;
+  }
+
 }  // namespace esphome::tas58xx_helpers

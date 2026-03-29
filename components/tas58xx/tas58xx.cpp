@@ -353,9 +353,25 @@ void Tas58xxComponent::dump_config() {
   LOG_BINARY_SENSOR("  ", "Over Temperature Shutdown", this->over_temperature_shutdown_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Over Temperature Warning", this->over_temperature_warning_binary_sensor_);
 #endif
+
+  this->calc_eq_biquad_();
 }
 
 // public //
+
+void Tas58xxComponent::calc_eq_biquad_() {
+    static constexpr uint16_t EQ_SAMPLE_RATE = 48000;
+
+    tas58xx_helpers::BiquadCoefficients biquad =
+      tas58xx_helpers::equalizer_qfactor_calc(-15, 1000, EQ_SAMPLE_RATE, 20, 2.0);
+    ESP_LOGD(TAG, "EQ Biquads for -15db gain, 20Hz at Bandwidth 1000Hz with Q Factor 2.0");
+
+    ESP_LOGD(TAG, "EQ Biquad 1 >> 0x%08X", biquad.b0);
+    ESP_LOGD(TAG, "EQ Biquad 2 >> 0x%08X", biquad.b1);
+    ESP_LOGD(TAG, "EQ Biquad 3 >> 0x%08X", biquad.b2);
+    ESP_LOGD(TAG, "EQ Biquad 4 >> 0x%08X", biquad.a1);
+    ESP_LOGD(TAG, "EQ Biquad 5 >> 0x%08X", biquad.a2);
+}
 
 // used by 'enable_dac_switch'
 void Tas58xxComponent::enable_dac(bool enable) {
