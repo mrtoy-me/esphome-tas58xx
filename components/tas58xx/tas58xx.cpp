@@ -360,7 +360,7 @@ void Tas58xxComponent::dump_config() {
 // public //
 
 void Tas58xxComponent::calc_eq_biquad_() {
-    static constexpr uint16_t EQ_SAMPLE_RATE = 48000;
+    static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
 
     tas58xx_helpers::BiquadCoefficients biquad =
       tas58xx_helpers::equalizer_qfactor_calc(-15, 1000, EQ_SAMPLE_RATE, 20, 2.0);
