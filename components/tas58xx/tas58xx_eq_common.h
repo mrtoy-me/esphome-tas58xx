@@ -73,6 +73,8 @@ static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"
 static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
 static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"NO SUB", "LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};
 static constexpr const char* CROSSBAR_INPUT_TEXT[] = {"FROM LEFT", "FROM RIGHT", "FROM SUB"};
+static constexpr const float EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {20.0, 31.5, 50.0, 80.0, 125.0, 200.0, 315.0, 500.0, 800.0, 1250.0, 2000.0, 3150.0, 5000.0, 8000.0, 16000.0};
+static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.0, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
 
 // EQ Gain constants
 static constexpr int8_t  TAS58XX_EQ_MAX_DB = 15;

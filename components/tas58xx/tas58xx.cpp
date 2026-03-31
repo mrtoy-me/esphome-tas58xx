@@ -354,7 +354,7 @@ void Tas58xxComponent::dump_config() {
   LOG_BINARY_SENSOR("  ", "Over Temperature Warning", this->over_temperature_warning_binary_sensor_);
 #endif
 
-  this->calc_eq_biquad_();
+  //this->calc_eq_biquad_();
 }
 
 // public //
@@ -363,12 +363,12 @@ void Tas58xxComponent::calc_eq_biquad_() {
     static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
     ESP_LOGD(TAG, "EQ Biquads 96KHz SR, Frequency 1000Hz, 10db gain, Q Factor 1.0");
     tas58xx_helpers::BiquadCoefficients biquad1 =
-      tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, 1000, 10, 1.0);
+      tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, 1000.0, 10, 1.0);
     this->log_biquad_(reinterpret_cast<uint8_t*>(&biquad1));
 
     ESP_LOGD(TAG, "EQ Biquads 96KHz SR, Frequency 20Hz, -15db gain, Q Factor 2.0");
     tas58xx_helpers::BiquadCoefficients biquad2 =
-      tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, 20, -15, 2.0);
+      tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, 20.0, -15, 2.0);
     this->log_biquad_(reinterpret_cast<uint8_t*>(&biquad2));
 
 }
@@ -670,7 +670,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
     return true;
   }
 
-  uint8_t x = (gain + TAS58XX_EQ_MAX_DB);
+  // uint8_t x = (gain + TAS58XX_EQ_MAX_DB);
 
 #ifdef USE_TAS5805M_DAC
   #ifdef USE_TAS58XX_EQ_BIAMP
@@ -686,19 +686,30 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   #endif
 #endif
 
-  const BiquadSequence* biquad = &EQ_BAND_COEFFICIENTS[x][band_index];
+  // const BiquadSequence* biquad = &EQ_BAND_COEFFICIENTS[x][band_index];
 
-  if ((eq_address == NULL) || (biquad == NULL)) {
+  // if ((eq_address == NULL) || (biquad == NULL)) {
+  if (eq_address == NULL) {
     ESP_LOGE(TAG, "%s NULL discovered %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
 
+  static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
+  tas58xx_helpers::BiquadCoefficients biquad =
+      tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
+  this->log_biquad_(reinterpret_cast<uint8_t*>(&biquad));
+
+  // if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
+  //                                 reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad->coefficients)), BIQUAD_SIZE)) {
+  //   ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+  //   return false;
+  // }
+
   if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
-                                  reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad->coefficients)), BIQUAD_SIZE)) {
+                                  reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
     ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
-
   ESP_LOGD(TAG, "%s Channel %s:%d Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
 #endif
   return true;
@@ -1189,12 +1200,15 @@ bool Tas58xxComponent::biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t s
 }
 
 void Tas58xxComponent::log_biquad_(uint8_t* biquad) {
-  ESP_LOGD(TAG, "Biquad: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X",
-    *(reinterpret_cast<uint32_t*>(biquad)),
-    *(reinterpret_cast<uint32_t*>(biquad + 4)),
-    *(reinterpret_cast<uint32_t*>(biquad + 8)),
-    *(reinterpret_cast<uint32_t*>(biquad + 12)),
-    *(reinterpret_cast<uint32_t*>(biquad + 16)) );
+  // ESP_LOGD(TAG, "Biquad: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X",
+  //   *(reinterpret_cast<uint32_t*>(biquad)),
+  //   *(reinterpret_cast<uint32_t*>(biquad + 4)),
+  //   *(reinterpret_cast<uint32_t*>(biquad + 8)),
+  //   *(reinterpret_cast<uint32_t*>(biquad + 12)),
+  //   *(reinterpret_cast<uint32_t*>(biquad + 16)) );
+  for (uint8_t i = 0; i < BIQUAD_SIZE; i++) {
+    ESP_LOGD(TAG, "Biquad byte:%d value: %02x", i+1, *(biquad + i));
+  }
 }
 
 // bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
@@ -1218,7 +1232,7 @@ void Tas58xxComponent::log_biquad_(uint8_t* biquad) {
 bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
   ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
 
-  if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)
+  if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
     if (this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
       if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
         return true;
