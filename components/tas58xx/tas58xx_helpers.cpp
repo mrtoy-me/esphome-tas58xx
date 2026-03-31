@@ -27,7 +27,7 @@ namespace esphome::tas58xx_helpers {
 
   static int32_t double_to_5_27(double x) {
     static constexpr uint8_t FRACTIONAL_BITS = 27;
-    static constexpr float SCALE = static_cast<float>(1u << FRACTIONAL_BITS);
+    static constexpr double SCALE = static_cast<double>(1u << FRACTIONAL_BITS);
 
     // Valid 9.23 range
     static constexpr double MAX_VALUE =  256.0 - 1.0 / SCALE;
@@ -37,7 +37,7 @@ namespace esphome::tas58xx_helpers {
     if (x < MIN_VALUE) x = MIN_VALUE;
 
     // Scale
-    double scaled = x * SCALE;
+    double scaled =  x * SCALE;
     int64_t q = std::llround(scaled);
 
     // Saturate to 32 bit
@@ -102,58 +102,17 @@ namespace esphome::tas58xx_helpers {
  * @returns Coefficient values
  */
 
-  BiquadCoefficients equalizer_bandwidth_calc(int16_t gain, uint16_t bandwidth, uint32_t sample_rate, uint16_t frequency) {
+  BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float qFactor) {
 
-    double b0, b1, b2, a1, a2;
+    double beta, b0, b1, b2, a1, a2;
 
-    double qFactor = static_cast<float>(frequency) / static_cast<float>(bandwidth);
-    double linear_gain = powf(10.0f, ((float)gain) / 20.0f);
+    double linear_gain = powf(10.0, static_cast<float>(gain) / 20.0);
     double t0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
 
-    double beta = 0.0;
-
     if (linear_gain >= 1.0) {
-        beta = t0 / (2.0 * qFactor);
+        beta = t0 / (2.0 *  qFactor);
     } else {
-        beta = t0 / (2.0 * linear_gain * qFactor);
-    }
-
-    a2 = -0.5 * (1 - beta) / (1 + beta);
-    a1 = (0.5 - a2) * std::cos(t0);
-    b0 = (linear_gain - 1.0) * (0.25 + 0.5 * a2) + 0.5;
-    b1 = -a1;
-    b2 = -(linear_gain - 1) * (0.25 + 0.5 * a2) - a2;
-
-    b0 = 2.0 * b0;
-    b1 = 2.0 * b1;
-    b2 = 2.0 * b2;
-    a1 = -2.0 * a1;
-    a2 = -2.0 * a2;
-
-    BiquadCoefficients result{};
-
-    result.b0 = double_to_5_27(b0);
-    result.b1 = double_to_5_27(b1);
-    result.b2 = double_to_5_27(b2);
-    result.a1 = double_to_5_27(-a1);
-    result.a2 = double_to_5_27(-a2);
-
-    return result;
-  }
-
-  BiquadCoefficients equalizer_qfactor_calc(int16_t gain, uint16_t bandwidth, uint32_t sample_rate, uint16_t frequency, float qFactor) {
-
-    double b0, b1, b2, a1, a2;
-
-    double linear_gain = pow(10.0, static_cast<double>(gain) / 20.0);
-    double t0 = 2.0 * M_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
-
-    double beta = 0.0;
-
-    if (linear_gain >= 1.0) {
-        beta = t0 / (2.0 *  static_cast<double>(qFactor));
-    } else {
-        beta = t0 / (2.0 * linear_gain *  static_cast<double>(qFactor));
+        beta = t0 / (2.0 * linear_gain *  qFactor);
     }
 
     a2 = -0.5 * (1 - beta) / (1 + beta);
