@@ -361,16 +361,16 @@ void Tas58xxComponent::dump_config() {
 
 void Tas58xxComponent::calc_eq_biquad_() {
     static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
+    ESP_LOGD(TAG, "EQ Biquads 96KHz SR, Frequency 1000Hz, 10db gain, Q Factor 1.0");
+    tas58xx_helpers::BiquadCoefficients biquad1 =
+      tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, 1000, 10, 1.0);
+    this->log_biquad_(reinterpret_cast<uint8_t*>(&biquad1));
 
-    tas58xx_helpers::BiquadCoefficients biquad =
-      tas58xx_helpers::equalizer_qfactor_calc(-15, 1000, EQ_SAMPLE_RATE, 20, 2.0);
-    ESP_LOGD(TAG, "EQ Biquads for -15db gain, 20Hz at Bandwidth 1000Hz with Q Factor 2.0");
+    ESP_LOGD(TAG, "EQ Biquads 96KHz SR, Frequency 20Hz, -15db gain, Q Factor 2.0");
+    tas58xx_helpers::BiquadCoefficients biquad2 =
+      tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, 20, -15, 2.0);
+    this->log_biquad_(reinterpret_cast<uint8_t*>(&biquad2));
 
-    ESP_LOGD(TAG, "EQ Biquad 1 >> 0x%08X", biquad.b0);
-    ESP_LOGD(TAG, "EQ Biquad 2 >> 0x%08X", biquad.b1);
-    ESP_LOGD(TAG, "EQ Biquad 3 >> 0x%08X", biquad.b2);
-    ESP_LOGD(TAG, "EQ Biquad 4 >> 0x%08X", biquad.a1);
-    ESP_LOGD(TAG, "EQ Biquad 5 >> 0x%08X", biquad.a2);
 }
 
 // used by 'enable_dac_switch'
@@ -448,7 +448,7 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
       return false;
   }
 
-  if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_SUBADDR,
+  if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
     ESP_LOGW(TAG, "%s writing Input %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
     return false;
@@ -512,7 +512,7 @@ bool Tas58xxComponent::set_mono_mixer_mode_() {
       return false;
   }
 
-  if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR,
+  if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
     ESP_LOGW(TAG, "%s writing Mono %s: %s", ERROR, MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(this->tas5805m_mono_mixer_mode_)]);
     return false;
@@ -531,7 +531,7 @@ bool Tas58xxComponent::set_subchannel_eq_(uint16_t crossover_frequency) {
   tas58xx_helpers::BiquadCoefficients biquad =
     tas58xx_helpers::butterworth2_(EQ_SUB_SAMPLE_RATE, crossover_frequency, tas58xx_helpers::LOWPASS);
 
-  if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, EQ_SUB_PAGE, EQ_SUB_BQ1_SUBADDR,
+  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, EQ_SUB_PAGE, EQ_SUB_BQ1_SUBADDR,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
     ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %dHz", ERROR, crossover_frequency);
     return false;
@@ -555,8 +555,9 @@ bool Tas58xxComponent::set_crossbar_() {
 
   if (!this->set_book_and_page_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE)) return false;
 
-  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)],
-  //                                  reinterpret_cast<uint8_t*>(crossbar_coefficients), sizeof(crossbar_coefficients))) {
+  // if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE,
+  //                                    TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)],
+  //                                    reinterpret_cast<uint8_t*>(crossbar_coefficients), sizeof(crossbar_coefficients))) {
   //   ESP_LOGW(TAG, "%s setting Crossbar coefficients");
   //   return false;
   // }
@@ -625,8 +626,8 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 
   int32_t little_endian_9_23 = tas58xx_helpers::gain_to_f9_23_(volume_dB);
 
-  if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_CHANNEL_VOLUME_PAGE, TAS58XX_CHANNEL_VOLUME_SUBADDR[channel],
-                                  reinterpret_cast<uint8_t*>(&little_endian_9_23), sizeof(little_endian_9_23))) {
+  if (!this-> book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_CHANNEL_VOLUME_PAGE, TAS58XX_CHANNEL_VOLUME_SUBADDR[channel],
+                                      reinterpret_cast<uint8_t*>(&little_endian_9_23), sizeof(little_endian_9_23))) {
     ESP_LOGW(TAG, "%s writing %s Channel Volume: %ddb", ERROR, LR_CHANNEL_TEXT[channel], volume_dB);
     return false;
   }
@@ -692,7 +693,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
     return false;
   }
 
-  if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
+  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
                                   reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad->coefficients)), BIQUAD_SIZE)) {
     ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
@@ -742,17 +743,17 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
     return false;
   }
 
-  if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, biquad1_address->page, biquad1_address->sub_addr,
+  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad1_address->page, biquad1_address->sub_addr,
                                   reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad1->coefficients)), BIQUAD_SIZE)) {
     ESP_LOGW(TAG, "%s writing Biquad 1 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
     return false;
   }
-  if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, biquad2_address->page, biquad2_address->sub_addr,
+  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad2_address->page, biquad2_address->sub_addr,
                                   reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad2->coefficients)), BIQUAD_SIZE)) {
     ESP_LOGW(TAG, "%s writing Biquad 2 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
     return false;
   }
-  if (!this->book_and_page_write_(TAS58XX_EQ_CTRL_BOOK, biquad3_address->page, biquad3_address->sub_addr,
+  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad3_address->page, biquad3_address->sub_addr,
                                   reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad3->coefficients)), BIQUAD_SIZE)) {
     ESP_LOGW(TAG, "%s writing Biquad 3 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
     return false;
@@ -950,7 +951,7 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
   }
 #else
   const EqModeCoefficients* eq_mode_coefficients = &TAS5825M_CTRL_EQ[new_mode];
-  if (!this->book_and_page_write_(TAS58XX_AUDIO_CTRL_BOOK, TAS5825M_EQ_MODE_CTRL_PAGE, TAS5825M_GANG_EQ,
+  if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS5825M_EQ_MODE_CTRL_PAGE, TAS5825M_GANG_EQ,
                                   reinterpret_cast<uint8_t*>(const_cast<EqModeCoefficients*>(eq_mode_coefficients)), sizeof(EqModeCoefficients))) {
     ESP_LOGW(TAG, "%s writing Eq Mode: %s", ERROR, EQ_MODE_TEXT[new_mode]);
     return false;
@@ -1126,33 +1127,46 @@ bool Tas58xxComponent::read_fault_registers_() {
 
 //// low level functions
 
-bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes) {
+bool Tas58xxComponent:: book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes) {
+  // use only when writting bytes to contiguous addresses
+
+  // set book and page
+  if (!this->set_book_and_page_(book, page)) return false;
+
+  // do block write to book and page sub-address
+  if (!this->tas58xx_write_bytes_(sub_addr, data, number_bytes)) return false;
+
+  // reset book and page to zero
+  return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
+}
+
+bool Tas58xxComponent::biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* biquad, uint8_t number_bytes) {
   // write up to 20 bytes (BIQUAD_SIZE) to a book and page starting at subaddress
   // limited to writing across one page boundary as is required for tas5805m while tas5825m has biquads aligned to page boundaries
-  // shorter consecutive writes required by tas5805m and tas5825m do not extend over page boundaries
 
   // Biquad addressing constants
   static constexpr uint8_t PAGE_SIZE = 0x80;           		// 0x7F + 1 = 0x80
   static constexpr uint8_t MINIMUM_PAGE_SUBADDR = 0x08;   // start subaddr for pages = 0x08
 
-  if (number_bytes == 0 || number_bytes > BIQUAD_SIZE) {
-    ESP_LOGE(TAG, "Incorrect length for book and page write");
+  // check for usage error on number bytes to write
+  if (number_bytes != BIQUAD_SIZE) {
+    ESP_LOGE(TAG, "Incorrect biquad size");
     return false;
   }
 
-  uint8_t bytes_in_block1{number_bytes};
+  uint8_t bytes_in_block1{BIQUAD_SIZE};
   uint8_t bytes_in_block2{0};
 
-  if ((sub_addr + number_bytes) > PAGE_SIZE) {
+  if ((sub_addr + BIQUAD_SIZE) > PAGE_SIZE) {
     bytes_in_block1 = PAGE_SIZE - sub_addr;
-    bytes_in_block2 = number_bytes - bytes_in_block1;
+    bytes_in_block2 = BIQUAD_SIZE - bytes_in_block1;
   }
 
   // set book and page
   if (!this->set_book_and_page_(book, page)) return false;
 
   // do block write to book and page sub-address
-  if (!this->tas58xx_write_bytes_(sub_addr, data, bytes_in_block1)) return false;
+  if (!this->tas58xx_write_bytes_(sub_addr, biquad, bytes_in_block1)) return false;
 
   if (bytes_in_block2 != 0) {
     uint8_t next_page = page + 1;
@@ -1165,29 +1179,54 @@ bool Tas58xxComponent::book_and_page_write_(uint8_t book, uint8_t page, uint8_t 
       return false;
     }
 
-    if (!this->tas58xx_write_bytes_(MINIMUM_PAGE_SUBADDR, data + bytes_in_block1, bytes_in_block2)) return false;
+    if (!this->tas58xx_write_bytes_(MINIMUM_PAGE_SUBADDR, biquad + bytes_in_block1, bytes_in_block2)) return false;
   }
+
+
 
   // reset book and page to zero
   return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
 }
 
+void Tas58xxComponent::log_biquad_(uint8_t* biquad) {
+  ESP_LOGD(TAG, "Biquad: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X",
+    *(reinterpret_cast<uint32_t*>(biquad)),
+    *(reinterpret_cast<uint32_t*>(biquad + 4)),
+    *(reinterpret_cast<uint32_t*>(biquad + 8)),
+    *(reinterpret_cast<uint32_t*>(biquad + 12)),
+    *(reinterpret_cast<uint32_t*>(biquad + 16)) );
+}
+
+// bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
+//   ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
+
+//   if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
+//     ESP_LOGE(TAG, "%s setting page: 0x00", ERROR);
+//     return false;
+//   }
+//   if (!this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
+//     ESP_LOGE(TAG, "%s setting book: 0x%02X", ERROR, book);
+//     return false;
+//   }
+//   if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
+//     ESP_LOGE(TAG, "%s setting page: 0x%02X", ERROR, page);
+//     return false;
+//   }
+//   return true;
+// }
+
 bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
   ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
 
-  if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
-    ESP_LOGE(TAG, "%s setting page: 0x00", ERROR);
-    return false;
+  if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)
+    if (this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
+      if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
+        return true;
+      }
+    }
   }
-  if (!this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
-    ESP_LOGE(TAG, "%s setting book: 0x%02X", ERROR, book);
-    return false;
-  }
-  if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
-    ESP_LOGE(TAG, "%s setting page: 0x%02X", ERROR, page);
-    return false;
-  }
-  return true;
+  ESP_LOGD(TAG, "%s setting book:0x%02X page:0x%02X", ERROR, book, page);
+  return false;
 }
 
 bool Tas58xxComponent::tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes) {
