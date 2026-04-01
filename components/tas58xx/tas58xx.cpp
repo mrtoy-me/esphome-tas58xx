@@ -354,7 +354,7 @@ void Tas58xxComponent::dump_config() {
   LOG_BINARY_SENSOR("  ", "Over Temperature Warning", this->over_temperature_warning_binary_sensor_);
 #endif
 
-  //this->calc_eq_biquad_();
+  this->calc_eq_biquad_();
 }
 
 // public //
