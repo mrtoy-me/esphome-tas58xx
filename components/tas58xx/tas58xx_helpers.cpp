@@ -48,7 +48,7 @@ namespace esphome::tas58xx_helpers {
     int32_t q_32bit = static_cast<int32_t>(q);
     int32_t q_little_endian = byteswap(q_32bit);
 
-    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %12.9lf  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, q_32bit, q_little_endian);
+    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, q_32bit, q_little_endian);
     return q_little_endian;
   }
 
@@ -106,8 +106,8 @@ namespace esphome::tas58xx_helpers {
 
     double beta, b0, b1, b2, a1, a2;
 
-    double linear_gain = powf(10.0, static_cast<float>(gain) / 20.0);
-    double t0 = 2.0 * std::numbers::pi * frequency / static_cast<float>(sample_rate);
+    double linear_gain = pow(10.0, static_cast<double>(gain) / 20.0);
+    double t0 = 2.0 * std::numbers::pi * static_cast<double>(frequency) / static_cast<double>(sample_rate);
 
     if (linear_gain >= 1.0) {
         beta = t0 / (2.0 *  qFactor);
@@ -115,11 +115,14 @@ namespace esphome::tas58xx_helpers {
         beta = t0 / (2.0 * linear_gain *  qFactor);
     }
 
-    a2 = -0.5 * (1 - beta) / (1 + beta);
+    //a2 = -0.5 * (1 - beta) / (1 + beta);
+    a2 = -0.5 * (1.0 - ((2 * beta) / (1 + beta)));
+    double x = (linear_gain - 1.0) * (0.25 + 0.5 * a2);
+
     a1 = (0.5 - a2) * std::cos(t0);
-    b0 = (linear_gain - 1.0) * (0.25 + 0.5 * a2) + 0.5;
+    b0 = x + 0.5;
     b1 = -a1;
-    b2 = -(linear_gain - 1.0) * (0.25 + 0.5 * a2) - a2;
+    b2 = -x - a2;
 
     b0 = 2.0 * b0;
     b1 = 2.0 * b1;
