@@ -106,26 +106,26 @@ namespace esphome::tas58xx_helpers {
 
     double beta, b0, b1, b2, a1, a2;
 
-    double linear_gain = pow(10.0l, static_cast<double>(gain) / 20.0l);
+    double linear_gain = pow(10.0, static_cast<double>(gain) / 20.0);
     double t0 = 2.0 * std::numbers::pi * static_cast<double>(frequency) / static_cast<double>(sample_rate);
 
     if (linear_gain >= 1.0) {
-        beta = t0 / (2.0l *  qFactor);
+        beta = t0 / (2.0 *  qFactor);
     } else {
-        beta = t0 / (2.0l * linear_gain *  qFactor);
+        beta = t0 / (2.0 * linear_gain *  qFactor);
     }
 
-    a2 = -0.5l * (1 - beta) / (1 + beta);
-    a1 = (0.5l - a2) * std::cos(t0);
-    b0 = (linear_gain - 1.0l) * (0.25l + 0.5l * a2) + 0.5l;
+    a2 = -0.5 * (1 - beta) / (1 + beta);
+    a1 = (0.5 - a2) * std::cos(t0);
+    b0 = (linear_gain - 1.0) * (0.25 + 0.5 * a2) + 0.5l;
     b1 = -a1;
-    b2 = -(linear_gain - 1.0l) * (0.25l + 0.5l * a2) - a2;
+    b2 = -(linear_gain - 1.0) * (0.25 + 0.5 * a2) - a2;
 
-    b0 = 2.0l * b0;
-    b1 = 2.0l * b1;
-    b2 = 2.0l * b2;
-    a1 = -2.0l * a1;
-    a2 = -2.0l * a2;
+    b0 = 2.0 * b0;
+    b1 = 2.0 * b1;
+    b2 = 2.0 * b2;
+    a1 = -2.0 * a1;
+    a2 = -2.0 * a2;
 
     BiquadCoefficients result{};
 
