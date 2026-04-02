@@ -116,7 +116,8 @@ namespace esphome::tas58xx_helpers {
     }
 
     //a2 = -0.5 * (1 - beta) / (1 + beta);
-    a2 = -0.5 * (1.0 - ((2 * beta) / (1 + beta)));
+    //a2 = -0.5 * (1.0 - ((2 * beta) / (1 + beta)));
+    a2 = -0.5 + (beta / (1 + beta));
     double x = (linear_gain - 1.0) * (0.25 + 0.5 * a2);
 
     a1 = (0.5 - a2) * std::cos(t0);
