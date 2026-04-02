@@ -27,7 +27,7 @@ namespace esphome::tas58xx_helpers {
 
   static int32_t double_to_5_27(double x) {
     static constexpr uint8_t FRACTIONAL_BITS = 27;
-    static constexpr double SCALE = static_cast<double>(1u << FRACTIONAL_BITS);
+    static constexpr uint32_t SCALE = 1u << FRACTIONAL_BITS;
 
     // Valid 9.23 range
     static constexpr double MAX_VALUE =  256.0 - 1.0 / SCALE;
@@ -38,17 +38,17 @@ namespace esphome::tas58xx_helpers {
 
     // Scale
     double scaled =  x * SCALE;
-    int64_t q = std::llround(scaled);
+    int32_t q = std::llround(scaled);
 
     // Saturate to 32 bit
     if (q >  std::numeric_limits<int32_t>::max()) q =  std::numeric_limits<int32_t>::max();
     if (q <  std::numeric_limits<int32_t>::min()) q =  std::numeric_limits<int32_t>::min();
 
     // convert to 32 bit little endian
-    int32_t q_32bit = static_cast<int32_t>(q);
-    int32_t q_little_endian = byteswap(q_32bit);
+    //int32_t q_32bit = static_cast<int32_t>(q);
+    int32_t q_little_endian = byteswap(q);
 
-    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, q_32bit, q_little_endian);
+    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, q, q_little_endian);
     return q_little_endian;
   }
 
@@ -104,10 +104,10 @@ namespace esphome::tas58xx_helpers {
 
   BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, float frequency, int16_t gain, float qFactor) {
 
-    double beta, b0, b1, b2, a1, a2;
+    double beta, x, b0, b1, b2, a1, a2;
 
     float linear_gain = powf(10.0, static_cast<float>(gain) / 20.0);
-    double t0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
+    double t0 = 2.0 * std::numbers::pi * frequency / static_cast<float>(sample_rate);
 
     if (linear_gain >= 1.0) {
       beta = t0 / (2.0 *  qFactor);
@@ -121,7 +121,7 @@ namespace esphome::tas58xx_helpers {
 
     a2 = -0.5 + (beta / (1 + beta)); // simpify equivalent
 
-    double x = (linear_gain - 1.0) * (0.25 + 0.5 * a2);
+    x = (linear_gain - 1.0) * (0.25 + 0.5 * a2);
 
     a1 = (0.5 - a2) * std::cos(t0);
     b0 = x + 0.5;
