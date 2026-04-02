@@ -48,7 +48,7 @@ namespace esphome::tas58xx_helpers {
     int32_t q_32bit = static_cast<int32_t>(q);
     int32_t q_little_endian = byteswap(q_32bit);
 
-    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %12.9lf  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, q_32bit, q_little_endian);
+    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, q_32bit, q_little_endian);
     return q_little_endian;
   }
 
