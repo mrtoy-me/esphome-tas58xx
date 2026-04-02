@@ -354,7 +354,7 @@ void Tas58xxComponent::dump_config() {
   LOG_BINARY_SENSOR("  ", "Over Temperature Warning", this->over_temperature_warning_binary_sensor_);
 #endif
 
-  this->calc_eq_biquad_();
+  //this->calc_eq_biquad_();
 }
 
 // public //
@@ -697,7 +697,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
   tas58xx_helpers::BiquadCoefficients biquad =
       tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  this->log_biquad_(reinterpret_cast<uint8_t*>(&biquad));
+  //this->log_biquad_(reinterpret_cast<uint8_t*>(&biquad));
 
   // if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
   //                                 reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad->coefficients)), BIQUAD_SIZE)) {

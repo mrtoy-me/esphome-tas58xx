@@ -25,7 +25,7 @@ namespace esphome::tas58xx_helpers {
     return little_endian;
   }
 
-  static int32_t double_to_5_27(double x) {
+  inline static int32_t double_to_5_27(double x) {
     static constexpr uint8_t FRACTIONAL_BITS = 27;
     static constexpr uint32_t SCALE = 1u << FRACTIONAL_BITS;
 
@@ -38,7 +38,7 @@ namespace esphome::tas58xx_helpers {
 
     // Scale
     double scaled =  x * SCALE;
-    int32_t q = std::llround(scaled);
+    int32_t q = std::round(scaled);
 
     // Saturate to 32 bit
     if (q >  std::numeric_limits<int32_t>::max()) q =  std::numeric_limits<int32_t>::max();
