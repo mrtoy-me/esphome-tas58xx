@@ -107,7 +107,7 @@ namespace esphome::tas58xx_helpers {
     double beta, b0, b1, b2, a1, a2;
 
     float linear_gain = powf(10.0, static_cast<float>(gain) / 20.0);
-    double t0 = 2.0 * std::numbers::pi * static_cast<double>(frequency) / static_cast<double>(sample_rate);
+    float t0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
 
     if (linear_gain >= 1.0) {
       beta = t0 / (2.0 *  qFactor);
@@ -116,9 +116,10 @@ namespace esphome::tas58xx_helpers {
     }
 
     // original   a2 = -0.5 * (1 - beta) / (1 + beta);
+    // (1 - beta) / (1 + beta) == 1.0 - (2 * beta)/(1 + beta)
     // equivalent a2 = -0.5 * (1.0 - ((2 * beta) / (1 + beta)));
 
-    a2 = -0.5 + (beta / (1 + beta)); // reduction
+    a2 = -0.5 + (beta / (1 + beta)); // simpify equivalent
 
     double x = (linear_gain - 1.0) * (0.25 + 0.5 * a2);
 
