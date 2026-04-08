@@ -178,7 +178,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_TAS58XX_DAC, default=TAS5805M_DAC): cv.enum(
                         TAS_DACS, upper=True
             ),
-            cv.Optional(CONF_ANALOG_GAIN, default="-15.5dB"): cv.All(
+            cv.Optional(CONF_ANALOG_GAIN, default=-15.5): cv.All(
                         cv.decibel, cv.one_of(*ANALOG_GAINS)
             ),
             cv.Optional(CONF_DAC_MODE, default="BTL"): cv.enum(
@@ -196,10 +196,10 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_REFRESH_EQ, default="AUTO"): cv.enum(
                         EQ_REFRESH_MODES, upper=True
             ),
-            cv.Optional(CONF_VOLUME_MAX, default="24dB"): cv.All(
+            cv.Optional(CONF_VOLUME_MAX, default=24): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
-            cv.Optional(CONF_VOLUME_MIN, default="-103dB"): cv.All(
+            cv.Optional(CONF_VOLUME_MIN, default=-103): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
             cv.Optional(CONF_SPEAKER_CONFIG): SPEAKER_CONFIG_SCHEMA,
