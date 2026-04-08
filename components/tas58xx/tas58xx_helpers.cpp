@@ -116,10 +116,10 @@ namespace esphome::tas58xx_helpers {
     }
 
     // original   a2 = -0.5 * (1 - beta) / (1 + beta);
-    // (1 - beta) / (1 + beta) == 1.0 - (2 * beta)/(1 + beta)
+    // (1 - beta) / (1 + beta) <==> 1.0 - (2 * beta)/(1 + beta)
     // equivalent a2 = -0.5 * (1.0 - ((2 * beta) / (1 + beta)));
 
-    a2 = -0.5 + (beta / (1 + beta)); // simpify equivalent
+    a2 = -0.5 + (beta / (1.0 + beta)); // simpify equivalent
 
     x = (linear_gain - 1.0) * (0.25 + 0.5 * a2);
 
