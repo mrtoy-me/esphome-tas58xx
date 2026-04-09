@@ -183,8 +183,9 @@ async def to_code(config):
         if select_eq_presets_exists():
             derived_eq_mode_configuration = EQ_PRESETS
 
+    tas58xx_dac = config.get(CONF_TAS58XX_DAC)
+
     if config[CONF_ADDRESS] == ZERO_I2C_ADDR:
-      tas58xx_dac = config.get(CONF_TAS58XX_DAC)
       if tas58xx_dac == TAS5805M_DAC:
         config[CONF_ADDRESS] = TAS5805M_I2C_ADDR
       else:
