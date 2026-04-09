@@ -13,15 +13,15 @@ namespace esphome::tas58xx_helpers {
 
     // valid 9.23 range
     static constexpr float MAX_VALUE =  256.0f - 1.0 / SCALE;
-    static constexpr float MAX_VALUE = -256.0f;
+    static constexpr float MIN_VALUE = -256.0f;
 
     float linear = powf(10.0f, ((float)gain) / 20.0f);
 
     if (linear > MAX_VALUE) linear = MAX_VALUE;
-    if (linear < MAX_VALUE) linear = MAX_VALUE;
+    if (linear < MIN_VALUE) linear = MIN_VALUE;
 
     // scale to fixed 9.23
-    int32_t fixed_9_23 = static_cast<int32_t>(linear * static_cast<float>SCALE);
+    int32_t fixed_9_23 = static_cast<int32_t>(linear * static_cast<float>(SCALE));
 
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_9_23);
@@ -36,7 +36,7 @@ namespace esphome::tas58xx_helpers {
 
     // valid 5.27 range
     static constexpr double MAX_VALUE =  256.0 - 1.0 / SCALE;
-    static constexpr double MAX_VALUE = -256.0;
+    static constexpr double MIN_VALUE = -256.0;
 
     if (x > MAX_VALUE) x = MAX_VALUE;
     if (x < MIN_VALUE) x = MIN_VALUE;
