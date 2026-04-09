@@ -132,33 +132,17 @@ void Tas58xxComponent::loop() {
 #endif
 
       // if loop_setup_stage_ has not changed then no EQ Gains or EQ Presets configured
-      if (this->loop_setup_stage_ == LR_VOLUME_SETUP)
-#ifdef USE_SPEAKER_CONFIG
-  // but have speaker_config so continue with that setup
-  #ifdef USE_MONO_MIXER
-        this->loop_setup_stage_ = MONO_MIXER_SETUP;
-  #else
-        this->loop_setup_stage_ = CROSSBAR_SETUP;
-  #endif
-#else
+      if (this->loop_setup_stage_ == LR_VOLUME_SETUP) {
         // nothing more to setup so complete
         this->loop_setup_stage_ = SETUP_COMPLETE;
-#endif
+      }
       return;
 
     case EQ_BANDS_SETUP:
 #ifdef USE_TAS58XX_EQ_GAINS
       if (this->refresh_band_ == NUMBER_EQ_BANDS) { // refresh_band_ starts as initialised to 0
         // finished writing all bands so either continue with speaker config or setup is complete
-  #ifdef USE_SPEAKER_CONFIG
-    #ifdef USE_MONO_MIXER
-        this->loop_setup_stage_ = MONO_MIXER_SETUP;
-    #else
-        this->loop_setup_stage_ = CROSSBAR_SETUP;
-    #endif
-  #else
         this->loop_setup_stage_ = SETUP_COMPLETE;
-  #endif
         this->refresh_band_ = 0;
         return;
       }
@@ -189,39 +173,9 @@ void Tas58xxComponent::loop() {
       if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
         ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
       }
-  #ifdef USE_SPEAKER_CONFIG
-    #ifdef USE_MONO_MIXER
-        this->loop_setup_stage_ = MONO_MIXER_SETUP;
-    #else
-        this->loop_setup_stage_ = CROSSBAR_SETUP;
-    #endif
-  #else
       this->loop_setup_stage_ = SETUP_COMPLETE;
-  #endif
 #endif // USE_TAS58XX_EQ_PRESETS
       return;
-
-#ifdef USE_SPEAKER_CONFIG
-  #ifdef USE_MONO_MIXER
-    case MONO_MIXER_SETUP:
-      ESP_LOGD(TAG, "MONO MIXER SETUP");
-      this->set_mono_mixer_mode_();
-      this->loop_setup_stage_ = EQ_SUBCHANNEL_SETUP;
-      return;
-
-
-    case EQ_SUBCHANNEL_SETUP:
-      ESP_LOGD(TAG, "EQ SUBCHANNEL SETUP");
-      this->set_subchannel_eq_(this->tas5805m_crossover_frequency_);
-      this->loop_setup_stage_ = CROSSBAR_SETUP;
-      return;
-  #endif
-    case CROSSBAR_SETUP:
-      ESP_LOGD(TAG, "CROSSBAR SETUP");
-      this->set_crossbar_();
-      this->loop_setup_stage_ = SETUP_COMPLETE;
-      return;
-#endif
 
     case SETUP_COMPLETE:
       ESP_LOGD(TAG, "SETUP_COMPLETE");
@@ -312,27 +266,6 @@ void Tas58xxComponent::dump_config() {
               this->eq_refresh_ ? "MANUAL" : "AUTO"
               );
       LOG_UPDATE_INTERVAL(this);
-      #ifdef USE_SPEAKER_CONFIG
-      ESP_LOGCONFIG(TAG, "  Speaker Config:");
-      #ifdef USE_MONO_MIXER
-      ESP_LOGCONFIG(TAG,
-              "    Mono Mixer Mode: %s\n"
-              "    Crossover Frequency: %dHz\n",
-              SUBCHANNEL_MIXER_MODE_TEXT[this->tas5805m_mono_mixer_mode_],
-              this->tas5805m_crossover_frequency_
-              );
-      #endif
-      ESP_LOGCONFIG(TAG,
-              "    Crossbar Left Amp: %s\n"
-              "    Crossbar Right Amp: %s\n"
-              "    Crossbar Left I2S: %s\n"
-              "    Crossbar Right I2S: %s\n",
-              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_left_amp_],
-              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_amp_],
-              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_left_i2s_],
-              CROSSBAR_INPUT_TEXT[this->tas5805m_crossover_right_i2s_]
-              );
-      #endif
       break;
   }
 
@@ -457,143 +390,6 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
   ESP_LOGD(TAG, "Input %s >> %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
   return true;
 }
-
-#ifdef USE_MONO_MIXER
-bool Tas58xxComponent::set_mono_mixer_mode_() {
-
-  // follows order of sub channel mixer registers = Left to Sub, Right to Sub, Left EQ to Sub, Right EQ to Sub
-  struct MixerCoefficients {
-    uint32_t l_to_sub;
-    uint32_t r_to_sub;
-    uint32_t leq_to_sub;
-    uint32_t req_to_sub;
-  }__attribute__((packed));
-
-  MixerCoefficients mixer_coefficients;
-
-  switch (this->tas5805m_mono_mixer_mode_) {
-    case SubchannelMixerMode::LEFT_SUB:
-      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      break;
-
-    case SubchannelMixerMode::RIGHT_SUB:
-      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      break;
-
-    case SubchannelMixerMode::STEREO_SUB:
-      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      break;
-
-    case SubchannelMixerMode::LEFT_EQ_SUB:
-      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      break;
-
-    case SubchannelMixerMode::RIGHT_EQ_SUB:
-      mixer_coefficients.l_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.leq_to_sub = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.req_to_sub = TAS58XX_MIXER_COEFF_0DB;
-      break;
-
-    default:
-      ESP_LOGE(TAG, "Invalid Mono %s", MIXER_MODE);
-      return false;
-  }
-
-  if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR,
-                                  reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
-    ESP_LOGW(TAG, "%s writing Mono %s: %s", ERROR, MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(this->tas5805m_mono_mixer_mode_)]);
-    return false;
-  }
-
-  ESP_LOGD(TAG, "Mono %s >> %s", MIXER_MODE, SUBCHANNEL_MIXER_MODE_TEXT[static_cast<uint8_t>(this->tas5805m_mono_mixer_mode_)]);
-  return true;
-}
-
-// Adds a single Butterworth2 lowpass into the subwoofer eq
-bool Tas58xxComponent::set_subchannel_eq_(uint16_t crossover_frequency) {
-  static constexpr uint8_t EQ_SUB_PAGE = 0x29;
-  static constexpr uint8_t EQ_SUB_BQ1_SUBADDR = 0x38;
-  static constexpr uint16_t EQ_SUB_SAMPLE_RATE = 48000;
-
-  tas58xx_helpers::BiquadCoefficients biquad =
-    tas58xx_helpers::butterworth2_(EQ_SUB_SAMPLE_RATE, crossover_frequency, tas58xx_helpers::LOWPASS);
-
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, EQ_SUB_PAGE, EQ_SUB_BQ1_SUBADDR,
-                                  reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
-    ESP_LOGW(TAG, "%s setting Subchannel EQ for crossover frequency: %dHz", ERROR, crossover_frequency);
-    return false;
-  }
-  ESP_LOGD(TAG, "Set Subchannel EQ using crossover frequency: %dHz", crossover_frequency);
-  return true;
-}
-#endif
-
-#ifdef USE_SPEAKER_CONFIG
-bool Tas58xxComponent::set_crossbar_() {
-  static constexpr uint8_t CROSSBAR_CONFIG_COUNT = 16; // number Output Crossbar subaddresses
-  static constexpr uint8_t CROSSBAR_INDEX[NUMBER_OUTPUT_CROSSBAR] = {0, 3, 6, 11};
-
-  uint32_t crossbar_coefficients[CROSSBAR_CONFIG_COUNT] = {0x00000000};
-
-  crossbar_coefficients[CROSSBAR_INDEX[ANALOG_LEFT] + this->tas5805m_crossover_left_amp_] = TAS58XX_MIXER_COEFF_0DB;
-  crossbar_coefficients[CROSSBAR_INDEX[ANALOG_RIGHT] + this->tas5805m_crossover_right_amp_] = TAS58XX_MIXER_COEFF_0DB;
-  crossbar_coefficients[CROSSBAR_INDEX[DIGITAL_LEFT] + this->tas5805m_crossover_left_i2s_] = TAS58XX_MIXER_COEFF_0DB;
-  crossbar_coefficients[CROSSBAR_INDEX[DIGITAL_RIGHT] + this->tas5805m_crossover_right_i2s_] = TAS58XX_MIXER_COEFF_0DB;
-
-  if (!this->set_book_and_page_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE)) return false;
-
-  // if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS5805M_OUTPUT_CROSSBAR_PAGE,
-  //                                    TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)],
-  //                                    reinterpret_cast<uint8_t*>(crossbar_coefficients), sizeof(crossbar_coefficients))) {
-  //   ESP_LOGW(TAG, "%s setting Crossbar coefficients");
-  //   return false;
-  // }
-
-  // write all Crossbar subaddresses
-  for (int i = 0; i < CROSSBAR_CONFIG_COUNT; i++) {
-    uint8_t subaddr = TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * i);
-    ESP_LOGD(TAG, "Writing Crossbar >> subaddr:0x%02X value:0x%08X", subaddr, crossbar_coefficients[i]);
-    if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * i),
-                                      reinterpret_cast<uint8_t*>(&crossbar_coefficients[i]), COEFFICIENT_SIZE)) return false;
-  }
-  if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) return false;
-
-  // // set Analog Left
-  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_amp_)),
-  //                                   reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
-
-  // // set Analog Right
-  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(ANALOG_RIGHT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_amp_)),
-  //                                   reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
-
-  // // set Digital Left
-  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(DIGITAL_LEFT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_left_i2s_)),
-  //                                   reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
-
-  // // set Digital Right
-  // if (!this->tas58xx_write_bytes_(TAS5805M_OUTPUT_CROSSBAR_SUBADDR[static_cast<uint8_t>(DIGITAL_RIGHT)] + (COEFFICIENT_SIZE * static_cast<uint8_t>(this->tas5805m_crossover_right_i2s_)),
-  //                                   reinterpret_cast<uint8_t*>(const_cast<uint32_t*>(&TAS58XX_MIXER_COEFF_0DB)), COEFFICIENT_SIZE)) return false;
-
-  // if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) return false;
-
-  ESP_LOGD(TAG, "Set Crossbar");
-  return true;
-}
-#endif
-
 
 // used by 'select eq mode' to determine initially selected EQ mode
 bool Tas58xxComponent::is_eq_configured() {
