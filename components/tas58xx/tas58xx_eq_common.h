@@ -41,40 +41,43 @@ enum InputMixerMode : uint8_t {
   LEFT,
 };
 
-enum SubchannelMixerMode: uint8_t {
-  NO_SUB = 0,
-  LEFT_SUB,
-  RIGHT_SUB,
-  STEREO_SUB,
-  LEFT_EQ_SUB,
-  RIGHT_EQ_SUB,
-};
+// enum SubchannelMixerMode: uint8_t {
+//   NO_SUB = 0,
+//   LEFT_SUB,
+//   RIGHT_SUB,
+//   STEREO_SUB,
+//   LEFT_EQ_SUB,
+//   RIGHT_EQ_SUB,
+// };
 
-enum CrossbarOutputs: uint8_t {
-  ANALOG_LEFT = 0,
-  ANALOG_RIGHT,
-  DIGITAL_LEFT,
-  DIGITAL_RIGHT,
-};
+// enum CrossbarOutputs: uint8_t {
+//   ANALOG_LEFT = 0,
+//   ANALOG_RIGHT,
+//   DIGITAL_LEFT,
+//   DIGITAL_RIGHT,
+// };
 
-enum CrossbarInputs: uint8_t {
-  FROM_LEFT = 0,
-  FROM_RIGHT,
-  FROM_SUB,
-};
+// enum CrossbarInputs: uint8_t {
+//   FROM_LEFT = 0,
+//   FROM_RIGHT,
+//   FROM_SUB,
+// };
 
 static constexpr uint8_t NUMBER_CHANNELS = 2;
 static constexpr uint8_t NUMBER_EQ_BANDS = 15;
 static constexpr uint8_t NUMBER_EQ_MODES = 4;
-static constexpr uint8_t NUMBER_OUTPUT_CROSSBAR = 4; // Analog Left, Analog Right, Digital Left, Digital Right
+// static constexpr uint8_t NUMBER_OUTPUT_CROSSBAR = 4; // Analog Left, Analog Right, Digital Left, Digital Right
 
 static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
 static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"};
 static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
-static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"NO SUB", "LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};
-static constexpr const char* CROSSBAR_INPUT_TEXT[] = {"FROM LEFT", "FROM RIGHT", "FROM SUB"};
-static constexpr const float EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {20.0, 31.5, 50.0, 80.0, 125.0, 200.0, 315.0, 500.0, 800.0, 1250.0, 2000.0, 3150.0, 5000.0, 8000.0, 16000.0};
-static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.0, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
+// static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"NO SUB", "LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};
+// static constexpr const char* CROSSBAR_INPUT_TEXT[] = {"FROM LEFT", "FROM RIGHT", "FROM SUB"};
+//static constexpr const float EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {20.0, 31.5, 50.0, 80.0, 125.0, 200.0, 315.0, 500.0, 800.0, 1250.0, 2000.0, 3150.0, 5000.0, 8000.0, 16000.0};
+static constexpr const float EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {25.0, 40.0, 63.0, 100.0, 160.0, 250.0, 400.0, 630.0, 1000.0, 1600.0, 2500.0, 4000.0, 6300.0, 10000.0, 16000.0};
+//static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.0, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
+static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.144908, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
+
 
 // EQ Gain constants
 static constexpr int8_t  TAS58XX_EQ_MAX_DB = 15;
@@ -129,11 +132,11 @@ static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x18; // Left to Left = 0x
 static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_PAGE = 0x2A;
 static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_SUBADDR[NUMBER_CHANNELS] = {0x24 , 0x28};  // Left channel = 0x24, Right Channel = 0x28
 
-#ifdef USE_SPEAKER_CONFIG
-static constexpr uint8_t TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR = 0x28; // Left to Sub = 0x28, Right to Sub = 0x2c, Left EQ to Sub = 0x30, Right EQ to Sub = 0x34
-static constexpr uint8_t TAS5805M_OUTPUT_CROSSBAR_PAGE = 0x2C;
-static constexpr uint8_t TAS5805M_OUTPUT_CROSSBAR_SUBADDR[NUMBER_OUTPUT_CROSSBAR] = {0x1C, 0x28, 0x34, 0x4c}; // Analog Left, Analog Right, Digital Left, Digital Right
-#endif
+// #ifdef USE_SPEAKER_CONFIG
+// static constexpr uint8_t TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR = 0x28; // Left to Sub = 0x28, Right to Sub = 0x2c, Left EQ to Sub = 0x30, Right EQ to Sub = 0x34
+// static constexpr uint8_t TAS5805M_OUTPUT_CROSSBAR_PAGE = 0x2C;
+// static constexpr uint8_t TAS5805M_OUTPUT_CROSSBAR_SUBADDR[NUMBER_OUTPUT_CROSSBAR] = {0x1C, 0x28, 0x34, 0x4c}; // Analog Left, Analog Right, Digital Left, Digital Right
+// #endif
 
 #else
 // TAS5825M
