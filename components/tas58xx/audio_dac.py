@@ -13,6 +13,7 @@ from esphome.const import (
     CONF_PLATFORM,
 )
 
+#MULTI_CONF = True
 CODEOWNERS = ["@mrtoy-me"]
 DEPENDENCIES = ["i2c"]
 
