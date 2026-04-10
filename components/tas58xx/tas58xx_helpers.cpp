@@ -57,12 +57,12 @@ namespace esphome::tas58xx_helpers {
   }
 
   // Equalizer Bandwidth filter calculation
-  BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, float frequency, int16_t gain, float qFactor) {
+  BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float qFactor) {
 
     double beta, x, b0, b1, b2, a1, a2;
 
     float linear_gain = powf(10.0, static_cast<float>(gain) / 20.0);
-    double t0 = 2.0 * std::numbers::pi * frequency / static_cast<float>(sample_rate);
+    double t0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
 
     if (linear_gain >= 1.0) {
       beta = t0 / (2.0 *  qFactor);
