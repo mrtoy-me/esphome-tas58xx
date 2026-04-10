@@ -240,13 +240,14 @@ void Tas58xxComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "Tas5825m Audio Dac:");
 #endif
 
+  LOG_I2C_DEVICE(this);
+  LOG_PIN("  Enable Pin: ", this->enable_pin_);
+
   switch (this->error_code_) {
     case CONFIGURATION_FAILED:
       ESP_LOGE(TAG, "  %s setup failed: %i", ERROR, this->i2c_error_);
       break;
     case NONE:
-      LOG_I2C_DEVICE(this);
-      LOG_PIN("  Enable Pin: ", this->enable_pin_);
       ESP_LOGCONFIG(TAG,
               "  Registers Configured: %i\n"
               "  Analog Gain: %3.1fdB\n"
