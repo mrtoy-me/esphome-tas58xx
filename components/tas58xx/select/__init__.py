@@ -4,6 +4,8 @@ import esphome.config_validation as cv
 import esphome.final_validate as fv
 
 from esphome.const import (
+   CONF_AUDIO_DAC,
+   CONF_ID,
    CONF_PLATFORM,
    ENTITY_CATEGORY_CONFIG,
 )
@@ -22,21 +24,37 @@ CONF_EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
 
 NUMBER_COMPONENT = "number"
 PLATFORM_TAS58XX = "tas58xx"
+DAC_MODE = "dac_mode"
+DAC_MODE_BTL = "BTL"
 LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
 
 def validate_eq_presets(config):
     have_select_eq_mode = CONF_EQ_MODE in config
     have_eq_preset_left = CONF_EQ_PRESET_LEFT_CHANNEL in config
     have_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
+    is_dac_mode_btl = False
 
-    if have_eq_preset_left and not have_eq_preset_right:
+    full_conf = fv.full_config.get()
+    audio_dac_confs = full_conf.get(CONF_AUDIO_DAC, [])
+    for audio_dac_conf in audio_dac_confs:
+        if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+           audio_dac_id = audio_dac_conf.get(CONF_ID)
+           if audio_dac_id == config[CONF_TAS58XX_ID]:
+             if audio_dac_conf.get(DAC_MODE) == DAC_MODE_BTL:
+               is_dac_mode_btl = True
+               break
+
+    if is_dac_mode_btl and have_eq_preset_left and not have_eq_preset_right:
         raise cv.Invalid("Select eq_preset_right must configured with eq_preset_left - add configuration for Select eq_preset_right")
 
     if have_eq_preset_right and not have_eq_preset_left:
-        raise cv.Invalid("Select eq_preset_left must configured with eq_preset_right - add configuration for Select eq_preset_left")
+        if is_dac_mode_btl:
+            raise cv.Invalid("Select eq_preset_left must configured with eq_preset_right - add configuration for Select eq_preset_left")
+        else:
+            raise cv.Invalid("Select eq_preset_left should configured rather than eq_preset_right - add configuration for Select eq_preset_left")
 
     if not have_select_eq_mode and (have_eq_preset_left or have_eq_preset_right):
-         raise cv.Invalid("Select eq_mode must configured with both left and right eq_presets - add configuration for Select eq_mode")
+         raise cv.Invalid("Select eq_mode must configured with eq_presets - add configuration for Select eq_mode")
 
     return config
 
