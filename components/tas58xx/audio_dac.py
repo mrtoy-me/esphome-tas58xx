@@ -142,7 +142,7 @@ CONFIG_SCHEMA = cv.All(
     )
     .extend(cv.polling_component_schema("1s"))
     .extend(i2c.i2c_device_schema(ZERO_I2C_ADDR)),
-    # .add_extra(validate_config),
+    .add_extra(validate_config),
     cv.only_on_esp32,
 )
 
