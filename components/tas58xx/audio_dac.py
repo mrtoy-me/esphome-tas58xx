@@ -141,8 +141,8 @@ CONFIG_SCHEMA = cv.All(
         }
     )
     .extend(cv.polling_component_schema("1s"))
-    .extend(i2c.i2c_device_schema(ZERO_I2C_ADDR))
-    .add_extra(validate_config),
+    .extend(i2c.i2c_device_schema(ZERO_I2C_ADDR)),
+    # .add_extra(validate_config),
     cv.only_on_esp32,
 )
 
@@ -168,6 +168,8 @@ def select_eq_presets_exists():
     all_select = CORE.config.get(SELECT_COMPONENT, [])
     for select in all_select:
         if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            gotit = select.get(CONF_TAS58XX_ID)
+            print('found select tas58xx_id', gotit)
             if EQ_PRESET_LEFT_CHANNEL in select:
                 return True
 
@@ -185,6 +187,8 @@ async def to_code(config):
             derived_eq_mode_configuration = EQ_PRESETS
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
+    gotid = config.get("id")
+    print('found id', gotid)
 
     if config[CONF_ADDRESS] == ZERO_I2C_ADDR:
       if tas58xx_dac == TAS5805M_DAC:
