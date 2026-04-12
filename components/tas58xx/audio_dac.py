@@ -189,9 +189,9 @@ async def to_code(config):
         ok, gotid = select_eq_presets_exists()
         if ok:
             if gotid is not None:
-                print(f"found select tas58xx_id: {gotid}")
+                print(f"matching select tas58xx_id: {gotid}")
             else:
-                print(f"no tas58xx_id: defined in select")
+                print(f"no matching tas58xx_id: defined in select")
             derived_eq_mode_configuration = EQ_PRESETS
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
