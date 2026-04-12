@@ -168,11 +168,11 @@ def select_eq_presets_exists():
     all_select = CORE.config.get(SELECT_COMPONENT, [])
     for select in all_select:
         if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            gotit = select.get(CONF_TAS58XX_ID)
-            # raise cv.Invalid("found select tas58xx_id: ",gotit)
-            print(f"found select tas58xx_id {gotit}")
+            has_id = select.get(CONF_TAS58XX_ID)
             if EQ_PRESET_LEFT_CHANNEL in select:
-                return True
+                return True, has_id
+            else:
+                return False, None
 
     return False
 
@@ -184,7 +184,9 @@ async def to_code(config):
       if left_eq_gain_exists():
           derived_eq_mode_configuration = EQ_15BAND
       else:
-        if select_eq_presets_exists():
+        ok, gotid = select_eq_presets_exists()
+        if ok:
+            print(f"found select tas58xx_id: {gotid}")
             derived_eq_mode_configuration = EQ_PRESETS
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
