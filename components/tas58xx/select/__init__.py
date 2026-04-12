@@ -1,5 +1,6 @@
 import esphome.codegen as cg
 from esphome.components import select
+from esphome.core import CORE
 import esphome.config_validation as cv
 import esphome.final_validate as fv
 
@@ -32,10 +33,9 @@ def validate_eq_presets(config):
     have_select_eq_mode = CONF_EQ_MODE in config
     have_eq_preset_left = CONF_EQ_PRESET_LEFT_CHANNEL in config
     have_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
-    is_dac_mode_btl = False
 
-    full_conf = fv.full_config.get()
-    audio_dac_confs = full_conf.get(CONF_AUDIO_DAC, [])
+    is_dac_mode_btl = False
+    audio_dac_confs = CORE.config.get(CONF_AUDIO_DAC, [])
     for audio_dac_conf in audio_dac_confs:
         if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
            audio_dac_id = audio_dac_conf.get(CONF_ID)
