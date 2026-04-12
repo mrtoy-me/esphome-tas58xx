@@ -5,7 +5,6 @@ import esphome.config_validation as cv
 import esphome.final_validate as fv
 
 from esphome.const import (
-   CONF_AUDIO_DAC,
    CONF_ID,
    CONF_PLATFORM,
    ENTITY_CATEGORY_CONFIG,
@@ -23,6 +22,7 @@ CONF_MIXER_MODE = "mixer_mode"
 CONF_EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 CONF_EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
 
+AUDIO_DAC_COMPONENT = "audio_dac"
 NUMBER_COMPONENT = "number"
 PLATFORM_TAS58XX = "tas58xx"
 DAC_MODE = "dac_mode"
@@ -35,7 +35,7 @@ def validate_eq_presets(config):
     have_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
 
     is_dac_mode_btl = False
-    audio_dac_confs = CORE.config.get(CONF_AUDIO_DAC, [])
+    audio_dac_confs = CORE.config.get(AUDIO_DAC_COMPONENT, [])
     for audio_dac_conf in audio_dac_confs:
         if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
            audio_dac_id = audio_dac_conf.get(CONF_ID)
