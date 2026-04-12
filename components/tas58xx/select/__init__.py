@@ -87,8 +87,6 @@ def _final_validate(config):
 
     is_dac_mode_btl = False
     all_audio_dac = full_conf.get(AUDIO_DAC_COMPONENT, [])
-    if  all_audio_dac is None:
-        raise cv.Invalid("Cannot find Audio Dac")
     for audio_dac_conf in all_audio_dac:
        if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
            audio_dac_id = audio_dac_conf.get(CONF_ID)
@@ -99,6 +97,9 @@ def _final_validate(config):
 
     if is_dac_mode_btl and have_eq_preset_left and not have_eq_preset_right:
         raise cv.Invalid("Select eq_preset_right must configured with eq_preset_left - add configuration for Select eq_preset_right")
+
+    if not is_dac_mode_btl and have_eq_preset_right:
+        raise cv.Invalid("Select eq_preset_right not required when dac_mode is PBTL - remove configuration for Select eq_preset_right")
 
     if have_eq_preset_right and not have_eq_preset_left:
         if is_dac_mode_btl:
