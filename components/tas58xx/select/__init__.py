@@ -37,11 +37,11 @@ def validate_eq_presets(config):
     is_dac_mode_btl = False
     audio_dac_confs = CORE.config.get(AUDIO_DAC_COMPONENT, [])
     for audio_dac_conf in audio_dac_confs:
-        if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-           audio_dac_id = audio_dac_conf.get(CONF_ID)
-           if audio_dac_id == config[CONF_TAS58XX_ID]:
-             if audio_dac_conf.get(DAC_MODE) == DAC_MODE_BTL:
-               is_dac_mode_btl = True
+       if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+        #    audio_dac_id = audio_dac_conf.get(CONF_ID)
+        #    if audio_dac_id == config[CONF_TAS58XX_ID]:
+        #      if audio_dac_conf.get(DAC_MODE) == DAC_MODE_BTL:
+        #        is_dac_mode_btl = True
                break
 
     if is_dac_mode_btl and have_eq_preset_left and not have_eq_preset_right:
