@@ -186,7 +186,7 @@ async def to_code(config):
       if left_eq_gain_exists():
           derived_eq_mode_configuration = EQ_15BAND
       else:
-        ok, gotid = select_eq_presets_exists()
+        ok, gotid = select_eq_presets_exists(config)
         if ok:
             if gotid is not None:
                 print(f"matching select tas58xx_id: {gotid}")
