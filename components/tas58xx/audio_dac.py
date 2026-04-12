@@ -164,12 +164,17 @@ def right_eq_gain_exists():
 
     return False
 
-def select_eq_presets_exists():
+def select_eq_presets_exists(config):
+    got_audio_dac_id = config.get("id")
     all_select = CORE.config.get(SELECT_COMPONENT, [])
     for select in all_select:
         if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            has_id = select.get(CONF_TAS58XX_ID)
             if EQ_PRESET_LEFT_CHANNEL in select:
-                return True
+                if has_id == got_audio_dac_id:
+                    return True, has_id
+                else:
+                    return False, None
 
     return False
 
@@ -181,10 +186,16 @@ async def to_code(config):
       if left_eq_gain_exists():
           derived_eq_mode_configuration = EQ_15BAND
       else:
-        if select_eq_presets_exists():
-            derived_eq_mode_configuration = EQ_PRESETS
+          ok, gotid = select_eq_presets_exists(config)
+          if ok:
+              print(f"matching select tas58xx_id: {gotid}")
+          else:
+              print(f"no matching tas58xx_id: defined in select")
+          derived_eq_mode_configuration = EQ_PRESETS
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
+    gotid = config.get("id")
+    print(f"found id: {gotid}")
 
     if config[CONF_ADDRESS] == ZERO_I2C_ADDR:
       if tas58xx_dac == TAS5805M_DAC:
