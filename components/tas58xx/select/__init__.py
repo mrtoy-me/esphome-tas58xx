@@ -35,7 +35,9 @@ def validate_eq_presets(config):
     have_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
 
     is_dac_mode_btl = False
-    # all_audio_dac = CORE.config.get(AUDIO_DAC_COMPONENT, [])
+    all_audio_dac = CORE.config.get(AUDIO_DAC_COMPONENT, [])
+    if  all_audio_dac is None:
+        raise cv.Invalid("Cannot find Audio Dac")
     # for audio_dac_conf in all_audio_dac:
       #  if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
         #    audio_dac_id = audio_dac_conf.get(CONF_ID)
