@@ -169,7 +169,8 @@ def select_eq_presets_exists():
     for select in all_select:
         if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
             gotit = select.get(CONF_TAS58XX_ID)
-            print('found select tas58xx_id', gotit)
+            # raise cv.Invalid("found select tas58xx_id: ",gotit)
+            print(f"found select tas58xx_id {gotit}")
             if EQ_PRESET_LEFT_CHANNEL in select:
                 return True
 
@@ -188,7 +189,7 @@ async def to_code(config):
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
     gotid = config.get("id")
-    print('found id', gotid)
+    print(f"found id: {gotid}")
 
     if config[CONF_ADDRESS] == ZERO_I2C_ADDR:
       if tas58xx_dac == TAS5805M_DAC:
