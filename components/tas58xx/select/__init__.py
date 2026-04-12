@@ -62,42 +62,47 @@ CONFIG_SCHEMA = cv.Schema(
 ).add_extra(validate_eq_presets)
 
 def _final_validate(config):
+    full_conf = fv.full_config.get()
 
-    have_matching_id = False
+    select_id_matches_audio_dac_id = False
+    number_id_matches_audio_dac_id = False
+
     this_audio_dac = None
+    audio_dac_id = None
 
     all_audio_dac = full_conf.get(AUDIO_DAC_COMPONENT, [])
     for audio_dac_conf in all_audio_dac:
        if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
            audio_dac_id = audio_dac_conf.get(CONF_ID)
            if audio_dac_id == config[CONF_TAS58XX_ID]:
-              have_matching_id = True
+              select_id_matches_audio_dac_id = True
               this_audio_dac = audio_dac_conf
               break
 
     have_defined_tas58xx_number_eq_gain = False
 
-    full_conf = fv.full_config.get()
     number_confs = full_conf.get(NUMBER_COMPONENT, [])
     for number_conf in number_confs:
         if number_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-           if have_matching_id and LEFT_EQ_GAIN_20HZ in number_conf:
+           number_id_matches_audio_dac_id = number_conf.get(CONF_TAS58XX_ID) == audio_dac_id
+           if number_id_matches_audio_dac_id and LEFT_EQ_GAIN_20HZ in number_conf:
                have_defined_tas58xx_number_eq_gain = True
                break
 
-    have_select_eq_mode = have_matching_id and CONF_EQ_MODE in config
-    have_eq_preset_left = have_matching_id and CONF_EQ_PRESET_LEFT_CHANNEL in config
-    have_eq_preset_right = have_matching_id and CONF_EQ_PRESET_RIGHT_CHANNEL in config
+    have_select_eq_mode = select_id_matches_audio_dac_id and CONF_EQ_MODE in config
+    have_eq_preset_left = select_id_matches_audio_dac_id and CONF_EQ_PRESET_LEFT_CHANNEL in config
+    have_eq_preset_right = select_id_matches_audio_dac_id and CONF_EQ_PRESET_RIGHT_CHANNEL in config
+
     have_defined_tas58xx_select_eq_preset = have_eq_preset_left or have_eq_preset_right
-    if have_matching_id:
+
+    if select_id_matches_audio_dac_id:
         if (have_defined_tas58xx_select_eq_preset and have_defined_tas58xx_number_eq_gain):
             raise cv.Invalid("Select eq_presets are not allowed with Number left_eq_gains and/or right_eq_gains - remove one set of those configurations")
 
         if (not have_select_eq_mode and have_defined_tas58xx_number_eq_gain):
             raise cv.Invalid("Select eq_mode is required with Number left_eq_gains - add Select eq_mode to YAML configuration")
 
-
-        is_dac_mode_btl = (this_audio_dac is not None and (this_audio_dac.get(DAC_MODE) == DAC_MODE_BTL))
+        is_dac_mode_btl = this_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
 
         if is_dac_mode_btl and have_eq_preset_left and not have_eq_preset_right:
             raise cv.Invalid("Select eq_preset_right must configured with eq_preset_left - add configuration for Select eq_preset_right")
@@ -110,32 +115,6 @@ def _final_validate(config):
                 raise cv.Invalid("Select eq_preset_left must configured with eq_preset_right - add configuration for Select eq_preset_left")
             else:
                 raise cv.Invalid("Select eq_preset_left should configured rather than eq_preset_right - add configuration for Select eq_preset_left")
-
-    have_select_eq_mode = CONF_EQ_MODE in config
-    have_eq_preset_left = CONF_EQ_PRESET_LEFT_CHANNEL in config
-    have_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
-
-    is_dac_mode_btl = False
-    all_audio_dac = full_conf.get(AUDIO_DAC_COMPONENT, [])
-    for audio_dac_conf in all_audio_dac:
-       if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-           audio_dac_id = audio_dac_conf.get(CONF_ID)
-           if audio_dac_id == config[CONF_TAS58XX_ID]:
-             if audio_dac_conf.get(DAC_MODE) == DAC_MODE_BTL:
-               is_dac_mode_btl = True
-               break
-
-    if is_dac_mode_btl and have_eq_preset_left and not have_eq_preset_right:
-        raise cv.Invalid("Select eq_preset_right must configured with eq_preset_left - add configuration for Select eq_preset_right")
-
-    if not is_dac_mode_btl and have_eq_preset_right:
-        raise cv.Invalid("Select eq_preset_right not required when dac_mode is PBTL - remove configuration for Select eq_preset_right")
-
-    if have_eq_preset_right and not have_eq_preset_left:
-        if is_dac_mode_btl:
-            raise cv.Invalid("Select eq_preset_left must configured with eq_preset_right - add configuration for Select eq_preset_left")
-        else:
-            raise cv.Invalid("Select eq_preset_left should configured rather than eq_preset_right - add configuration for Select eq_preset_left")
 
     return config
 

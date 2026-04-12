@@ -4,12 +4,13 @@ import esphome.config_validation as cv
 import esphome.final_validate as fv
 
 from esphome.const import (
+    CONF_ID,
     CONF_PLATFORM,
     DEVICE_CLASS_SOUND_PRESSURE,
     ENTITY_CATEGORY_CONFIG,
     UNIT_DECIBEL,
 )
-
+AUDIO_DAC_COMPONENT = "audio_dac"
 SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
 EQ_MODE = "eq_mode"
@@ -148,24 +149,39 @@ def validate_eq_gain_numbers(config):
     return config
 
 def _final_validate(config):
+    full_conf = fv.full_config.get()
+
+    select_id_matches_audio_dac_id = False
+    number_id_matches_audio_dac_id = False
+
+    audio_dac_id = None
+
+    all_audio_dac = full_conf.get(AUDIO_DAC_COMPONENT, [])
+    for audio_dac_conf in all_audio_dac:
+       if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+           audio_dac_id = audio_dac_conf.get(CONF_ID)
+           if audio_dac_id == config[CONF_TAS58XX_ID]:
+              number_id_matches_audio_dac_id = True
+              break
+
+
     have_defined_tas58xx_select_eq_preset = False
     have_defined_tas58xx_select_eq_mode = False
 
-    have_defined_tas58xx_number_eq_gains = (CONF_LEFT_EQ_GAIN_20HZ in config or CONF_RIGHT_EQ_GAIN_20HZ in config)
+    have_defined_tas58xx_number_eq_gains = number_id_matches_audio_dac_id  and (CONF_LEFT_EQ_GAIN_20HZ in config or CONF_RIGHT_EQ_GAIN_20HZ in config)
 
-    full_conf = fv.full_config.get()
     select_confs = full_conf.get(SELECT_COMPONENT, [])
 
     for select_conf in select_confs:
         if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-           if EQ_MODE in select_conf:
+            if (select_conf.get(CONF_TAS58XX_ID) == audio_dac_id) and EQ_MODE in select_conf:
                have_defined_tas58xx_select_eq_mode = True
                break
 
     for select_conf in select_confs:
         if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-           if EQ_PRESET_LEFT_CHANNEL in select_conf:
-               have_defined_tas58xx_select_eq_preset = True
+           if (select_conf.get(CONF_TAS58XX_ID) == audio_dac_id) and EQ_PRESET_LEFT_CHANNEL in select_conf:
+               have_defined_tas58xx_select_eq_preset = select_id_matches_audio_dac_id
                break
 
     if (have_defined_tas58xx_number_eq_gains and not have_defined_tas58xx_select_eq_mode):
