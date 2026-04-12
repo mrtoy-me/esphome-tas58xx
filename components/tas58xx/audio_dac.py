@@ -164,18 +164,17 @@ def right_eq_gain_exists():
 
     return False
 
-def select_eq_presets_exists():
+def select_eq_presets_exists(config):
+    got_audio_dac_id = config.get("id")
     all_select = CORE.config.get(SELECT_COMPONENT, [])
     for select in all_select:
         if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
             has_id = select.get(CONF_TAS58XX_ID)
             if EQ_PRESET_LEFT_CHANNEL in select:
-                if has_id is not None:
+                if has_id == got_audio_dac_id:
                     return True, has_id
                 else:
-                    return True, None
-            else:
-                return False, None
+                    return False, None
 
     return False
 
