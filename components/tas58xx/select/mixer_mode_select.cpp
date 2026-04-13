@@ -5,22 +5,21 @@ namespace esphome::tas58xx {
 
 static constexpr const char* TAG = "tas58xx.select";
 
-#ifdef USE_DAC_MODE_PBTL
-// only last three MixerModes are valid for Select
-static constexpr uint8_t MAX_SELECT_INDEX = 2;
-static constexpr uint8_t MIN_MIXER_MODE = 2; // Mono
-#else
-// all five possible MixerModes are valid for Select
-static constexpr uint8_t MAX_SELECT_INDEX = 4;
-static constexpr uint8_t MIN_MIXER_MODE = 0; // Stereo
-#endif
+uint8_t MAX_SELECT_INDEX;
+uint8_t MIN_MIXER_MODE;
 
 void MixerModeSelect::setup() {
-  #ifdef USE_DAC_MODE_PBTL
-  this->traits.set_options({"MONO", "RIGHT", "LEFT"});
-  #else
-  this->traits.set_options({"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"});
-  #endif
+  if (this->parent_->get_configured_dac_mode()) {
+    // PBTL
+    MAX_SELECT_INDEX = 2;
+    MIN_MIXER_MODE = 2; // index in parent for Mono
+    this->traits.set_options({"MONO", "RIGHT", "LEFT"});
+  } else {
+    // BTL
+    MAX_SELECT_INDEX = 4;
+    MIN_MIXER_MODE = 0; // index in parent for Stereo
+    this->traits.set_options({"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"});
+  }
 
   size_t restored_index;
 

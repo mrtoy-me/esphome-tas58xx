@@ -213,9 +213,6 @@ async def to_code(config):
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
 
-    if config[CONF_DAC_MODE] == "PBTL":
-        cg.add_define("USE_DAC_MODE_PBTL")
-
     if tas58xx_dac == TAS5805M_DAC:
         cg.add_define("USE_TAS5805M_DAC")
     else:

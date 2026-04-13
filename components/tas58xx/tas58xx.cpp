@@ -297,6 +297,10 @@ void Tas58xxComponent::enable_dac(bool enable) {
   enable ? this->set_deep_sleep_off_() : this->set_deep_sleep_on_();
 }
 
+uint8_t Tas58xxComponent::get_configured_dac_mode() {
+   return static_cast<uint8_t>(this->tas58xx_dac_mode_); // BTL = 0 , PBTL = 1
+}
+
 // used by select eq mode
 uint8_t Tas58xxComponent::get_configured_eq_mode() {
   return static_cast<uint8_t>(this->configured_eq_mode_);

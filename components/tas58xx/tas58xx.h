@@ -75,6 +75,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void enable_dac(bool enable);
 
+  uint8_t get_configured_dac_mode();
+
   uint8_t get_configured_eq_mode();
 
   uint8_t get_mixer_mode();
@@ -139,9 +141,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 #endif
 
    bool read_fault_registers_();
-
-   void calc_eq_biquad_();
-   void log_biquad_(uint8_t* biquad);
 
    // low level functions
    bool set_book_and_page_(uint8_t book, uint8_t page);
