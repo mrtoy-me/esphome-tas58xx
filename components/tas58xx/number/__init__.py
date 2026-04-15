@@ -4,6 +4,7 @@ import esphome.config_validation as cv
 import esphome.final_validate as fv
 
 from esphome.const import (
+    CONF_AUDIO_DAC,
     CONF_ID,
     CONF_PLATFORM,
     DEVICE_CLASS_SOUND_PRESSURE,
@@ -13,6 +14,8 @@ from esphome.const import (
 AUDIO_DAC_COMPONENT = "audio_dac"
 SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
+DAC_MODE = "dac_mode"
+DAC_MODE_BTL = "BTL"
 EQ_MODE = "eq_mode"
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 
@@ -137,15 +140,6 @@ def validate_eq_gain_numbers(config):
     if (have_all_right_gains and not have_all_left_gains):
         raise cv.Invalid("Right EQ Gain Numbers must have all 15 Left EQ Gain numbers also configured")
 
-    have_channel_volume_left = CONF_CHANNEL_VOLUME_LEFT in config
-    have_channel_volume_right = CONF_CHANNEL_VOLUME_RIGHT in config
-
-    if (have_channel_volume_left and not have_channel_volume_right):
-        raise cv.Invalid("channel_volume_right must be configured with channel_volume_left - Add channel_volume_right to YAML configuration")
-
-    if (have_channel_volume_right and not have_channel_volume_left):
-        raise cv.Invalid("channel_volume_left must be configured with channel_volume_right - Add channel_volume_left to YAML configuration")
-
     return config
 
 def _final_validate(config):
@@ -154,16 +148,32 @@ def _final_validate(config):
     select_id_matches_audio_dac_id = False
     number_id_matches_audio_dac_id = False
 
+    this_audio_dac = None
     audio_dac_id = None
 
-    all_audio_dac = full_conf.get(AUDIO_DAC_COMPONENT, [])
+    all_audio_dac = full_conf.get(CONF_AUDIO_DAC, [])
     for audio_dac_conf in all_audio_dac:
        if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
            audio_dac_id = audio_dac_conf.get(CONF_ID)
            if audio_dac_id == config[CONF_TAS58XX_ID]:
               number_id_matches_audio_dac_id = True
+              this_audio_dac = audio_dac_conf
               break
 
+    is_dac_mode_btl = this_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
+
+    have_channel_volume_left = number_id_matches_audio_dac_id and CONF_CHANNEL_VOLUME_LEFT in config
+    have_channel_volume_right = number_id_matches_audio_dac_id and CONF_CHANNEL_VOLUME_RIGHT in config
+
+    if is_dac_mode_btl:
+        if (have_channel_volume_left and not have_channel_volume_right):
+            raise cv.Invalid("channel_volume_right must be configured with channel_volume_left - Add channel_volume_right to YAML configuration")
+
+        if (have_channel_volume_right and not have_channel_volume_left):
+            raise cv.Invalid("channel_volume_left must be configured with channel_volume_right - Add channel_volume_left to YAML configuration")
+    else:
+        if (have_channel_volume_right):
+            raise cv.Invalid("In PBTL Dac Mode, channel_volume_right must not be configured - Remove this form YAML configuration")
 
     have_defined_tas58xx_select_eq_preset = False
     have_defined_tas58xx_select_eq_mode = False
