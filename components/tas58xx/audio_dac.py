@@ -215,7 +215,7 @@ async def to_code(config):
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
     freq_data = config[CONF_REDEFINE_EQ_FREQ]
     freq_var_id = ID(
-        f"eq_freq_config_{[CONF_ID]}", is_declaration=True, type=cg.uint16
+        f"eq_freq_config_{config[CONF_ID]}", is_declaration=True, type=cg.uint16
     )
     freq_var = cg.static_const_array(
         freq_var_id, cg.ArrayInitializer(*freq_data)
