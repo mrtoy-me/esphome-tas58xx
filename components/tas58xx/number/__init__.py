@@ -11,7 +11,7 @@ from esphome.const import (
     ENTITY_CATEGORY_CONFIG,
     UNIT_DECIBEL,
 )
-AUDIO_DAC_COMPONENT = "audio_dac"
+
 SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
 DAC_MODE = "dac_mode"
@@ -138,65 +138,64 @@ def validate_eq_gain_numbers(config):
             raise cv.Invalid("All 15 Right EQ Gain numbers must be configured")
 
     if (have_all_right_gains and not have_all_left_gains):
-        raise cv.Invalid("Right EQ Gain Numbers must have all 15 Left EQ Gain numbers also configured")
+        raise cv.Invalid("When Right EQ Gain Numbers are configured, all 15 Left EQ Gain numbers must also be configured")
 
     return config
 
 def _final_validate(config):
     full_conf = fv.full_config.get()
 
-    select_id_matches_audio_dac_id = False
-    number_id_matches_audio_dac_id = False
+    this_number_id = config[CONF_TAS58XX_ID]
+    have_this_number_eq_gains = CONF_LEFT_EQ_GAIN_20HZ in config or CONF_RIGHT_EQ_GAIN_20HZ in config
 
-    this_audio_dac = None
-    audio_dac_id = None
-
-    # find the audic dac ID that matches the number ID
-    all_audio_dac = full_conf.get(CONF_AUDIO_DAC, [])
-    for audio_dac_conf in all_audio_dac:
-       if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-           audio_dac_id = audio_dac_conf.get(CONF_ID)
-           if audio_dac_id == config[CONF_TAS58XX_ID]:
-              number_id_matches_audio_dac_id = True
-              this_audio_dac = audio_dac_conf
-              break
-
-    if number_id_matches_audio_dac_id:
-        is_dac_mode_btl = this_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
-
-        have_channel_volume_left = CONF_CHANNEL_VOLUME_LEFT in config
-        have_channel_volume_right = CONF_CHANNEL_VOLUME_RIGHT in config
-
-        if is_dac_mode_btl:
-            if (have_channel_volume_left and not have_channel_volume_right):
-                raise cv.Invalid("channel_volume_right must be configured with channel_volume_left - Add channel_volume_right to YAML configuration")
-
-            if (have_channel_volume_right and not have_channel_volume_left):
-                raise cv.Invalid("channel_volume_left must be configured with channel_volume_right - Add channel_volume_left to YAML configuration")
-        else:
-            if (have_channel_volume_right):
-                raise cv.Invalid("channel_volume_right is not required when dac_mode is PBTL - Remove channel_volume_right from YAML configuration")
-
-    have_defined_tas58xx_number_eq_gains = number_id_matches_audio_dac_id and (CONF_LEFT_EQ_GAIN_20HZ in config or CONF_RIGHT_EQ_GAIN_20HZ in config)
-
-    if have_defined_tas58xx_number_eq_gains:
-        have_defined_tas58xx_select_eq_preset = False
-        have_defined_tas58xx_select_eq_mode = False
+    if have_this_number_eq_gains:
+        have_select_eq_mode = False
+        have_select_eq_preset = False
         # find the select ID with EQ Mode that matches this number ID and the audio_dac ID
         select_confs = full_conf.get(SELECT_COMPONENT, [])
         for select_conf in select_confs:
             if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-                if (select_conf.get(CONF_TAS58XX_ID) == audio_dac_id):
-                    have_defined_tas58xx_select_eq_mode = EQ_MODE in select_conf
-                    have_defined_tas58xx_select_eq_preset = EQ_PRESET_LEFT_CHANNEL in select_conf
+                if select_conf.get(CONF_TAS58XX_ID) == this_number_id:
+                    have_select_eq_mode = EQ_MODE in select_conf
+                    have_select_eq_preset = EQ_PRESET_LEFT_CHANNEL in select_conf
                     break
 
-        # have_defined_tas58xx_number_eq_gains = True
-        if (not have_defined_tas58xx_select_eq_mode):
-            raise cv.Invalid("Select eq_mode must be configured with left_eq_gains - Add Select eq_mode to YAML configuration")
+        # have_this_number_eq_gains and
+        if (not have_select_eq_mode):
+            raise cv.Invalid("Select eq_mode is required with Left EQ Gain numbers - add Select eq_mode to YAML configuration")
 
-        if (have_defined_tas58xx_select_eq_preset):
-            raise cv.Invalid("left_eq_gains and right_eq_gains are not allowed with Select eq_presets - Remove one set of those configurations")
+        # have_this_number_eq_gains and
+        if (have_select_eq_preset):
+            raise cv.Invalid("Left EQ Gain numbers and Right EQ Gain numbers are not allowed with Select eq_presets - remove one set of those configurations")
+
+
+    audio_dac_id_matches_number_id = False
+    matching_audio_dac = None
+    # find the audic dac ID that matches the number ID
+    all_audio_dac = full_conf.get(CONF_AUDIO_DAC, [])
+    for audio_dac_conf in all_audio_dac:
+       if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+           if audio_dac_conf.get(CONF_ID) == this_number_id:
+                audio_dac_id_matches_number_id = True
+                matching_audio_dac = audio_dac_conf
+                break
+
+    if audio_dac_id_matches_number_id:
+        is_dac_mode_btl = matching_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
+
+        have_this_number_channel_volume_left = CONF_CHANNEL_VOLUME_LEFT in config
+        have_this_number_channel_volume_right = CONF_CHANNEL_VOLUME_RIGHT in config
+
+        if is_dac_mode_btl:
+            if (have_this_number_channel_volume_left and not have_this_number_channel_volume_right):
+                raise cv.Invalid("channel_volume_right is required with channel_volume_left - add channel_volume_right to YAML configuration")
+
+            if (have_this_number_channel_volume_right and not have_this_number_channel_volume_left):
+                raise cv.Invalid("channel_volume_left is required with channel_volume_right - add channel_volume_left to YAML configuration")
+        else:
+            if (have_this_number_channel_volume_right):
+                raise cv.Invalid("channel_volume_right is not required when dac_mode is PBTL - remove channel_volume_right from YAML configuration")
+
     return config
 
 FINAL_VALIDATE_SCHEMA = _final_validate

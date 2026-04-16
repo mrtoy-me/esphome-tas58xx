@@ -10,6 +10,7 @@ from esphome.const import (
     CONF_ADDRESS,
     CONF_ENABLE_PIN,
     CONF_ID,
+    CONF_NUMBER,
     CONF_PLATFORM,
 )
 
@@ -19,7 +20,6 @@ DEPENDENCIES = ["i2c"]
 
 # yaml configuration constants
 CONF_ANALOG_GAIN = "analog_gain"
-CONF_AUDIO_DAC = "audio_dac"
 CONF_DAC_MODE = "dac_mode"
 CONF_MODULATION = "modulation"
 CONF_TAS58XX_DAC = "tas58xx_dac"
@@ -31,13 +31,12 @@ CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 
 # used for looking through CORE.config to derive eq configuration
-NUMBER_COMPONENT= "number"
-SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
+SELECT_COMPONENT = "select"
+
+EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
 RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
-EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
-FROM_SUB = "FROM_SUB"
 
 # eq mode enum and select index values
 EQ_OFF = 0
@@ -50,7 +49,7 @@ TAS5805M_DAC = "TAS5805M"
 TAS5825M_DAC = "TAS5825M"
 
 # i2c addresses of dac models
-ZERO_I2C_ADDR = 0x00
+DUMMY_I2C_ADDR = 0x00
 TAS5805M_I2C_ADDR = 0x2D
 TAS5825M_I2C_ADDR = 0x4C
 
@@ -141,62 +140,51 @@ CONFIG_SCHEMA = cv.All(
         }
     )
     .extend(cv.polling_component_schema("1s"))
-    .extend(i2c.i2c_device_schema(ZERO_I2C_ADDR))
+    .extend(i2c.i2c_device_schema(DUMMY_I2C_ADDR))
     .add_extra(validate_config),
     cv.only_on_esp32,
 )
 
-def left_eq_gain_exists(config):
-    got_audio_dac_id = config.get(CONF_ID)
-    all_numbers = CORE.config.get(NUMBER_COMPONENT, [])
+def get_configured_number_eq_gains(config):
+    audio_dac_id = config.get(CONF_ID)
+    all_numbers = CORE.config.get(CONF_NUMBER, [])
     for num in all_numbers:
         if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            has_id = num.get(CONF_TAS58XX_ID)
-            if LEFT_EQ_GAIN_20HZ in num:
-                if has_id == got_audio_dac_id:
-                    return True
-    return False
+            if num.get(CONF_TAS58XX_ID) == audio_dac_id:
+                return LEFT_EQ_GAIN_20HZ in num, RIGHT_EQ_GAIN_20HZ in num
+    return False, False
 
-def right_eq_gain_exists(config):
-    got_audio_dac_id = config.get(CONF_ID)
-    all_numbers = CORE.config.get(NUMBER_COMPONENT, [])
-    for num in all_numbers:
-        if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            has_id = num.get(CONF_TAS58XX_ID)
-            if RIGHT_EQ_GAIN_20HZ in num:
-                if has_id == got_audio_dac_id:
-                    return True
-    return False
-
-def select_eq_presets_exists(config):
-    got_audio_dac_id = config.get(CONF_ID)
+def select_eq_presets_configured(config):
+    audio_dac_id = config.get(CONF_ID)
     all_select = CORE.config.get(SELECT_COMPONENT, [])
     for select in all_select:
         if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            has_id = select.get(CONF_TAS58XX_ID)
-            if EQ_PRESET_LEFT_CHANNEL in select:
-                if has_id == got_audio_dac_id:
-                    return True
+            if select.get(CONF_TAS58XX_ID) == audio_dac_id:
+                return EQ_PRESET_LEFT_CHANNEL in select
     return False
 
 async def to_code(config):
     derived_eq_mode_configuration = EQ_OFF
-    if right_eq_gain_exists(config):
+    number_left_eq_gain_configured, number_right_eq_gain_configured = get_configured_number_eq_gains(config)
+    if number_right_eq_gain_configured:
         derived_eq_mode_configuration  = EQ_BIAMP
     else:
-        if left_eq_gain_exists(config):
+        if number_left_eq_gain_configured:
             derived_eq_mode_configuration = EQ_15BAND
         else:
-            if select_eq_presets_exists(config):
-              derived_eq_mode_configuration = EQ_PRESETS
+            if select_eq_presets_configured(config):
+                derived_eq_mode_configuration = EQ_PRESETS
 
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
 
-    if config[CONF_ADDRESS] == ZERO_I2C_ADDR:
-      if tas58xx_dac == TAS5805M_DAC:
-        config[CONF_ADDRESS] = TAS5805M_I2C_ADDR
-      else:
-        config[CONF_ADDRESS] = TAS5825M_I2C_ADDR
+    # when the user has not defined an audio dac i2c address
+    # CONF_ADDRESS == DUMMY_I2C_ADDR
+    # and it needs to be correctly assigned based on the defined tas58xx_dac
+    if config[CONF_ADDRESS] == DUMMY_I2C_ADDR:
+        if tas58xx_dac == TAS5805M_DAC:
+            config[CONF_ADDRESS] = TAS5805M_I2C_ADDR
+        else:
+            config[CONF_ADDRESS] = TAS5825M_I2C_ADDR
 
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
