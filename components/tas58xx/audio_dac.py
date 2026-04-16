@@ -107,7 +107,7 @@ def validate_config(config):
     return config
 
 def validate_eq_freq(value):
-    if not cv.ensure_list(cv.int_range(0, 16000))(value):
+    if not cv.ensure_list(cv.uint16_t, cv.int_range(0, 16000))(value):
         raise cv.Invalid("frequency are not in correct range")
     if len(value) != 15:
         raise cv.Invalid("You must specify 15 frequencies")
