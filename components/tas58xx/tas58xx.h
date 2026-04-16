@@ -189,8 +189,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool eq_configured_{false};
 #endif
 
-   uint8_t redefined_eq_frequencies_length_;
-   const uint16_t* redefined_eq_frequencies_;
+   uint8_t redefined_eq_frequencies_length_{0};
+   const uint16_t* redefined_eq_frequencies_{NULL};
 
    int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
 
