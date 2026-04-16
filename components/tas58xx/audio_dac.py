@@ -1,7 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
-from esphome.core import CORE
+from esphome.core import CORE, ID
 from esphome.components import i2c
 from esphome.components.audio_dac import AudioDac
 from esphome import pins
@@ -29,6 +29,7 @@ CONF_REFRESH_EQ = "refresh_eq"
 CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
+CONF_REDEFINE_EQ_FREQ = "redefine_eq_freq"
 
 # used for looking through CORE.config to derive eq configuration
 PLATFORM_TAS58XX = "tas58xx"
@@ -105,6 +106,17 @@ def validate_config(config):
         raise cv.Invalid("volume_max must at least 9db greater than volume_min")
     return config
 
+# def validate_eq_freq(value) -> list[int]:
+#     processed: list[int] = []
+#     try:
+#         # Try to validate as list of hex bytes
+#         frequencies = cv.ensure_list(cv.uint16_t)(value)
+#         processed.append(frequencies)
+#     except cv.Invalid:
+#         raise cv.Invalid("invalid frequency type")
+#     return processed
+
+
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
@@ -137,6 +149,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_VOLUME_MIN, default=-103): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
+            cv.Optional(CONF_REDEFINE_EQ_FREQ): cv.ensure_list(cv.uint16_t)
         }
     )
     .extend(cv.polling_component_schema("1s"))
@@ -200,6 +213,14 @@ async def to_code(config):
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
+    freq_data = config[CONF_REDEFINE_EQ_FREQ]
+    freq_var_id = ID(
+        f"eq_freq_config_{[CONF_ID]}", is_declaration=True, type=cg.uint16
+    )
+    freq_var = cg.static_const_array(
+        freq_var_id, cg.ArrayInitializer(*freq_data)
+    )
+    cg.add(var.add_eq_freq(freq_var, len(freq_data)))
 
     if tas58xx_dac == TAS5805M_DAC:
         cg.add_define("USE_TAS5805M_DAC")

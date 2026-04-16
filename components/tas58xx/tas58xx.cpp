@@ -267,6 +267,9 @@ void Tas58xxComponent::dump_config() {
               this->eq_refresh_ ? "MANUAL" : "AUTO"
               );
       LOG_UPDATE_INTERVAL(this);
+      for (uint8_t i = 0; i < this->eq_freq_size_ ; i++) {
+        ESP_LOGW(TAG, "EQ Freq: %d = %d", i, this->new_eq_freq_[i]);
+      }
       break;
   }
 
