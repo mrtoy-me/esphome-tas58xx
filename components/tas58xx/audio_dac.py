@@ -29,7 +29,7 @@ CONF_REFRESH_EQ = "refresh_eq"
 CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
-CONF_REDEFINE_EQ_FREQ = "redefine_eq_freq"
+CONF_CUSTOM_EQ_FREQS = "custom_eq_freqs"
 
 # used for looking through CORE.config to derive eq configuration
 PLATFORM_TAS58XX = "tas58xx"
@@ -38,6 +38,9 @@ SELECT_COMPONENT = "select"
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
 RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
+
+# EQ Bands
+NUMBER_EQ_BANDS = 15
 
 # eq mode enum and select index values
 EQ_OFF = 0
@@ -106,12 +109,12 @@ def validate_config(config):
         raise cv.Invalid("volume_max must at least 9db greater than volume_min")
     return config
 
-def validate_eq_freq(value):
+def validate_eq_frequencies(value):
     processed = cv.ensure_list(cv.uint16_t, cv.int_range(0, 16000))(value)
     if not processed:
-        raise cv.Invalid("frequency are not in correct range")
+        raise cv.Invalid("One or more EQ Band frequencies are not in correct range")
     if len(value) != 15:
-        raise cv.Invalid("You must specify 15 frequencies")
+        raise cv.Invalid("You must specify 15 EQ Band frequencies")
     return processed
 
 CONFIG_SCHEMA = cv.All(
@@ -146,7 +149,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_VOLUME_MIN, default=-103): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
-            cv.Optional(CONF_REDEFINE_EQ_FREQ): validate_eq_freq
+            cv.Optional(CONF_CUSTOM_EQ_FREQS): validate_eq_frequencies
         }
     )
     .extend(cv.polling_component_schema("1s"))
@@ -211,14 +214,14 @@ async def to_code(config):
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
 
-    eq_frequency_list = config[CONF_REDEFINE_EQ_FREQ]
-    eq_frequency_list_id = ID(
-        f"user_defined_eq_frequencies_{config[CONF_ID]}", is_declaration=True, type=cg.uint16
-    )
-    frequency_list_pointer = cg.static_const_array(
-        eq_frequency_list_id, cg.ArrayInitializer(*eq_frequency_list)
-    )
-    cg.add(var.config_eq_frequencies(frequency_list_pointer, len(eq_frequency_list)))
+    if eq_frequency_list := config.get(CONF_CUSTOM_EQ_FREQS):
+        eq_frequency_list_id = ID(
+            f"user_defined_eq_frequencies_{config[CONF_ID]}", is_declaration=True, type=cg.uint16
+        )
+        frequency_list_pointer = cg.static_const_array(
+            eq_frequency_list_id, cg.ArrayInitializer(*eq_frequency_list)
+        )
+        cg.add(var.config_eq_frequencies(frequency_list_pointer, len(eq_frequency_list)))
 
     if tas58xx_dac == TAS5805M_DAC:
         cg.add_define("USE_TAS5805M_DAC")
