@@ -81,12 +81,11 @@ def _final_validate(config):
     if have_number_left_eq_gain:
         # have_number_left_eq_gain and
         if have_this_select_eq_preset_left or have_this_select_eq_preset_right:
-            raise cv.Invalid("Select eq_presets are not allowed with Left EQ Gain numbers - remove one set of those configurations")
+            raise cv.Invalid("Select eq_presets are not allowed with EQ Gain numbers - remove one set of those configurations")
 
         # have_number_left_eq_gain and
         if not have_this_select_eq_mode:
-            raise cv.Invalid("Select eq_mode is required with Left EQ Gain numbers - add Select eq_mode to YAML configuration")
-
+            raise cv.Invalid("Select eq_mode is required with EQ Gain numbers - add Select eq_mode to YAML configuration")
 
     audio_dac_id_matches_select_id = False
     matching_audio_dac = None
@@ -110,6 +109,10 @@ def _final_validate(config):
         if not is_dac_mode_btl:
             if have_this_select_eq_preset_right:
                 raise cv.Invalid("Select eq_preset_right is not required when dac_mode is PBTL - remove Select eq_preset_right from YAML configuration")
+
+    # wait to validate until after other validations
+    if have_this_select_eq_mode and (not have_number_left_eq_gain) and (not have_this_select_eq_preset_left):
+        raise cv.Invalid("Select eq_mode applies only when Select EQ Presets or EQ Gain numbers are configured - remove Select eq_mode from YAML configuration")
 
     return config
 

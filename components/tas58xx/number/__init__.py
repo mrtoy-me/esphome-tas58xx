@@ -166,7 +166,7 @@ def _final_validate(config):
 
         # have_this_number_eq_gains and
         if (have_select_eq_preset):
-            raise cv.Invalid("Left EQ Gain numbers and Right EQ Gain numbers are not allowed with Select eq_presets - remove one set of those configurations")
+            raise cv.Invalid("EQ Gain numbers are not allowed with Select eq_presets - remove one set of those configurations")
 
 
     audio_dac_id_matches_number_id = False
