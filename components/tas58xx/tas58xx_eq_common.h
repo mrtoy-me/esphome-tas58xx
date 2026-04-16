@@ -73,10 +73,10 @@ static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"
 static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
 // static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"NO SUB", "LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};
 // static constexpr const char* CROSSBAR_INPUT_TEXT[] = {"FROM LEFT", "FROM RIGHT", "FROM SUB"};
-//static constexpr const uint16_t EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {20, 32, 50, 80, 125, 200, 315, 500, 800, 1250, 2000, 3150, 5000, 8000, 16000};
-static constexpr const uint16_t EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000};
-//static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.0, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
-static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.144908, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
+static constexpr const uint16_t EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {20, 32, 50, 80, 125, 200, 315, 500, 800, 1250, 2000, 3150, 5000, 8000, 16000};
+//static constexpr const uint16_t EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000};
+static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.0, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
+//static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.144908, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
 
 
 // EQ Gain constants
