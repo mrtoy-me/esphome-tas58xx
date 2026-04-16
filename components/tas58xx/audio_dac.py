@@ -106,16 +106,12 @@ def validate_config(config):
         raise cv.Invalid("volume_max must at least 9db greater than volume_min")
     return config
 
-# def validate_eq_freq(value) -> list[int]:
-#     processed: list[int] = []
-#     try:
-#         # Try to validate as list of hex bytes
-#         frequencies = cv.ensure_list(cv.uint16_t)(value)
-#         processed.append(frequencies)
-#     except cv.Invalid:
-#         raise cv.Invalid("invalid frequency type")
-#     return processed
-
+def validate_eq_freq(value):
+    if not cv.ensure_list(cv.int_range(0, 16000))(value):
+        raise cv.Invalid("frequency are not in correct range")
+    if len(value) != 15:
+        raise cv.Invalid("You must specify 15 frequencies")
+    return value
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
@@ -149,7 +145,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_VOLUME_MIN, default=-103): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
-            cv.Optional(CONF_REDEFINE_EQ_FREQ): cv.ensure_list(cv.uint16_t)
+            cv.Optional(CONF_REDEFINE_EQ_FREQ): validate_eq_freq
         }
     )
     .extend(cv.polling_component_schema("1s"))
