@@ -191,7 +191,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    //uint16_t new_eq_freq_[NUMBER_EQ_BANDS]{0};
    uint8_t eq_freq_size_;
 
-   uint16_t* eq_frequencies_pointer_;
+   uint16_t* this->eq_freq_pointer_;
 
    int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
 
