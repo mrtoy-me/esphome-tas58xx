@@ -210,14 +210,15 @@ async def to_code(config):
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
-    freq_data = config[CONF_REDEFINE_EQ_FREQ]
-    freq_var_id = ID(
-        f"eq_freq_config_{config[CONF_ID]}", is_declaration=True, type=cg.uint16
+
+    eq_frequency_list = config[CONF_REDEFINE_EQ_FREQ]
+    eq_frequency_list_id = ID(
+        f"user_defined_eq_frequencies_{config[CONF_ID]}", is_declaration=True, type=cg.uint16
     )
-    freq_var = cg.static_const_array(
-        freq_var_id, cg.ArrayInitializer(*freq_data)
+    frequency_list_pointer = cg.static_const_array(
+        eq_frequency_list_id, cg.ArrayInitializer(*eq_frequency_list)
     )
-    cg.add(var.add_eq_freq(freq_var, len(freq_data)))
+    cg.add(var.config_eq_frequencies(frequency_list_pointer, len(eq_frequency_list)))
 
     if tas58xx_dac == TAS5805M_DAC:
         cg.add_define("USE_TAS5805M_DAC")

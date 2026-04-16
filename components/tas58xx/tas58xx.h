@@ -51,9 +51,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = static_cast<int8_t>(volume_max); }
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = static_cast<int8_t>(volume_min); }
 
-  void add_eq_freq(const uint16_t *eq_freq_data, size_t eq_freq_data_length) {
-    this->eq_freq_size_ = eq_freq_data_length;
-    this->eq_freq_pointer_ = eq_freq_data;
+  void config_eq_frequencies(const uint16_t *eq_frequencies, size_t eq_frequencies_length) {
+    this->user_eq_frequencies_ = eq_frequencies;
+    this->user_eq_frequencies_length_ = eq_frequencies_length;
   }
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
@@ -180,15 +180,17 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    DacMode tas58xx_dac_mode_; // configured in YAML
 
+   uint8_t user_eq_frequencies_length_;  // determined from YAML
+   const uint16_t* user_eq_frequencies_; // configured in YAML
+
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
    bool eq_configured_{true};
 #else
    bool eq_configured_{false};
 #endif
-   //uint16_t new_eq_freq_[NUMBER_EQ_BANDS]{0};
-   const uint8_t eq_freq_size_;
 
-   const uint16_t* eq_freq_pointer_;
+   uint8_t redefined_eq_frequencies_length_;
+   const uint16_t* redefined_eq_frequencies_;
 
    int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
 
