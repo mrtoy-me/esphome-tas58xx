@@ -53,7 +53,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void add_eq_freq(const uint16_t *eq_freq_data, size_t eq_freq_data_length) {
     this->eq_freq_size_ = eq_freq_data_length;
-    this->eq_freq_pointer_ = const_cast<uint16_t*>eq_freq_data;
+    this->eq_freq_pointer_ = const_cast<uint16_t*>(eq_freq_data);
     // for (uint8_t i = 0; i < eq_freq_data_length; i++) {
     //   this->new_eq_freq_[i] = eq_freq_data[i];
     // }
