@@ -35,14 +35,14 @@ namespace esphome::tas58xx_helpers {
     static constexpr uint32_t SCALE = 1u << FRACTIONAL_BITS;
 
     // valid 5.27 range
-    static constexpr double MAX_VALUE =  256.0 - 1.0 / SCALE;
+    static constexpr double MAX_VALUE =  256.0 - 1.0 / static_cast<double>(SCALE);
     static constexpr double MIN_VALUE = -256.0;
 
     if (x > MAX_VALUE) x = MAX_VALUE;
     if (x < MIN_VALUE) x = MIN_VALUE;
 
     // scale to fixed 5.27
-    double scaled =  x * SCALE;
+    double scaled =  x * static_cast<double>(SCALE);
     int32_t fixed_5_27 = std::round(scaled);
 
     // saturate to 32 bit
@@ -57,79 +57,78 @@ namespace esphome::tas58xx_helpers {
   }
 
   // Equalizer Bandwidth filter calculation
-  BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float qFactor) {
+  BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
-    double beta, x, b0, b1, b2, a1, a2;
-
-    float linear_gain = powf(10.0, static_cast<float>(gain) / 20.0);
+    float linear_gain = std::powf(10.0, static_cast<float>(gain) / 20.0);
     double t0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
 
+    double beta;
     if (linear_gain >= 1.0) {
-      beta = t0 / (2.0 *  qFactor);
+      beta = t0 / (2.0 *  q_factor);
     } else {
-      beta = t0 / (2.0 * linear_gain *  qFactor);
+      beta = t0 / (2.0 * linear_gain *  q_factor);
     }
 
-    // original   a2 = -0.5 * (1 - beta) / (1 + beta);
-    // (1 - beta) / (1 + beta) <==> 1.0 - (2 * beta)/(1 + beta)
-    // equivalent a2 = -0.5 * (1.0 - ((2 * beta) / (1 + beta)));
+    // Simpify Original: = -0.5*(1-b)/(1+b)
+    // Flip the sign into the numerator: = 0.5*(b−1)/1+b
+    // Rewrite (b-1) as (1+b)-2: = 0.5*((1+b)−2)/1+b
+    // Split the fraction: =(0.5*(1+b)/1+b) − (1/1+b)
+    // (1+b) cancels in the left term: =0.5−(1/1+b)
 
-    a2 = -0.5 + (beta / (1.0 + beta)); // simpified equivalent
+    double a2 = 0.5 - (1.0 / (1.0 + beta)); // simpified equivalent
 
-    x = (linear_gain - 1.0) * (0.25 + 0.5 * a2);
+    double x = (linear_gain - 1.0) * (0.25 + (0.5 * a2));
 
-    a1 = (0.5 - a2) * std::cos(t0);
-    b0 = x + 0.5;
-    b1 = -a1;
-    b2 = -x - a2;
+    double a1 = (0.5 - a2) * std::cos(t0);
 
-    b0 = 2.0 * b0;
-    b1 = 2.0 * b1;
-    b2 = 2.0 * b2;
-    a1 = -2.0 * a1;
-    a2 = -2.0 * a2;
+    // Original  = simpify and pass direct to double_to_5_27
+    // b0 = x + 0.5;
+    // b1 = -a1;
+    // b2 = -x - a2;
+
+    // b0 = 2.0 * b0;
+    // b1 = 2.0 * b1;
+    // b2 = 2.0 * b2;
+    // a1 = -2.0 * a1;
+    // a2 = -2.0 * a2;
 
     BiquadCoefficients result{};
 
-    result.b0 = double_to_5_27(b0);
-    result.b1 = double_to_5_27(b1);
-    result.b2 = double_to_5_27(b2);
-    result.a1 = double_to_5_27(-a1);
-    result.a2 = double_to_5_27(-a2);
+    result.b0 = double_to_5_27( 1.0 + (2.0 * x) );
+    result.b1 = double_to_5_27( -2.0 * a1 );
+    result.b2 = double_to_5_27( -2.0 * (x + a2) );
+    result.a1 = double_to_5_27( 2.0 * a1) ;
+    result.a2 = double_to_5_27( 2.0 * a2 );
 
     return result;
   }
 
 
-  BiquadCoefficients equalizer_lowshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float qFactor) {
-    float  a_gain = sqrt(powf(10.0, static_cast<float>(gain) / 20.0));
+  BiquadCoefficients equalizer_lowshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+
+    float a = std::sqrt(std::powf(10.0, static_cast<float>(gain) / 20.0));
+    float a_plus1 = a + 1.0;
+    float a_minus1 = a - 1.0;
+
     double w0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
 
-    // A = Math.sqrt(Math.pow(10, gain / 20));
-    // wo = 2 * Math.PI * Number(freq) / Number(sampleRate);
-    double coswo = cos(wo);
+    double cosw0 = std::cos(w0);
+    double a_plus1_cosw0 = a_plus1 * cosw0;
+    double a_minus1_cosw0 = a_minus1 * cosw0;
 
-    double alpha = sin(wo) / (2.0 * qFactor);
-    double beta = 2.0 * sqrt(a_gain) * alpha;
-    double a_plus1_coswo = (a_gain + 1) * coswo;
-    double a_minus1_coswo = (a_gain - 1) * coswo;
+    double alpha = std::sin(w0) / (2.0 * q_factor);
 
-    double ao = (a_gain + 1) + a_minus1_coswo + beta;
+    double beta = 2.0 * std::sqrt(a) * alpha;
+
+    double a0 = a_plus1 + a_minus1_cosw0 + beta;
 
     BiquadCoefficients result{};
 
-    result.b0 = double_to_5_27( a_gain * ((a_gain + 1) - a_minus1_coswo + beta) / ao );
-    result.b1 = double_to_5_27( 2.0 * a_gain * ((a_gain - 1) - a_plus1_coswo) / ao );
-    result.b2 = double_to_5_27( a_gain * ((a_gain + 1) - a_minus1_coswo - beta) /ao );
-    result.a1 = double_to_5_27( 2.0 * ((a_gain - 1) + a_plus1_coswo) / ao );
-    result.a2 = double_to_5_27( -((a_gain + 1) + a_minus1_coswo - beta) / ao) ;
-
-    // ao = (a_gain + 1) + (a_gain - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha;
-    // rtnval.bo = A * ((A + 1) - (A - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha) / ao;
-    // rtnval.b1 = 2 * A * ((A - 1) - (A + 1)*Math.cos(wo)) / ao;
-    // rtnval.b2 = A * ((A + 1) - (A - 1)*Math.cos(wo) - 2 * (Math.sqrt(A)) * alpha) / ao;
-    // rtnval.a1 = 2 * ((A - 1) + (A + 1)*Math.cos(wo)) / ao;
-    // rtnval.a2 = -((A + 1) + (A - 1)*Math.cos(wo) - 2 * (Math.sqrt(A)) * alpha) / ao;
+    result.b0 = double_to_5_27( a * (a_plus1- a_minus1_cosw0 + beta) / a0 );
+    result.b1 = double_to_5_27( 2.0 * a * (a_minus1 - a_plus1_cosw0) / a0 );
+    result.b2 = double_to_5_27( a * (a_plus1 - a_minus1_cosw0 - beta) / a0 );
+    result.a1 = double_to_5_27( 2.0 * (a_minus1 + a_plus1_cosw0) / a0 );
+    result.a2 = double_to_5_27( -(a_plus1 + a_minus1_cosw0 - beta) / a0 ) ;
 
     return result;
 };
