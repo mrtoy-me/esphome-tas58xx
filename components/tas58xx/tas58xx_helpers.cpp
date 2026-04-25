@@ -52,7 +52,7 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_5_27);
 
-    //ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
+    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
     return little_endian;
   }
 
@@ -99,5 +99,39 @@ namespace esphome::tas58xx_helpers {
 
     return result;
   }
+
+
+  BiquadCoefficients equalizer_lowshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float qFactor) {
+    float  a_gain = sqrt(powf(10.0, static_cast<float>(gain) / 20.0));
+    double w0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
+
+    // A = Math.sqrt(Math.pow(10, gain / 20));
+    // wo = 2 * Math.PI * Number(freq) / Number(sampleRate);
+    double coswo = cos(wo);
+
+    double alpha = sin(wo) / (2.0 * qFactor);
+    double beta = 2.0 * sqrt(a_gain) * alpha;
+    double a_plus1_coswo = (a_gain + 1) * coswo;
+    double a_minus1_coswo = (a_gain - 1) * coswo;
+
+    double ao = (a_gain + 1) + a_minus1_coswo + beta;
+
+    BiquadCoefficients result{};
+
+    result.b0 = double_to_5_27( a_gain * ((a_gain + 1) - a_minus1_coswo + beta) / ao );
+    result.b1 = double_to_5_27( 2.0 * a_gain * ((a_gain - 1) - a_plus1_coswo) / ao );
+    result.b2 = double_to_5_27( a_gain * ((a_gain + 1) - a_minus1_coswo - beta) /ao );
+    result.a1 = double_to_5_27( 2.0 * ((a_gain - 1) + a_plus1_coswo) / ao );
+    result.a2 = double_to_5_27( -((a_gain + 1) + a_minus1_coswo - beta) / ao) ;
+
+    // ao = (a_gain + 1) + (a_gain - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha;
+    // rtnval.bo = A * ((A + 1) - (A - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha) / ao;
+    // rtnval.b1 = 2 * A * ((A - 1) - (A + 1)*Math.cos(wo)) / ao;
+    // rtnval.b2 = A * ((A + 1) - (A - 1)*Math.cos(wo) - 2 * (Math.sqrt(A)) * alpha) / ao;
+    // rtnval.a1 = 2 * ((A - 1) + (A + 1)*Math.cos(wo)) / ao;
+    // rtnval.a2 = -((A + 1) + (A - 1)*Math.cos(wo) - 2 * (Math.sqrt(A)) * alpha) / ao;
+
+    return result;
+};
 
 }  // namespace esphome::tas58xx_helpers

@@ -489,6 +489,10 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
     return false;
   }
   ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
+
+  ESP_LOGD(TAG, "Low Shelf Test %s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
+  tas58xx_helpers::BiquadCoefficients biquad =
+      tas58xx_helpers::equalizer_lowshelf_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[0]);
 #endif
   return true;
 }
