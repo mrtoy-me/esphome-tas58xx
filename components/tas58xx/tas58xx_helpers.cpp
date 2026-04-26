@@ -97,7 +97,7 @@ namespace esphome::tas58xx_helpers {
     result.b0 = double_to_5_27( 1.0 + (2.0 * x) );
     result.b1 = double_to_5_27( -2.0 * a1 );
     result.b2 = double_to_5_27( -2.0 * (x + a2) );
-    result.a1 = double_to_5_27( 2.0 * a1) ;
+    result.a1 = double_to_5_27( 2.0 * a1 ) ;
     result.a2 = double_to_5_27( 2.0 * a2 );
 
     return result;
