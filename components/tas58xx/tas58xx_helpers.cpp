@@ -52,14 +52,14 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_5_27);
 
-    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
+    //ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
     return little_endian;
   }
 
   // Equalizer Bandwidth filter calculation
   BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
-    float linear_gain = std::powf(10.0, static_cast<float>(gain) / 20.0);
+    double linear_gain = std::powf(10.0, static_cast<float>(gain) / 20.0);
     double t0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
 
     double beta;
@@ -106,29 +106,38 @@ namespace esphome::tas58xx_helpers {
 
   BiquadCoefficients equalizer_lowshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
-    float a = std::sqrt(std::powf(10.0, static_cast<float>(gain) / 20.0));
-    float a_plus1 = a + 1.0;
-    float a_minus1 = a - 1.0;
+    //double a = std::powf(10.0, gain / 40.0);
+    const double sqrt_a = std::powf(10.0, gain / 80.0);
+    const double a = sqrt_a * sqrt_a;
+    double a_plus1 = a + 1.0;
+    double a_minus1 = a - 1.0;
 
-    double w0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
+    double w0 = 2.0 * std::numbers::pi * frequency / sample_rate;
 
     double cosw0 = std::cos(w0);
     double a_plus1_cosw0 = a_plus1 * cosw0;
     double a_minus1_cosw0 = a_minus1 * cosw0;
 
-    double alpha = std::sin(w0) / (2.0 * q_factor);
+    double ap_p_amc = a_plus1 + a_minus1_cosw0;
+    double ap_m_amc = a_plus1 - a_minus1_cosw0;
 
-    double beta = 2.0 * std::sqrt(a) * alpha;
+    //double alpha = std::sin(w0) / (2.0 * q_factor);
 
-    double a0 = a_plus1 + a_minus1_cosw0 + beta;
+    //double beta = 2.0 * std::sqrt(a) * std::sin(w0) / (2.0 * q_factor); //alpha;
+    //double beta = std::sqrt(a) * std::sin(w0) / q_factor; //alpha;
+    double beta = sqrt_a * std::sin(w0) / q_factor; //alpha;
+
+    double inverse_a0 = 1.0 / (ap_p_amc + beta);
+
+    //double a0 = ap_p_amc + beta;
 
     BiquadCoefficients result{};
 
-    result.b0 = double_to_5_27( a * (a_plus1- a_minus1_cosw0 + beta) / a0 );
-    result.b1 = double_to_5_27( 2.0 * a * (a_minus1 - a_plus1_cosw0) / a0 );
-    result.b2 = double_to_5_27( a * (a_plus1 - a_minus1_cosw0 - beta) / a0 );
-    result.a1 = double_to_5_27( 2.0 * (a_minus1 + a_plus1_cosw0) / a0 );
-    result.a2 = double_to_5_27( -(a_plus1 + a_minus1_cosw0 - beta) / a0 ) ;
+    result.b0 = double_to_5_27( a * (ap_m_amc + beta) * inverse_a0 );
+    result.b1 = double_to_5_27( 2.0 * a * (a_minus1 - a_plus1_cosw0) * inverse_a0 );
+    result.b2 = double_to_5_27( a * (ap_m_amc - beta) * inverse_a0 );
+    result.a1 = double_to_5_27( 2.0 * (a_minus1 + a_plus1_cosw0) * inverse_a0 );
+    result.a2 = double_to_5_27( (beta - ap_p_amc) * inverse_a0 ) ;
 
     return result;
 };
