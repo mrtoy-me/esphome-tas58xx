@@ -1,7 +1,7 @@
 #include "tas58xx_helpers.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
-#include <cmath>
+//#include <cmath>
 
 namespace esphome::tas58xx_helpers {
 
@@ -35,45 +35,52 @@ namespace esphome::tas58xx_helpers {
     static constexpr uint32_t SCALE = 1u << FRACTIONAL_BITS;
 
     // valid 5.27 range
-    static constexpr double MAX_VALUE =  256.0 - 1.0 / static_cast<double>(SCALE);
+    static constexpr double MAX_VALUE =  256.0 - (1.0 / SCALE);
     static constexpr double MIN_VALUE = -256.0;
 
     if (x > MAX_VALUE) x = MAX_VALUE;
     if (x < MIN_VALUE) x = MIN_VALUE;
 
     // scale to fixed 5.27
-    double scaled =  x * static_cast<double>(SCALE);
-    int32_t fixed_5_27 = std::round(scaled);
+    double scaled =  x * SCALE;
+    int64_t fixed_5_27 = std::llround(scaled);
 
-    // saturate to 32 bit
+    //saturate to 32 bit
     if (fixed_5_27 >  std::numeric_limits<int32_t>::max()) fixed_5_27 =  std::numeric_limits<int32_t>::max();
     if (fixed_5_27 <  std::numeric_limits<int32_t>::min()) fixed_5_27 =  std::numeric_limits<int32_t>::min();
 
     // convert to 32 bit little endian
-    int32_t little_endian = byteswap(fixed_5_27);
+    int32_t little_endian = byteswap(static_cast<int32_t>(fixed_5_27));
 
-    //ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
+    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
     return little_endian;
   }
 
   // Equalizer Bandwidth filter calculation
   BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
-    double linear_gain = std::powf(10.0, static_cast<float>(gain) / 20.0);
-    double t0 = 2.0 * std::numbers::pi * static_cast<float>(frequency) / static_cast<float>(sample_rate);
+    double linear_gain = std::powf(10.0f, gain / 20.0f);
+    double t0 = 2.0 * std::numbers::pi * frequency / sample_rate;
 
+    float q_factor_x2 = 2.0f * q_factor;
     double beta;
-    if (linear_gain >= 1.0) {
-      beta = t0 / (2.0 *  q_factor);
+    if (gain >= 0) {
+      beta = t0 / q_factor_x2;
     } else {
-      beta = t0 / (2.0 * linear_gain *  q_factor);
+      beta = t0 / (linear_gain * q_factor_x2);
     }
 
-    // Simpify Original: = -0.5*(1-b)/(1+b)
-    // Flip the sign into the numerator: = 0.5*(b−1)/1+b
-    // Rewrite (b-1) as (1+b)-2: = 0.5*((1+b)−2)/1+b
-    // Split the fraction: =(0.5*(1+b)/1+b) − (1/1+b)
-    // (1+b) cancels in the left term: =0.5−(1/1+b)
+    // if (linear_gain >= 1.0) {
+    //   beta = t0 / (2.0 *  q_factor);
+    // } else {
+    //   beta = t0 / (2.0 * linear_gain *  q_factor);
+    // }
+
+    // Simpify Original <=> -0.5 * (1 - beta) / (1 + beta)
+    // Flip the sign into the numerator <=> 0.5 * (beta − 1) / (1 + beta)
+    // Rewrite (beta - 1) as (1 + beta - 2) <=> 0.5 * ((1 + beta) − 2) / (1 + beta)
+    // Split the fraction <=> (0.5 * (1 + beta)) / (1 + beta) − (1 / (1 + beta))
+    // (1 + beta) cancels in the left term <=> 0.5 − (1 / (1 + beta))
 
     double a2 = 0.5 - (1.0 / (1.0 + beta)); // simpified equivalent
 
@@ -81,7 +88,7 @@ namespace esphome::tas58xx_helpers {
 
     double a1 = (0.5 - a2) * std::cos(t0);
 
-    // Original  = simpify and pass direct to double_to_5_27
+    // Original -> simpify and pass direct to double_to_5_27
     // b0 = x + 0.5;
     // b1 = -a1;
     // b2 = -x - a2;
@@ -106,30 +113,33 @@ namespace esphome::tas58xx_helpers {
 
   BiquadCoefficients equalizer_lowshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
-    //double a = std::powf(10.0, gain / 40.0);
-    const double sqrt_a = std::powf(10.0, gain / 80.0);
-    const double a = sqrt_a * sqrt_a;
+    // originally
+    // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
+
+    // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
+    double sqrt_a = std::powf(10.0f, gain / 80.0f);
+    double a = sqrt_a * sqrt_a;
+
     double a_plus1 = a + 1.0;
     double a_minus1 = a - 1.0;
 
     double w0 = 2.0 * std::numbers::pi * frequency / sample_rate;
+    double sinw0, cosw0;
+    sincos(w0, &sinw0, &cosw0);
 
-    double cosw0 = std::cos(w0);
     double a_plus1_cosw0 = a_plus1 * cosw0;
     double a_minus1_cosw0 = a_minus1 * cosw0;
 
     double ap_p_amc = a_plus1 + a_minus1_cosw0;
     double ap_m_amc = a_plus1 - a_minus1_cosw0;
 
-    //double alpha = std::sin(w0) / (2.0 * q_factor);
+    // originally
+    // alpha = sin(w0) / (2.0 * q_factor);
+    // beta = 2.0 * sqrt(a) * sin(w0) / (2.0 * q_factor);
+    double beta = sqrt_a * sinw0 / q_factor;
 
-    //double beta = 2.0 * std::sqrt(a) * std::sin(w0) / (2.0 * q_factor); //alpha;
-    //double beta = std::sqrt(a) * std::sin(w0) / q_factor; //alpha;
-    double beta = sqrt_a * std::sin(w0) / q_factor; //alpha;
-
+    // originally a0 = ap_p_amc + beta but multiplication more efficient than division
     double inverse_a0 = 1.0 / (ap_p_amc + beta);
-
-    //double a0 = ap_p_amc + beta;
 
     BiquadCoefficients result{};
 
@@ -142,4 +152,79 @@ namespace esphome::tas58xx_helpers {
     return result;
 };
 
+BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+
+    // originally
+    // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
+
+    // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
+    double sqrt_a = std::powf(10.0f, gain / 80.0f);
+    double a = sqrt_a * sqrt_a;
+
+    double a_plus1 = a + 1.0;
+    double a_minus1 = a - 1.0;
+
+    double w0 = 2.0 * std::numbers::pi * frequency / sample_rate;
+    double sinw0, cosw0;
+    sincos(w0, &sinw0, &cosw0);
+
+    double a_plus1_cosw0 = a_plus1 * cosw0;
+    double a_minus1_cosw0 = a_minus1 * cosw0;
+
+    double ap_p_amc = a_plus1 + a_minus1_cosw0;
+    double ap_m_amc = a_plus1 - a_minus1_cosw0;
+
+    // originally
+    // alpha = sin(w0) / (2.0 * q_factor);
+    // beta = 2.0 * sqrt(a) * sin(w0) / (2.0 * q_factor);
+    double beta = sqrt_a * sinw0 / q_factor;
+
+    // originally a0 = ap_p_amc + beta but multiplication more efficient than division
+    double inverse_a0 = 1.0 / (ap_m_amc + beta);
+
+    BiquadCoefficients result{};
+
+    result.b0 = double_to_5_27( a * (ap_p_amc + beta) * inverse_a0 );
+    result.b1 = double_to_5_27( -2.0 * a * (a_minus1 + a_plus1_cosw0) * inverse_a0 );
+    result.b2 = double_to_5_27( a * (ap_p_amc - beta) * inverse_a0 );
+    result.a1 = double_to_5_27( -2.0 * (a_minus1 - a_plus1_cosw0) * inverse_a0 );
+    result.a2 = double_to_5_27( (beta - ap_m_amc) * inverse_a0 ) ;
+
+    return result;
+};
+//  var lowShelfCalc = function (gain, freq, sampleRate, qVal) {
+//             var A, wo, alpha, ao;
+//             var rtnval = {};
+
+//             A = Math.sqrt(Math.pow(10, gain / 20));
+//             wo = 2 * Math.PI * Number(freq) / Number(sampleRate);
+//             alpha = Math.sin(wo) / (2 * qVal);
+
+//             ao = (A + 1) + (A - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha;
+//             rtnval.bo = A * ((A + 1) - (A - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha) / ao;
+//             rtnval.b1 = 2 * A * ((A - 1) - (A + 1)*Math.cos(wo)) / ao;
+//             rtnval.b2 = A * ((A + 1) - (A - 1)*Math.cos(wo) - 2 * (Math.sqrt(A)) * alpha) / ao;
+//             rtnval.a1 = 2 * ((A - 1) + (A + 1)*Math.cos(wo)) / ao;
+//             rtnval.a2 = -((A + 1) + (A - 1)*Math.cos(wo) - 2 * (Math.sqrt(A)) * alpha) / ao;
+
+//             return rtnval;
+//         };
+
+//         var highShelfCalc = function (gain, freq, sampleRate, qVal) {
+//             var A, wo, alpha, ao;
+//             var rtnval = {};
+
+//             A = Math.sqrt(Math.pow(10, Number(gain) / 20));
+//             wo = 2 * Math.PI * Number(freq) / Number(sampleRate);
+//             alpha = Math.sin(wo) / (2 * qVal);
+
+//             ao = (A + 1) - (A - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha;
+//             rtnval.bo = A * ((A + 1) + (A - 1)*Math.cos(wo) + 2 * Math.sqrt(A) * alpha) / ao;
+//             rtnval.b1 = -2 * A * ((A - 1) + (A + 1)*Math.cos(wo)) / ao;
+//             rtnval.b2 = A * ((A + 1) + (A - 1)*Math.cos(wo) - 2 * Math.sqrt(A) * alpha) / ao;
+//             rtnval.a1 = -2 * ((A - 1) - (A + 1)*Math.cos(wo)) / ao;
+//             rtnval.a2 = -((A + 1) - (A - 1)*Math.cos(wo) - 2 * Math.sqrt(A) * alpha) / ao;
+
+//             return rtnval;
+//         };
 }  // namespace esphome::tas58xx_helpers
