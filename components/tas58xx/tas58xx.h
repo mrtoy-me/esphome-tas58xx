@@ -14,10 +14,10 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
 
-#ifdef USE_TAS58XX_EQ_GAINS
-#include "esphome/components/number/number.h"
-#include "number/left_eq_gain_20hz.h"
-#endif
+// #ifdef USE_TAS58XX_EQ_GAINS
+// #include "esphome/components/number/number.h"
+// #include "number/left_eq_gain_20hz.h"
+// #endif
 
 namespace esphome::tas58xx {
 
@@ -60,9 +60,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
     this->user_eq_frequencies_ = eq_frequencies;
     this->user_eq_frequencies_length_ = eq_frequencies_length;
   }
-#ifdef USE_TAS58XX_EQ_GAINS
-void set_band1(number::Number *band1) { gain_band1_ = band1; }
-#endif
+// #ifdef USE_TAS58XX_EQ_GAINS
+// void set_band1(number::Number *band1) { gain_band1_ = band1; }
+// #endif
 #ifdef USE_TAS58XX_BINARY_SENSOR
   void config_exclude_fault(ExcludeIgnoreMode exclude_fault) {
     this->exclude_clock_fault_from_have_faults_ = (exclude_fault == ExcludeIgnoreMode::CLOCK_FAULT);
@@ -118,9 +118,9 @@ void set_band1(number::Number *band1) { gain_band1_ = band1; }
   bool set_volume(float value) override;
 
  protected:
-#ifdef USE_TAS58XX_EQ_GAINS
-   number::Number *gain_band1_;
-#endif
+// #ifdef USE_TAS58XX_EQ_GAINS
+//    number::Number *gain_band1_;
+// #endif
 
    GPIOPin* enable_pin_{nullptr};
 

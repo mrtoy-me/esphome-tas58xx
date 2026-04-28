@@ -60,7 +60,8 @@ from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
 ChannelVolumeLeft = tas58xx_ns.class_("ChannelVolumeLeft", number.Number, cg.Component)
 ChannelVolumeRight = tas58xx_ns.class_("ChannelVolumeRight", number.Number, cg.Component)
 
-LeftEqGain20hz = tas58xx_ns.class_("LeftEqGain20hz", number.Number, cg.Component, cg.Parented.template(Tas58xxComponent))
+#LeftEqGain20hz = tas58xx_ns.class_("LeftEqGain20hz", number.Number, cg.Component, cg.Parented.template(Tas58xxComponent))
+LeftEqGain20hz = tas58xx_ns.class_("LeftEqGain20hz", number.Number, cg.Component)
 LeftEqGain31p5hz = tas58xx_ns.class_("LeftEqGain31p5hz", number.Number, cg.Component)
 LeftEqGain50hz = tas58xx_ns.class_("LeftEqGain50hz", number.Number, cg.Component)
 LeftEqGain80hz = tas58xx_ns.class_("LeftEqGain80hz", number.Number, cg.Component)
@@ -518,7 +519,7 @@ async def to_code(config):
         )
         await cg.register_component(n, left_gain_20hz_config)
         await cg.register_parented(n, tas58xx_component)
-        cg.add(tas58xx_component.set_band1(n))
+        #cg.add(tas58xx_component.set_band1(n))
 
     if left_gain_31p5hz_config := config.get(CONF_LEFT_EQ_GAIN_31P5HZ):
         n = await number.new_number(

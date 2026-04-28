@@ -12,8 +12,8 @@ class LeftEqGain20hz : public number::Number, public Component, public Parented<
   void setup() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
-  
-  void remote_control(float value);
+
+  // void remote_control(float value);
 
  protected:
   void control(float value) override;
