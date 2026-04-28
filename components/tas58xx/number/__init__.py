@@ -519,7 +519,7 @@ async def to_code(config):
         )
         await cg.register_component(n, left_gain_20hz_config)
         await cg.register_parented(n, tas58xx_component)
-        #cg.add(tas58xx_component.set_band1(n))
+        cg.add(tas58xx_component.set_band1(n))
 
     if left_gain_31p5hz_config := config.get(CONF_LEFT_EQ_GAIN_31P5HZ):
         n = await number.new_number(

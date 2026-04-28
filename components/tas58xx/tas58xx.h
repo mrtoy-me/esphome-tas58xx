@@ -14,10 +14,10 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
 
-// #ifdef USE_TAS58XX_EQ_GAINS
-// #include "esphome/components/number/number.h"
-// #include "number/left_eq_gain_20hz.h"
-// #endif
+#ifdef USE_TAS58XX_EQ_GAINS
+#include "esphome/components/number/number.h"
+//#include "number/left_eq_gain_20hz.h"
+#endif
 
 namespace esphome::tas58xx {
 
@@ -118,9 +118,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   bool set_volume(float value) override;
 
  protected:
-// #ifdef USE_TAS58XX_EQ_GAINS
-//    number::Number *gain_band1_;
-// #endif
+#ifdef USE_TAS58XX_EQ_GAINS
+   number::Number *gain_band1_;
+#endif
 
    GPIOPin* enable_pin_{nullptr};
 
