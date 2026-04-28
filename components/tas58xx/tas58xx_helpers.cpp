@@ -61,7 +61,7 @@ namespace esphome::tas58xx_helpers {
   // Equalizer Bandwidth filter calculation
   BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
-    double linear_gain = pow(10.0, gain / 20.0);
+    double linear_gain = std::pow(10.0, gain / 20.0);
     double t0 = 2.0 * std::numbers::pi * frequency / sample_rate;
 
     float q_factor_x2 = 2.0f * q_factor;
@@ -88,7 +88,7 @@ namespace esphome::tas58xx_helpers {
 
     double x = (linear_gain - 1.0) * (0.25 + (0.5 * a2));
 
-    double a1 = (0.5 - a2) * cos(t0);
+    double a1 = (0.5 - a2) * std::cos(t0);
 
     // Original -> simpify and pass direct to double_to_5_27
     // b0 = x + 0.5;
@@ -119,7 +119,7 @@ namespace esphome::tas58xx_helpers {
     // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
 
     // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
-    double sqrt_a = pow(10.0, gain / 80.0);
+    double sqrt_a = std::pow(10.0, gain / 80.0);
     double a = sqrt_a * sqrt_a;
 
     double a_plus1 = a + 1.0;
@@ -160,7 +160,7 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
     // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
 
     // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
-    double sqrt_a = pow(10.0f, gain / 80.0f);
+    double sqrt_a = std::pow(10.0, gain / 80.0);
     double a = sqrt_a * sqrt_a;
 
     double a_plus1 = a + 1.0;
