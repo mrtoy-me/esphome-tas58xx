@@ -117,7 +117,7 @@ namespace esphome::tas58xx_helpers {
     // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
 
     // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
-    double sqrt_a = std::powf(10.0f, gain / 80.0f);
+    double sqrt_a = pow(10.0f, gain / 80.0f);
     double a = sqrt_a * sqrt_a;
 
     double a_plus1 = a + 1.0;
@@ -158,7 +158,7 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
     // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
 
     // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
-    double sqrt_a = std::powf(10.0f, gain / 80.0f);
+    double sqrt_a = pow(10.0f, gain / 80.0f);
     double a = sqrt_a * sqrt_a;
 
     double a_plus1 = a + 1.0;

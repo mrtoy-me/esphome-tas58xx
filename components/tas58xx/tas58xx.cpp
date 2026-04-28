@@ -503,7 +503,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   tas58xx_helpers::BiquadCoefficients biquad_highshelf =
       tas58xx_helpers::equalizer_highshelf_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
   end = micros();
-  ESP_LOGD(TAG, "Low Shelf Test %s Channel %s:%dHz Gain >> %ddB time >> %dus", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain, end - start);
+  ESP_LOGD(TAG, "High Shelf Test %s Channel %s:%dHz Gain >> %ddB time >> %dus", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain, end - start);
 #endif
   return true;
 }
