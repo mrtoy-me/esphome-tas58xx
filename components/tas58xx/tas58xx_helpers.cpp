@@ -44,15 +44,12 @@ namespace esphome::tas58xx_helpers {
     // scale to fixed 5.27
     double scaled =  x * SCALE;
 
+    // saturate to 32 bit
     int64_t long_fixed_5_27 = static_cast<int64_t>(scaled);
     if (long_fixed_5_27 >  INT_MAX) scaled =  INT_MAX;
     if (long_fixed_5_27 <  INT_MIN) scaled =  INT_MIN;
 
     int32_t fixed_5_27 = std::round(scaled);
-
-    //saturate to 32 bit
-    // if (fixed_5_27 >  std::numeric_limits<int32_t>::max()) fixed_5_27 =  std::numeric_limits<int32_t>::max();
-    // if (fixed_5_27 <  std::numeric_limits<int32_t>::min()) fixed_5_27 =  std::numeric_limits<int32_t>::min();
 
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_5_27);
@@ -64,7 +61,7 @@ namespace esphome::tas58xx_helpers {
   // Equalizer Bandwidth filter calculation
   BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
-    double linear_gain = std::powf(10.0, gain / 20.0);
+    double linear_gain = pow(10.0, gain / 20.0);
     double t0 = 2.0 * std::numbers::pi * frequency / sample_rate;
 
     float q_factor_x2 = 2.0f * q_factor;
