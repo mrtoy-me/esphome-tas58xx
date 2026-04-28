@@ -60,7 +60,7 @@ from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
 ChannelVolumeLeft = tas58xx_ns.class_("ChannelVolumeLeft", number.Number, cg.Component)
 ChannelVolumeRight = tas58xx_ns.class_("ChannelVolumeRight", number.Number, cg.Component)
 
-LeftEqGain20hz = tas58xx_ns.class_("LeftEqGain20hz", number.Number, cg.Component)
+LeftEqGain20hz = tas58xx_ns.class_("LeftEqGain20hz", number.Number, cg.Component, cg.Parented.template(Tas58xxComponent))
 LeftEqGain31p5hz = tas58xx_ns.class_("LeftEqGain31p5hz", number.Number, cg.Component)
 LeftEqGain50hz = tas58xx_ns.class_("LeftEqGain50hz", number.Number, cg.Component)
 LeftEqGain80hz = tas58xx_ns.class_("LeftEqGain80hz", number.Number, cg.Component)

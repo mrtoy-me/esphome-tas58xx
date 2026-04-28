@@ -21,6 +21,7 @@ void LeftEqGain20hz::dump_config() {
   #endif
   ESP_LOGCONFIG(TAG, "  20Hz Band '%s'", this->get_name().c_str());
 }
+
 void LeftEqGain20hz::remote_control(float value) {
   this->control(value);
 }
