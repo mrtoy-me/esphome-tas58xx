@@ -63,20 +63,15 @@ namespace esphome::tas58xx_helpers {
 
     double linear_gain = std::pow(10.0, gain / 20.0);
     double t0 = 2.0 * std::numbers::pi * frequency / sample_rate;
-
     float q_factor_x2 = 2.0f * q_factor;
+
     double beta;
+    // original linear_gain >= 1.0 <=> gain >= 0
     if (gain >= 0) {
       beta = t0 / q_factor_x2;
     } else {
       beta = t0 / (linear_gain * q_factor_x2);
     }
-
-    // if (linear_gain >= 1.0) {
-    //   beta = t0 / (2.0 *  q_factor);
-    // } else {
-    //   beta = t0 / (2.0 * linear_gain *  q_factor);
-    // }
 
     // Simpify Original <=> -0.5 * (1 - beta) / (1 + beta)
     // Flip the sign into the numerator <=> 0.5 * (beta − 1) / (1 + beta)
@@ -116,7 +111,7 @@ namespace esphome::tas58xx_helpers {
   BiquadCoefficients equalizer_lowshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
     // originally
-    // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
+    // a = sqrt(pow(10.0, gain / 40.0)) <=> a = pow(10.0, gain / 40.0);
 
     // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
     double sqrt_a = std::pow(10.0, gain / 80.0);
@@ -138,13 +133,13 @@ namespace esphome::tas58xx_helpers {
     // originally
     // alpha = sin(w0) / (2.0 * q_factor);
     // beta = 2.0 * sqrt(a) * sin(w0) / (2.0 * q_factor);
-    double beta = sqrt_a * sinw0 / q_factor;
+    double beta = sqrt_a * sinw0 / q_factor; // simplify
 
-    // originally a0 = ap_p_amc + beta but multiplication more efficient than division
     double inverse_a0 = 1.0 / (ap_p_amc + beta);
 
     BiquadCoefficients result{};
 
+    // originally used / a0 but multiplication of inverse more efficient than division
     result.b0 = double_to_5_27( a * (ap_m_amc + beta) * inverse_a0 );
     result.b1 = double_to_5_27( 2.0 * a * (a_minus1 - a_plus1_cosw0) * inverse_a0 );
     result.b2 = double_to_5_27( a * (ap_m_amc - beta) * inverse_a0 );
@@ -194,39 +189,5 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
 
     return result;
 };
-//  var lowShelfCalc = function (gain, freq, sampleRate, qVal) {
-//             var A, wo, alpha, ao;
-//             var rtnval = {};
 
-//             A = Math.sqrt(Math.pow(10, gain / 20));
-//             wo = 2 * Math.PI * Number(freq) / Number(sampleRate);
-//             alpha = Math.sin(wo) / (2 * qVal);
-
-//             ao = (A + 1) + (A - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha;
-//             rtnval.bo = A * ((A + 1) - (A - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha) / ao;
-//             rtnval.b1 = 2 * A * ((A - 1) - (A + 1)*Math.cos(wo)) / ao;
-//             rtnval.b2 = A * ((A + 1) - (A - 1)*Math.cos(wo) - 2 * (Math.sqrt(A)) * alpha) / ao;
-//             rtnval.a1 = 2 * ((A - 1) + (A + 1)*Math.cos(wo)) / ao;
-//             rtnval.a2 = -((A + 1) + (A - 1)*Math.cos(wo) - 2 * (Math.sqrt(A)) * alpha) / ao;
-
-//             return rtnval;
-//         };
-
-//         var highShelfCalc = function (gain, freq, sampleRate, qVal) {
-//             var A, wo, alpha, ao;
-//             var rtnval = {};
-
-//             A = Math.sqrt(Math.pow(10, Number(gain) / 20));
-//             wo = 2 * Math.PI * Number(freq) / Number(sampleRate);
-//             alpha = Math.sin(wo) / (2 * qVal);
-
-//             ao = (A + 1) - (A - 1)*Math.cos(wo) + 2 * (Math.sqrt(A)) * alpha;
-//             rtnval.bo = A * ((A + 1) + (A - 1)*Math.cos(wo) + 2 * Math.sqrt(A) * alpha) / ao;
-//             rtnval.b1 = -2 * A * ((A - 1) + (A + 1)*Math.cos(wo)) / ao;
-//             rtnval.b2 = A * ((A + 1) + (A - 1)*Math.cos(wo) - 2 * Math.sqrt(A) * alpha) / ao;
-//             rtnval.a1 = -2 * ((A - 1) - (A + 1)*Math.cos(wo)) / ao;
-//             rtnval.a2 = -((A + 1) - (A - 1)*Math.cos(wo) - 2 * Math.sqrt(A) * alpha) / ao;
-
-//             return rtnval;
-//         };
 }  // namespace esphome::tas58xx_helpers
