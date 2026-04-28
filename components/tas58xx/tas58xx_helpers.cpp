@@ -43,14 +43,19 @@ namespace esphome::tas58xx_helpers {
 
     // scale to fixed 5.27
     double scaled =  x * SCALE;
-    int64_t fixed_5_27 = std::llround(scaled);
+
+    int64_t long_fixed_5_27 = static_cast<int64_t>(scaled);
+    if (long_fixed_5_27 >  INT_MAX) scaled =  INT_MAX;
+    if (long_fixed_5_27 <  INT_MIN) scaled =  INT_MIN;
+
+    int32_t fixed_5_27 = std::round(scaled);
 
     //saturate to 32 bit
-    if (fixed_5_27 >  std::numeric_limits<int32_t>::max()) fixed_5_27 =  std::numeric_limits<int32_t>::max();
-    if (fixed_5_27 <  std::numeric_limits<int32_t>::min()) fixed_5_27 =  std::numeric_limits<int32_t>::min();
+    // if (fixed_5_27 >  std::numeric_limits<int32_t>::max()) fixed_5_27 =  std::numeric_limits<int32_t>::max();
+    // if (fixed_5_27 <  std::numeric_limits<int32_t>::min()) fixed_5_27 =  std::numeric_limits<int32_t>::min();
 
     // convert to 32 bit little endian
-    int32_t little_endian = byteswap(static_cast<int32_t>(fixed_5_27));
+    int32_t little_endian = byteswap(fixed_5_27);
 
     ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
     return little_endian;
@@ -59,7 +64,7 @@ namespace esphome::tas58xx_helpers {
   // Equalizer Bandwidth filter calculation
   BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
 
-    double linear_gain = std::powf(10.0f, gain / 20.0f);
+    double linear_gain = std::powf(10.0, gain / 20.0);
     double t0 = 2.0 * std::numbers::pi * frequency / sample_rate;
 
     float q_factor_x2 = 2.0f * q_factor;
@@ -86,7 +91,7 @@ namespace esphome::tas58xx_helpers {
 
     double x = (linear_gain - 1.0) * (0.25 + (0.5 * a2));
 
-    double a1 = (0.5 - a2) * std::cos(t0);
+    double a1 = (0.5 - a2) * cos(t0);
 
     // Original -> simpify and pass direct to double_to_5_27
     // b0 = x + 0.5;
@@ -117,7 +122,7 @@ namespace esphome::tas58xx_helpers {
     // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
 
     // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
-    double sqrt_a = pow(10.0f, gain / 80.0f);
+    double sqrt_a = pow(10.0, gain / 80.0);
     double a = sqrt_a * sqrt_a;
 
     double a_plus1 = a + 1.0;
@@ -179,7 +184,7 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
     // beta = 2.0 * sqrt(a) * sin(w0) / (2.0 * q_factor);
     double beta = sqrt_a * sinw0 / q_factor;
 
-    // originally a0 = ap_p_amc + beta but multiplication more efficient than division
+    // originally a0 = ap_m_amc + beta but multiplication more efficient than division
     double inverse_a0 = 1.0 / (ap_m_amc + beta);
 
     BiquadCoefficients result{};
