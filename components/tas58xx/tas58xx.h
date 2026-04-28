@@ -16,6 +16,7 @@
 
 #ifdef USE_TAS58XX_EQ_GAINS
 #include "esphome/components/number/number.h"
+#include "/number/left_eq_gain_20hz.h"
 #endif
 
 namespace esphome::tas58xx {
