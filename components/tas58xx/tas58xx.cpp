@@ -200,7 +200,7 @@ void Tas58xxComponent::update() {
     // publish all binary sensors as false on first update
 #ifdef USE_TAS58XX_BINARY_SENSOR
     this->publish_faults_();
-    this->gain_band1_->publish_state(15.0);
+    this->gain_band1_->make_call().set_value(15.0).perform();
 #endif
 
     // read and process faults from next update
