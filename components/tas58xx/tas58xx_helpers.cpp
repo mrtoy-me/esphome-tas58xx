@@ -1,7 +1,6 @@
 #include "tas58xx_helpers.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
-//#include <cmath>
 
 namespace esphome::tas58xx_helpers {
 
