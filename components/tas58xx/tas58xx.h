@@ -14,6 +14,10 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
 
+#ifdef USE_TAS58XX_EQ_GAINS
+#include "esphome/components/number/number.h"
+#endif
+
 namespace esphome::tas58xx {
 
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
