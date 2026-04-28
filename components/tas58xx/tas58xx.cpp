@@ -200,6 +200,7 @@ void Tas58xxComponent::update() {
     // publish all binary sensors as false on first update
 #ifdef USE_TAS58XX_BINARY_SENSOR
     this->publish_faults_();
+    this->gain_band1_->publish_state(15.0);
 #endif
 
     // read and process faults from next update
@@ -480,30 +481,16 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   }
 
   static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
-  uint32_t start = micros();
+
   tas58xx_helpers::BiquadCoefficients biquad =
       tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  uint32_t end = micros();
+
   if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
     ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
-
-  ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB time >> %dus", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain, end - start);
-
-
-  start = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_lowshelf =
-      tas58xx_helpers::equalizer_lowshelf_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  end = micros();
-  ESP_LOGD(TAG, "Low Shelf Test %s Channel %s:%dHz Gain >> %ddB time >> %dus", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain, end - start);
-
-  start = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_highshelf =
-      tas58xx_helpers::equalizer_highshelf_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  end = micros();
-  ESP_LOGD(TAG, "High Shelf Test %s Channel %s:%dHz Gain >> %ddB time >> %dus", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain, end - start);
+  ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB time >> %dus", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
 #endif
   return true;
 }
