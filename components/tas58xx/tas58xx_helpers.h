@@ -20,4 +20,6 @@ BiquadCoefficients equalizer_lowshelf_calc(uint32_t sample_rate, uint16_t freque
 
 BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor);
 
+BiquadCoefficients low_pass_butterworth2_calc(uint32_t sample_rate, uint16_t frequency);
+
 }  // namespace esphome::tas58xx_helpers

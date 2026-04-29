@@ -53,7 +53,7 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_5_27);
 
-    //ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
+    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
     return little_endian;
   }
 
@@ -188,5 +188,34 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
 
     return result;
 };
+
+BiquadCoefficients low_pass_butterworth2_calc(uint32_t sample_rate, uint16_t frequency) {
+
+  static constexpr double qfactor = 0.70710678118654752440;
+
+  double pi_freq = std::numbers::pi * frequency;
+  double wc = 2.0 * pi_freq;
+  double capital_a1 = wc / qfactor;
+  double wc_squared = wc * wc;
+  double k = wc / std::tan(pi_freq / sample_rate);
+  double inverse_denominator = 1 / ((k * (k + capital_a1)) + wc_squared);
+  double k_squared_minus_wc_squared = (k * k) - wc_squared;
+
+  double b0 = wc_squared * inverse_denominator;
+
+  BiquadCoefficients result{};
+
+  result.b0 = double_to_5_27( b0 );
+  result.b1 = double_to_5_27( 2.0 * b0 );
+  result.b2 = double_to_5_27( b0 );
+  result.a1 = double_to_5_27( (2.0 *  k_squared_minus_wc_squared) * inverse_denominator );
+  result.a2 = double_to_5_27( ((capital_a1 * k) -  k_squared_minus_wc_squared) * inverse_denominator );
+
+  return result;
+};
+
+
+
+
 
 }  // namespace esphome::tas58xx_helpers
