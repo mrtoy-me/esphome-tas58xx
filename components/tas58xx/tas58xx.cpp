@@ -492,7 +492,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   }
   ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
 
-  uint32_t start  =micro();
+  uint32_t start  =micros();
   tas58xx_helpers::BiquadCoefficients biquad_lowpass =
       tas58xx_helpers::low_pass_butterworth2_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index]);
   uint32_t end = micros();
