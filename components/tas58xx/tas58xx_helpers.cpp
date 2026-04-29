@@ -189,9 +189,9 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
     return result;
 };
 
-BiquadCoefficients low_pass_butterworth2_calc(uint32_t sample_rate, uint16_t frequency) {
+BiquadCoefficients low_pass_butterworth2_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain) {
 
-  static constexpr double qfactor = 0.70710678118654752440;
+  static constexpr double qfactor = 0.7071067811865475;
 
   double pi_freq = std::numbers::pi * frequency;
   double wc = 2.0 * pi_freq;
@@ -199,13 +199,15 @@ BiquadCoefficients low_pass_butterworth2_calc(uint32_t sample_rate, uint16_t fre
   double wc_squared = wc * wc;
   double k = wc / std::tan(pi_freq / sample_rate);
   double inverse_denominator = 1 / ((k * (k + capital_a1)) + wc_squared);
-  double k_squared_minus_wc_squared = (k * k) - wc_squared;
 
-  double b0 = wc_squared * inverse_denominator;
+  double k_squared_minus_wc_squared = (k * k) - wc_squared;
+  double linear_gain = std::pow(10.0, gain / 20.0);
+
+  double b0 = wc_squared * linear_gain * inverse_denominator;
 
   BiquadCoefficients result{};
 
-  result.b0 = double_to_5_27( b0 );
+  result.b0 = double_to_5_27( b0 * liner_gain);
   result.b1 = double_to_5_27( 2.0 * b0 );
   result.b2 = double_to_5_27( b0 );
   result.a1 = double_to_5_27( (2.0 *  k_squared_minus_wc_squared) * inverse_denominator );
@@ -214,8 +216,23 @@ BiquadCoefficients low_pass_butterworth2_calc(uint32_t sample_rate, uint16_t fre
   return result;
 };
 
+// wc = 2 * Math.PI * freq;
+//                 qFactor = 1 / Math.sqrt(2);
+//                 A1 = wc / qFactor;
+//                 A2 = Math.pow(wc, 2);
+//                 k = wc / Math.tan(Math.PI * freq / fs);
+//                 denominator = Math.pow(k, 2) + A2 + A1 * k;
+
+//                 b0 = Math.pow(wc, 2) / denominator;
+//                 b1 = 2 * Math.pow(wc, 2) / denominator;
+//                 b2 = Math.pow(wc, 2) / denominator;
+//                 a1 = (2 * Math.pow(k, 2) - 2 * A2) / denominator;
+//                 a2 = (A1 * k - Math.pow(k, 2) - A2) / denominator;
 
 
 
-
-}  // namespace esphome::tas58xx_helpers
+// }  // namespace esphome::tas58xx_helpers
+// gain = Math.pow(10, (gain/20));
+//                 b0 *= gain;
+//                 b1 *= gain;
+//                 b2 *= gain;
