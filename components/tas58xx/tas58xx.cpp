@@ -494,9 +494,9 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
 
   uint32_t start  =micros();
   tas58xx_helpers::BiquadCoefficients biquad_lowpass =
-      tas58xx_helpers::low_pass_butterworth2_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index]);
+      tas58xx_helpers::low_pass_butterworth2_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain);
   uint32_t end = micros();
-  ESP_LOGD(TAG, "Low Pass test with Frequency >> %d @ execution time = %dus", EQ_BAND_FREQUENCY[band_index], end - start);
+  ESP_LOGD(TAG, "Low Pass test with Frequency %d, Gain %d @ execution time = %dus", EQ_BAND_FREQUENCY[band_index], gain, end - start);
 #endif
   return true;
 }

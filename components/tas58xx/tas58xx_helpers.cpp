@@ -53,7 +53,7 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_5_27);
 
-    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
+    //ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
     return little_endian;
   }
 
@@ -191,30 +191,54 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
 
 BiquadCoefficients low_pass_butterworth2_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain) {
 
-  static constexpr double qfactor = 0.7071067811865475;
+const double linear_gain = std::pow(10.0, gain / 20.0);
+// w0 = 2 * pi * f0/Fs
+const double w0 = 2.0 * std::numbers::pi * frequency / sample_rate;
+double sinw0, cosw0;
+sincos(w0, &sin_w0, &cos_w0);
 
-  double pi_freq = std::numbers::pi * frequency;
-  double wc = 2.0 * pi_freq;
-  double capital_a1 = wc / qfactor;
-  double wc_squared = wc * wc;
-  double k = wc / std::tan(pi_freq / sample_rate);
-  double inverse_denominator = 1 / ((k * (k + capital_a1)) + wc_squared);
+// Q = 1 / sqrt(2)
+// alpha = sin(w0)/(2*Q)
+const double alpha = sin_w0 * std::numbers::sqrt2 * 0.5;
 
-  double k_squared_minus_wc_squared = (k * k) - wc_squared;
-  double linear_gain = std::pow(10.0, gain / 20.0);
+const double inverse_a0 =   1.0 / (1.0 + alpha);
 
-  double b0 = wc_squared * linear_gain * inverse_denominator;
+double b0 = (1.0 - cos_w0) * 0.5 * linear_gain * inverse_a0;
 
-  BiquadCoefficients result{};
+BiquadCoefficients result{};
 
-  result.b0 = double_to_5_27( b0 * liner_gain);
-  result.b1 = double_to_5_27( 2.0 * b0 );
-  result.b2 = double_to_5_27( b0 );
-  result.a1 = double_to_5_27( (2.0 *  k_squared_minus_wc_squared) * inverse_denominator );
-  result.a2 = double_to_5_27( ((capital_a1 * k) -  k_squared_minus_wc_squared) * inverse_denominator );
+result.b0 = double_to_5_27( b0 );
+result.b1 = double_to_5_27( 2.0 * b0 );
+result.b2 = double_to_5_27( b0 );
+result.a1 = double_to_5_27( (-2.0 * cos_w0) * inverse_a0 );
+result.a2 = double_to_5_27( (1.0 - alpha) * inverse_a0 );
+
+
+  // static constexpr double qfactor = 1.0 / std::sqrt(2.0);
+
+  // double pi_freq = M_PI * frequency;
+  // double wc = 2.0 * pi_freq;
+  // double capital_a1 = wc / qfactor;
+  // // <==>double capital_a1 = wc * std::numbers::sqrt2;
+  // double wc_squared = wc * wc;
+  // double k = wc / tan(pi_freq / sample_rate);
+  // double inverse_denominator = 1 / ((k * (k + capital_a1)) + wc_squared);
+
+  // double k_squared = k * k;
+  // double linear_gain = pow(10.0, gain / 20.0);
+
+  // double b0 = wc_squared * linear_gain * inverse_denominator;
+
+  // result.b0 = double_to_5_27( b0 );
+  // result.b1 = double_to_5_27( 2.0 * b0 );
+  // result.b2 = double_to_5_27( b0 );
+  // result.a1 = double_to_5_27( 2.0 * (k_squared - wc_squared) * inverse_denominator );
+  // result.a2 = double_to_5_27( ((capital_a1 * k) - k_squared - wc_squared) * inverse_denominator );
 
   return result;
 };
+
+}  // namespace esphome::tas58xx_helpers
 
 // wc = 2 * Math.PI * freq;
 //                 qFactor = 1 / Math.sqrt(2);
