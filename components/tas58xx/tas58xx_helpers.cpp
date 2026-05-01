@@ -110,7 +110,7 @@ namespace esphome::tas58xx_helpers {
   }
 
 
-  BiquadCoefficients lowshelf_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+  BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
     // originally a = sqrt(pow(10, gain / 40)) <=> sqrt(a) = pow(10, gain / 80);
     // sqrt(a) = pow(10, gain / 80) <=> exp(gain * (ln(10)/80)
     static constexpr double N = 0.02878231366242557105; // ln(10) / 80
@@ -151,7 +151,7 @@ namespace esphome::tas58xx_helpers {
     return result;
 };
 
-BiquadCoefficients highshelf_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+BiquadCoefficients high_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
     // originally a = sqrt(pow(10, gain / 40)) <=> sqrt(a) = pow(10, gain / 80);
     // sqrt(a) = pow(10, gain / 80) <=> exp(gain * (ln(10)/80)
     static constexpr double N = 0.02878231366242557105; // ln(10) / 80
@@ -229,7 +229,7 @@ BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, in
 };
 
 BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain) {
-// same results as low pass butterworth 2 filter in TI Pure Path Console 3
+// same results as high pass butterworth 2 filter in TI Pure Path Console 3
 // derived from Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson
 
   static constexpr double N = 0.1151292546497022842; // ln(10) / 20
