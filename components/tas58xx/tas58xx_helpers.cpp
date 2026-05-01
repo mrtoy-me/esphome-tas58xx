@@ -53,26 +53,29 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_5_27);
 
-    //ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
+    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
     return little_endian;
   }
 
-  // Equalizer Bandwidth filter calculation
-  BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+  BiquadCoefficients equalizer_qfactor_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+    // originally gain_a = pow(10, gain / 20)
+    // pow(10, gain / 20) <=> exp(gain * (ln(10) / 20)
+    static constexpr double N = 0.1151292546497022842; // ln(10) / 20
 
-    double linear_gain = std::pow(10.0, gain / 20.0);
+    double gain_a = std::exp(gain * N);
+
     double t0 = 2.0 * std::numbers::pi * frequency / sample_rate;
     float q_factor_x2 = 2.0f * q_factor;
 
     double beta;
-    // original linear_gain >= 1.0 <=> gain >= 0
+    // original gain_a >= 1.0 <=> gain >= 0
     if (gain >= 0) {
       beta = t0 / q_factor_x2;
     } else {
-      beta = t0 / (linear_gain * q_factor_x2);
+      beta = t0 / (gain_a * q_factor_x2);
     }
 
-    // Simpify Original <=> -0.5 * (1 - beta) / (1 + beta)
+    // Simpify Original <=> a2 = -0.5 * (1 - beta) / (1 + beta)
     // Flip the sign into the numerator <=> 0.5 * (beta − 1) / (1 + beta)
     // Rewrite (beta - 1) as (1 + beta - 2) <=> 0.5 * ((1 + beta) − 2) / (1 + beta)
     // Split the fraction <=> (0.5 * (1 + beta)) / (1 + beta) − (1 / (1 + beta))
@@ -80,7 +83,7 @@ namespace esphome::tas58xx_helpers {
 
     double a2 = 0.5 - (1.0 / (1.0 + beta)); // simpified equivalent
 
-    double x = (linear_gain - 1.0) * (0.25 + (0.5 * a2));
+    double x = (gain_a - 1.0) * (0.25 + (0.5 * a2));
 
     double a1 = (0.5 - a2) * std::cos(t0);
 
@@ -107,13 +110,13 @@ namespace esphome::tas58xx_helpers {
   }
 
 
-  BiquadCoefficients equalizer_lowshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+  BiquadCoefficients lowshelf_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+    // originally a = sqrt(pow(10, gain / 40)) <=> sqrt(a) = pow(10, gain / 80);
+    // sqrt(a) = pow(10, gain / 80) <=> exp(gain * (ln(10)/80)
+    static constexpr double N = 0.02878231366242557105; // ln(10) / 80
 
-    // originally
-    // a = sqrt(pow(10.0, gain / 40.0)) <=> a = pow(10.0, gain / 40.0);
-
-    // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
-    double sqrt_a = std::pow(10.0, gain / 80.0);
+    // use sqrt(a) to calculate value of "a" replaces sqrt with multiplication also eliminates sqrt in "beta" calculation
+    double sqrt_a = std::exp(gain * N);
     double a = sqrt_a * sqrt_a;
 
     double a_plus1 = a + 1.0;
@@ -130,15 +133,15 @@ namespace esphome::tas58xx_helpers {
     double ap_m_amc = a_plus1 - a_minus1_cosw0;
 
     // originally
-    // alpha = sin(w0) / (2.0 * q_factor);
-    // beta = 2.0 * sqrt(a) * sin(w0) / (2.0 * q_factor);
-    double beta = sqrt_a * sinw0 / q_factor; // simplify
+    // alpha = sin(w0) / (2 * q_factor);
+    // beta = 2 * sqrt(a) * sin(w0) / (2 * q_factor);
+    double beta = sqrt_a * sinw0 / q_factor; // simplified
 
     double inverse_a0 = 1.0 / (ap_p_amc + beta);
 
     BiquadCoefficients result{};
 
-    // originally used / a0 but multiplication of inverse more efficient than division
+    // originally used division by a0 but multiplication by inverse a0 is more efficient than division
     result.b0 = double_to_5_27( a * (ap_m_amc + beta) * inverse_a0 );
     result.b1 = double_to_5_27( 2.0 * a * (a_minus1 - a_plus1_cosw0) * inverse_a0 );
     result.b2 = double_to_5_27( a * (ap_m_amc - beta) * inverse_a0 );
@@ -148,13 +151,13 @@ namespace esphome::tas58xx_helpers {
     return result;
 };
 
-BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+BiquadCoefficients highshelf_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+    // originally a = sqrt(pow(10, gain / 40)) <=> sqrt(a) = pow(10, gain / 80);
+    // sqrt(a) = pow(10, gain / 80) <=> exp(gain * (ln(10)/80)
+    static constexpr double N = 0.02878231366242557105; // ln(10) / 80
 
-    // originally
-    // a = sqrt(powf(10.0, gain / 40.0)) <=> a = powf(10.0, gain / 40.0);
-
-    // use equivalent of sqrt(a) to eliminate sqrt in beta calculation and replace with multiplication in calculating value of a
-    double sqrt_a = std::pow(10.0, gain / 80.0);
+    // use sqrt(a) to calculate value of "a" replaces sqrt with multiplication also eliminates sqrt in "beta" calculation
+    double sqrt_a = std::exp(gain * N);
     double a = sqrt_a * sqrt_a;
 
     double a_plus1 = a + 1.0;
@@ -180,6 +183,7 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
 
     BiquadCoefficients result{};
 
+    // originally used division by a0 but multiplication by inverse a0 is more efficient than division
     result.b0 = double_to_5_27( a * (ap_p_amc + beta) * inverse_a0 );
     result.b1 = double_to_5_27( -2.0 * a * (a_minus1 + a_plus1_cosw0) * inverse_a0 );
     result.b2 = double_to_5_27( a * (ap_p_amc - beta) * inverse_a0 );
@@ -189,74 +193,74 @@ BiquadCoefficients equalizer_highshelf_calc(uint32_t sample_rate, uint16_t frequ
     return result;
 };
 
-BiquadCoefficients low_pass_butterworth2_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain) {
+BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain) {
+// same results as low pass butterworth 2 filter in TI Pure Path Console 3
+// derived from Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson
 
-const double linear_gain = std::pow(10.0, gain / 20.0);
-// w0 = 2 * pi * f0/Fs
-const double w0 = 2.0 * std::numbers::pi * frequency / sample_rate;
-double sinw0, cosw0;
-sincos(w0, &sin_w0, &cos_w0);
+  static constexpr double N = 0.1151292546497022842; // ln(10) / 20
+  static constexpr double INVERSE_SQRT2 = 0.7071067811865476;
 
-// Q = 1 / sqrt(2)
-// alpha = sin(w0)/(2*Q)
-const double alpha = sin_w0 * std::numbers::sqrt2 * 0.5;
+  // originally linear_gain = pow(10, gain / 20))
+  // pow(10, gain / 20) <=> exp(gain * (ln(10)/20)
+  double linear_gain = std::exp(gain * N);
 
-const double inverse_a0 =   1.0 / (1.0 + alpha);
+  // w0 = 2 * pi * f0 / Fs
+  double w0 = 2.0 * std::numbers::pi * frequency / sample_rate;
+  double sin_w0, cos_w0;
+  sincos(w0, &sin_w0, &cos_w0);
 
-double b0 = (1.0 - cos_w0) * 0.5 * linear_gain * inverse_a0;
+  // Q = 1 / sqrt(2)
+  // alpha = sin(w0) / (2 * Q) <=> sin_w0 * sqrt(2) / 2 <=> sin_w0 / sqrt(2)
+  double alpha = sin_w0 * INVERSE_SQRT2;
 
-BiquadCoefficients result{};
+  double inverse_a0 =   1.0 / (1.0 + alpha);                    // a0 =   1 + alpha
 
-result.b0 = double_to_5_27( b0 );
-result.b1 = double_to_5_27( 2.0 * b0 );
-result.b2 = double_to_5_27( b0 );
-result.a1 = double_to_5_27( (-2.0 * cos_w0) * inverse_a0 );
-result.a2 = double_to_5_27( (1.0 - alpha) * inverse_a0 );
+  double b0 = (1.0 - cos_w0) * 0.5 * linear_gain * inverse_a0;  // b0 =  (1 - cos(w0))/2 then with gain adjustment and normalisation
 
+  BiquadCoefficients result{};
 
-  // static constexpr double qfactor = 1.0 / std::sqrt(2.0);
+  result.b0 = double_to_5_27( b0 );
+  result.b1 = double_to_5_27( 2.0 * b0 );                       // b1 =   1 - cos(w0)
+  result.b2 = double_to_5_27( b0 );                             // b2 =  (1 - cos(w0))/2
+  result.a1 = double_to_5_27( (2.0 * cos_w0) * inverse_a0 );    // a1 =  -2*cos(w0) then normalise and final multiply by -1 applied
+  result.a2 = double_to_5_27( (-1.0 + alpha) * inverse_a0 );    // a2 =   1 - alpha then normalise and final multiply by -1 applied
 
-  // double pi_freq = M_PI * frequency;
-  // double wc = 2.0 * pi_freq;
-  // double capital_a1 = wc / qfactor;
-  // // <==>double capital_a1 = wc * std::numbers::sqrt2;
-  // double wc_squared = wc * wc;
-  // double k = wc / tan(pi_freq / sample_rate);
-  // double inverse_denominator = 1 / ((k * (k + capital_a1)) + wc_squared);
+  return result;
+};
 
-  // double k_squared = k * k;
-  // double linear_gain = pow(10.0, gain / 20.0);
+BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain) {
+// same results as low pass butterworth 2 filter in TI Pure Path Console 3
+// derived from Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson
 
-  // double b0 = wc_squared * linear_gain * inverse_denominator;
+  static constexpr double N = 0.1151292546497022842; // ln(10) / 20
+  static constexpr double INVERSE_SQRT2 = 0.7071067811865476;
 
-  // result.b0 = double_to_5_27( b0 );
-  // result.b1 = double_to_5_27( 2.0 * b0 );
-  // result.b2 = double_to_5_27( b0 );
-  // result.a1 = double_to_5_27( 2.0 * (k_squared - wc_squared) * inverse_denominator );
-  // result.a2 = double_to_5_27( ((capital_a1 * k) - k_squared - wc_squared) * inverse_denominator );
+  // originally linear_gain = pow(10, gain / 20))
+  // pow(10, gain / 20) <=> exp(gain * (ln(10)/20)
+  double linear_gain = std::exp(gain * N);
+
+  // w0 = 2 * pi * f0 / Fs
+  double w0 = 2.0 * std::numbers::pi * frequency / sample_rate;
+  double sin_w0, cos_w0;
+  sincos(w0, &sin_w0, &cos_w0);
+
+  // Q = 1 / sqrt(2)
+  // alpha = sin(w0) / (2 * Q) <=> sin_w0 * sqrt(2) / 2 <=> sin_w0 / sqrt(2)
+  double alpha = sin_w0 * INVERSE_SQRT2;
+
+  double inverse_a0 =   1.0 / (1.0 + alpha);                    // a0 =   1 + alpha
+
+  double b0 = (1.0 + cos_w0) * 0.5 * linear_gain * inverse_a0;  // b0 =  (1 + cos(w0))/2 then with gain adjustment and normalisation
+
+  BiquadCoefficients result{};
+
+  result.b0 = double_to_5_27( b0 );
+  result.b1 = double_to_5_27( -2.0 * b0 );//                    // b1 = -(1 + cos(w0))
+  result.b2 = double_to_5_27( b0 );                             // b2 =  (1 + cos(w0))/2
+  result.a1 = double_to_5_27( (2.0 * cos_w0) * inverse_a0 );    // a1 =  -2*cos(w0) then normalise and final multiply by -1 applied
+  result.a2 = double_to_5_27( (-1.0 + alpha) * inverse_a0 );    // a2 =   1 - alpha then normalise and final multiply by -1 applied
 
   return result;
 };
 
 }  // namespace esphome::tas58xx_helpers
-
-// wc = 2 * Math.PI * freq;
-//                 qFactor = 1 / Math.sqrt(2);
-//                 A1 = wc / qFactor;
-//                 A2 = Math.pow(wc, 2);
-//                 k = wc / Math.tan(Math.PI * freq / fs);
-//                 denominator = Math.pow(k, 2) + A2 + A1 * k;
-
-//                 b0 = Math.pow(wc, 2) / denominator;
-//                 b1 = 2 * Math.pow(wc, 2) / denominator;
-//                 b2 = Math.pow(wc, 2) / denominator;
-//                 a1 = (2 * Math.pow(k, 2) - 2 * A2) / denominator;
-//                 a2 = (A1 * k - Math.pow(k, 2) - A2) / denominator;
-
-
-
-// }  // namespace esphome::tas58xx_helpers
-// gain = Math.pow(10, (gain/20));
-//                 b0 *= gain;
-//                 b1 *= gain;
-//                 b2 *= gain;

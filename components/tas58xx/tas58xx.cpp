@@ -481,22 +481,29 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   }
 
   static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
-
+  uint32_t start  =micros();
   tas58xx_helpers::BiquadCoefficients biquad =
       tas58xx_helpers::equalizer_qfactor_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-
+  uint32_t end = micros();
   if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
     ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
-  ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
-
-  uint32_t start  =micros();
+  delay(10);
+  ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB  @ execution time = %dus", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain, end - start);
+  uint32_t start2 = micros();
+  tas58xx_helpers::BiquadCoefficients biquad_lowshelf =
+      tas58xx_helpers::equalizer_lowshelf_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
+  uint32_t end2 = micros();
+  ESP_LOGD(TAG, "Low Shelf test with Frequency %d, Gain %d @ execution time = %dus", EQ_BAND_FREQUENCY[band_index], gain, end2 - start2);
+  delay(10);
+  uint32_t start1 = micros();
   tas58xx_helpers::BiquadCoefficients biquad_lowpass =
       tas58xx_helpers::low_pass_butterworth2_calc(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain);
-  uint32_t end = micros();
-  ESP_LOGD(TAG, "Low Pass test with Frequency %d, Gain %d @ execution time = %dus", EQ_BAND_FREQUENCY[band_index], gain, end - start);
+  uint32_t end1 = micros();
+  ESP_LOGD(TAG, "Low Pass test with Frequency %d, Gain %d @ execution time = %dus", EQ_BAND_FREQUENCY[band_index], gain, end1 - start1);
+
 #endif
   return true;
 }
