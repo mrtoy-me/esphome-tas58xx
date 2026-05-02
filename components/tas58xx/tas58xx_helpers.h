@@ -24,4 +24,10 @@ BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, in
 
 BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain);
 
+BiquadCoefficients peaking_eq_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor);
+
+BiquadCoefficients band_pass_filter_(uint32_t sample_rate, uint16_t frequency, uint16_t bandwidth);
+
+BiquadCoefficients notch_filter_(uint32_t sample_rate, uint16_t frequency, uint16_t bandwidth);
+
 }  // namespace esphome::tas58xx_helpers
