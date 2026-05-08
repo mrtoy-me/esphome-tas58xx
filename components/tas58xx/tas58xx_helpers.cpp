@@ -9,12 +9,16 @@ namespace esphome::tas58xx_helpers {
 
   static constexpr const char* HELPER_TAG = "tas58xx.helper";
 
-  // used in exp calculations which replaces pow function calls
   constexpr double TWO_PI = 2.0 * std::numbers::pi;
+
+  // used in low and high pass fileters where Q is fixed = 1 / sqrt(2)
+  constexpr double INVERSE_SQRT2 = 0.7071067811865475244;
+
+  // used in exp calculations which replaces pow function calls
   constexpr double LN10_DIV_20 = 0.11512925464970228420;  // ln(10) / 20
   constexpr double LN10_DIV_40 = 0.05756462732485114210;  // ln(10) / 40
   constexpr double LN10_DIV_80 = 0.02878231366242557105;  // ln(10) / 80
-  constexpr double INVERSE_SQRT2 = 0.7071067811865475244;
+
 
   int32_t gain_to_f9_23_(int8_t gain) {
     static constexpr uint8_t FRACTIONAL_BITS = 23;
@@ -24,7 +28,8 @@ namespace esphome::tas58xx_helpers {
     static constexpr float MAX_VALUE =  256.0f - 1.0 / SCALE;
     static constexpr float MIN_VALUE = -256.0f;
 
-    float linear = powf(10.0f, ((float)gain) / 20.0f);
+    // linear = powf(10.0f, (gain) / 20.0f);
+    float linear = std::exp(gain * LN10_DIV_20);
 
     if (linear > MAX_VALUE) linear = MAX_VALUE;
     if (linear < MIN_VALUE) linear = MIN_VALUE;
@@ -35,7 +40,7 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_9_23);
 
-    //ESP_LOGD(HELPER_TAG, "Gain:%ddb >> Fixed 9.23: 0x%08X  Little Endian: 0x%08X", gain, fixed_9_23, little_endian);
+    ESP_LOGD(HELPER_TAG, "Gain:%ddb >> Fixed 9.23: 0x%08X  Little Endian: 0x%08X", gain, fixed_9_23, little_endian);
     return little_endian;
   }
 
@@ -67,7 +72,7 @@ namespace esphome::tas58xx_helpers {
     return little_endian;
   }
 
-  BiquadCoefficients equalizer_qfactor_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+  BiquadCoefficients equalizer_qfactor_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
     // derived from biquad.model.js
 
     // originally A = pow(10, gain / 20)
@@ -118,7 +123,7 @@ namespace esphome::tas58xx_helpers {
     return result;
   }
 
-  BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+  BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
     // derived from biquad.model.js
 
     // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
@@ -163,7 +168,7 @@ namespace esphome::tas58xx_helpers {
     return result;
 };
 
-BiquadCoefficients high_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+BiquadCoefficients high_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
     // derived from biquad.model.js
 
     // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
@@ -209,7 +214,7 @@ BiquadCoefficients high_shelf_filter_(uint32_t sample_rate, uint16_t frequency, 
     return result;
 };
 
-BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain) {
+BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain) {
 // derived from Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson
 // easier to optimise
 // gives same coefficient values as low pass butterworth 2 filter in TI Pure Path Console 3
@@ -243,7 +248,7 @@ BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, in
   return result;
 };
 
-BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, int16_t gain) {
+BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain) {
 // derived from Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson
 // easier to optimise
 // gives same coefficient values as low pass butterworth 2 filter in TI Pure Path Console 3
@@ -277,7 +282,7 @@ BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, i
   return result;
 };
 
-BiquadCoefficients peaking_eq_(uint32_t sample_rate, uint16_t frequency, int16_t gain, float q_factor) {
+BiquadCoefficients peaking_eq_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
   // derived from biquad.model.js
 
   // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
