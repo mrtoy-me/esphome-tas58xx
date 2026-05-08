@@ -147,7 +147,7 @@ namespace esphome::tas58xx_helpers {
     const double precalc_y = ag_plus1 - ag_minus1_cosw0;
 
     // multiply is faster than divide
-    double inverse_a0 = 1.0 / (precalc_x + beta);
+    const double inverse_a0 = 1.0 / (precalc_x + beta);
 
     // shared multipliers — precompute once
     const double ag_inv = ag * inverse_a0;       // saves recomputing 3× across b0, b1, b2
