@@ -28,8 +28,8 @@ namespace esphome::tas58xx_helpers {
     static constexpr float MAX_VALUE =  256.0f - 1.0 / SCALE;
     static constexpr float MIN_VALUE = -256.0f;
 
-    // linear = powf(10.0f, (gain) / 20.0f);
-    float linear = std::exp(gain * LN10_DIV_20);
+    float linear = powf(10.0f, (gain) / 20.0f);
+    //float linear = std::exp(gain * LN10_DIV_20);
 
     if (linear > MAX_VALUE) linear = MAX_VALUE;
     if (linear < MIN_VALUE) linear = MIN_VALUE;
