@@ -482,75 +482,75 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
 
   static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
   ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
-  uint32_t start = micros();
+  // uint32_t start = micros();
   tas58xx_helpers::BiquadCoefficients biquad =
       tas58xx_helpers::equalizer_qfactor_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  uint32_t end = micros();
+  // uint32_t end = micros();
   if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
     ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
-  ESP_LOGD(TAG, "Execution time = %dus", end - start);
-  delay(2);
+  // ESP_LOGD(TAG, "Execution time = %dus", end - start);
+  // delay(2);
 
-  ESP_LOGD(TAG, "Low Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  uint32_t start2 = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_lowshelf =
-      tas58xx_helpers::low_shelf_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  uint32_t end2 = micros();
-  ESP_LOGD(TAG, "Execution time = %dus", end2 - start2);
-  delay(2);
+  // ESP_LOGD(TAG, "Low Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
+  // uint32_t start2 = micros();
+  // tas58xx_helpers::BiquadCoefficients biquad_lowshelf =
+  //     tas58xx_helpers::low_shelf_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
+  // uint32_t end2 = micros();
+  // ESP_LOGD(TAG, "Execution time = %dus", end2 - start2);
+  // delay(2);
 
-  ESP_LOGD(TAG, "High Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  start2 = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_highshelf =
-      tas58xx_helpers::high_shelf_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  end2 = micros();
-  ESP_LOGD(TAG, "Execution time = %dus", end2 - start2);
-  delay(2);
-  ESP_LOGD(TAG, "Low Pass test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  uint32_t start1 = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_lowpass =
-      tas58xx_helpers::low_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain);
-  uint32_t end1 = micros();
-  ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  delay(2);
+  // ESP_LOGD(TAG, "High Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
+  // start2 = micros();
+  // tas58xx_helpers::BiquadCoefficients biquad_highshelf =
+  //     tas58xx_helpers::high_shelf_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
+  // end2 = micros();
+  // ESP_LOGD(TAG, "Execution time = %dus", end2 - start2);
+  // delay(2);
+  // ESP_LOGD(TAG, "Low Pass test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
+  // uint32_t start1 = micros();
+  // tas58xx_helpers::BiquadCoefficients biquad_lowpass =
+  //     tas58xx_helpers::low_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain);
+  // uint32_t end1 = micros();
+  // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
+  // delay(2);
 
-  ESP_LOGD(TAG, "High Pass test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  start1 = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_highpass =
-      tas58xx_helpers::high_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain);
-  end1 = micros();
-  ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  delay(2);
+  // ESP_LOGD(TAG, "High Pass test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
+  // start1 = micros();
+  // tas58xx_helpers::BiquadCoefficients biquad_highpass =
+  //     tas58xx_helpers::high_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain);
+  // end1 = micros();
+  // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
+  // delay(2);
 
 
-  ESP_LOGD(TAG, "Peaking EQ test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  start1 = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_peaking_eq =
-      tas58xx_helpers::peaking_eq_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  end1 = micros();
-  ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  delay(2);
+  // ESP_LOGD(TAG, "Peaking EQ test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
+  // start1 = micros();
+  // tas58xx_helpers::BiquadCoefficients biquad_peaking_eq =
+  //     tas58xx_helpers::peaking_eq_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
+  // end1 = micros();
+  // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
+  // delay(2);
 
-  float temp = EQ_BAND_FREQUENCY[band_index]/2.148;
-  uint16_t bandwidth = static_cast<uint16_t>(temp);
-  ESP_LOGD(TAG, "Band Pass test with Frequency %d, Bandwidth %d", EQ_BAND_FREQUENCY[band_index], bandwidth);
-  start1 = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_band_pass =
-      tas58xx_helpers::band_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], bandwidth);
-  end1 = micros();
-  ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  delay(2);
+  // float temp = EQ_BAND_FREQUENCY[band_index]/2.148;
+  // uint16_t bandwidth = static_cast<uint16_t>(temp);
+  // ESP_LOGD(TAG, "Band Pass test with Frequency %d, Bandwidth %d", EQ_BAND_FREQUENCY[band_index], bandwidth);
+  // start1 = micros();
+  // tas58xx_helpers::BiquadCoefficients biquad_band_pass =
+  //     tas58xx_helpers::band_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], bandwidth);
+  // end1 = micros();
+  // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
+  // delay(2);
 
-  ESP_LOGD(TAG, "Notch test with Frequency %d, Bandwidth %d", EQ_BAND_FREQUENCY[band_index], bandwidth);
-  start1 = micros();
-  tas58xx_helpers::BiquadCoefficients biquad_notch =
-      tas58xx_helpers::notch_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], bandwidth);
-  end1 = micros();
-  ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  delay(2);
+  // ESP_LOGD(TAG, "Notch test with Frequency %d, Bandwidth %d", EQ_BAND_FREQUENCY[band_index], bandwidth);
+  // start1 = micros();
+  // tas58xx_helpers::BiquadCoefficients biquad_notch =
+  //     tas58xx_helpers::notch_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], bandwidth);
+  // end1 = micros();
+  // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
+  // delay(2);
 
 #endif
   return true;

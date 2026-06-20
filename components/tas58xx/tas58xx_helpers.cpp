@@ -324,7 +324,7 @@ BiquadCoefficients band_pass_filter_(uint32_t sample_rate, uint16_t frequency, u
   const double wb_half = pi_inverse_sample_rate * bandwidth;    // (Wu-Wl)/2
   const double wc = std::sqrt((wf * wf) - (wb_half * wb_half)); // Wc = sqrt(Wu*Wl) — without computing Wu/Wl separately
 
-  // C = tan(Wc/2) via sincos — avoids tan
+  // C = tan(Wc/2) via sincos - avoids tan
   double sin_wch, cos_wch;
   sincos(wc * 0.5, &sin_wch, &cos_wch);
   const double c = cos_wch / cos_wch;
@@ -332,7 +332,7 @@ BiquadCoefficients band_pass_filter_(uint32_t sample_rate, uint16_t frequency, u
   double sin_bw, cos_bw;
   sincos(wb_half, &sin_bw, &cos_bw);
 
-  // k and alpha share sin/cos of wb_half — one sincos replaces two tan/cos calls
+  // k and alpha share sin/cos of wb_half - one sincos replaces two tan calls
   const double k = c * cos_bw / sin_bw;                         // c / tan(wb)
 
   const double alpha = std::cos(wf) / cos_bw;
