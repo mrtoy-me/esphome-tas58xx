@@ -115,6 +115,9 @@ void set_band1(number::Number *band1) { gain_band1_ = band1; }
   bool using_manual_eq_refresh();
 
   float volume() override;
+
+  bool set_tas58xx_volume(float volume);
+
   bool set_volume(float value) override;
 
  protected:

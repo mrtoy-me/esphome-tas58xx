@@ -19,7 +19,7 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-static constexpr uint8_t DELAY_LOOPS = 40;  // 40 loop iterations ~ 300ms initial delay in 'loop' before writing eq settings
+static constexpr uint8_t DELAY_LOOPS = 40;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
 
 static constexpr uint16_t INITIAL_UPDATE_DELAY = 4000;  // initial ms delay before starting fault updates
 
@@ -649,13 +649,20 @@ bool Tas58xxComponent::using_manual_eq_refresh() {
   return (this->eq_refresh_ == EqRefreshMode::MANUAL);
 }
 
+// override for audio_dac component volume, so mediaplayer can determine currnet volume of tas58xx dac
 float Tas58xxComponent::volume() {
   uint8_t raw_volume;
   this->get_digital_volume_(&raw_volume);
   return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
 }
 
+// override for audio_dac component set_volume, so mediaplayer can adjust volume of tas58xx dac
 bool Tas58xxComponent::set_volume(float volume) {
+  return this->set_tas58xx_volume(volume);
+}
+
+// public function to set directly the volume of tas58xx dac
+bool Tas58xxComponent::set_tas58xx_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
   uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
   if (!this->set_digital_volume_(raw_volume)) return false;
