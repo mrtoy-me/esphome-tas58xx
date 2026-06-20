@@ -512,7 +512,7 @@ CONFIG_SCHEMA = cv.Schema(
 
 async def to_code(config):
     tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])
-
+    cg.add_define("USE_TAS58XX_DIGITAL_VOLUME")
     if digital_volume_config := config.get(CONF_DIGITAL_VOLUME):
         n = await number.new_number(
            digital_volume_config, min_value=0.0, max_value=100.0, step=1

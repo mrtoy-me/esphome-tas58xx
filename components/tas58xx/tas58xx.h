@@ -14,7 +14,7 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
 
-#ifdef USE_TAS58XX_EQ_GAINS
+#if defined(USE_TAS58XX_DIGITAL_VOLUME) || defined(USE_TAS58XX_EQ_GAINS)
 #include "esphome/components/number/number.h"
 //#include "number/left_eq_gain_20hz.h"
 #endif

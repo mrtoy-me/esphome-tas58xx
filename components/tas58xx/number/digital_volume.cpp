@@ -13,12 +13,12 @@ void DigitalVolume::setup() {
   this->parent_->set_tas58xx_volume(value / 100.0);
 }
 
-void ChannelVolumeLeft::dump_config() {
+void DigitalVolume::dump_config() {
   ESP_LOGCONFIG(TAG, "Tas58xx Number:");
   ESP_LOGCONFIG(TAG, "  Digital Volume '%s'", this->get_name().c_str());
 }
 
-void ChannelVolumeLeft::control(float value) {
+void DigitalVolume::control(float value) {
   this->publish_state(value);
   this->parent_->set_tas58xx_volume(value / 100.0);
   this->pref_.save(&value);
