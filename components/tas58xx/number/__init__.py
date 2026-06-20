@@ -59,7 +59,7 @@ ICON_VOLUME_SOURCE = "mdi:volume-source"
 
 from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
 
-DigitalChannel = tas58xx_ns.class_("DigitalVolume", number.Number, cg.Component)
+DigitalVolume = tas58xx_ns.class_("DigitalVolume", number.Number, cg.Component)
 
 ChannelVolumeLeft = tas58xx_ns.class_("ChannelVolumeLeft", number.Number, cg.Component)
 ChannelVolumeRight = tas58xx_ns.class_("ChannelVolumeRight", number.Number, cg.Component)
@@ -210,7 +210,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
 
         cv.Optional(CONF_DIGITAL_VOLUME): number.number_schema(
-            ChannelVolumeLeft,
+            DigitalVolume,
             device_class=DEVICE_CLASS_SOUND_PRESSURE,
             entity_category=ENTITY_CATEGORY_CONFIG,
             icon=ICON_VOLUME_SOURCE,
@@ -512,6 +512,7 @@ CONFIG_SCHEMA = cv.Schema(
 
 async def to_code(config):
     tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])
+
     cg.add_define("USE_TAS58XX_DIGITAL_VOLUME")
     if digital_volume_config := config.get(CONF_DIGITAL_VOLUME):
         n = await number.new_number(
