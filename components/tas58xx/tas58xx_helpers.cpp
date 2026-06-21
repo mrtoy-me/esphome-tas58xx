@@ -46,27 +46,28 @@ namespace esphome::tas58xx_helpers {
 
   inline int32_t double_to_5_27(double x) {
     static constexpr uint8_t FRACTIONAL_BITS = 27;
-    static constexpr uint32_t SCALE = 1u << FRACTIONAL_BITS;
+    static constexpr int64_t SCALE = 1LL << FRACTIONAL_BITS;
 
     // valid 5.27 range
     static constexpr double MAX_VALUE =  256.0 - (1.0 / SCALE);
     static constexpr double MIN_VALUE = -256.0;
 
+    // clamp to valid 5.27 range
     if (x > MAX_VALUE) x = MAX_VALUE;
     if (x < MIN_VALUE) x = MIN_VALUE;
 
     // scale to fixed 5.27
-    double scaled =  x * SCALE;
+    const double scaled =  x * static_cast<double>(SCALE);
 
     // saturate to 32 bit
-    int64_t long_fixed_5_27 = static_cast<int64_t>(scaled);
-    if (long_fixed_5_27 >  INT_MAX) scaled =  INT_MAX;
-    if (long_fixed_5_27 <  INT_MIN) scaled =  INT_MIN;
+    int64_t long_fixed_5_27 = static_cast<int64_t>(std::round(scaled));
+    if (long_fixed_5_27 >  INT_MAX) long_fixed_5_27 =  INT_MAX;
+    if (long_fixed_5_27 <  INT_MIN) long_fixed_5_27 =  INT_MIN;
 
-    int32_t fixed_5_27 = std::round(scaled);
+    const int32_t fixed_5_27 = static_cast<int32_t>(long_fixed_5_27);
 
     // convert to 32 bit little endian
-    int32_t little_endian = byteswap(fixed_5_27);
+    const int32_t little_endian = byteswap(fixed_5_27);
 
     ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08X  Little Endian: 0x%08X", x, fixed_5_27, little_endian);
     return little_endian;
