@@ -14,7 +14,7 @@ void DigitalVolume::setup() {
 }
 
 void DigitalVolume::dump_config() {
-  ESP_LOGCONFIG(TAG, "Tas58xx Number:");
+  ESP_LOGCONFIG(TAG, "Tas58xx Volume:");
   ESP_LOGCONFIG(TAG, "  Digital Volume '%s'", this->get_name().c_str());
 }
 
