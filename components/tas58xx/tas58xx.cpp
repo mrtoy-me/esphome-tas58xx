@@ -494,13 +494,13 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   // ESP_LOGD(TAG, "Execution time = %dus", end - start);
   // delay(2);
 
-  // ESP_LOGD(TAG, "Low Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
+  ESP_LOGD(TAG, "Low Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
   // uint32_t start2 = micros();
-  // tas58xx_helpers::BiquadCoefficients biquad_lowshelf =
-  //     tas58xx_helpers::low_shelf_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
+  tas58xx_helpers::BiquadCoefficients biquad_lowshelf =
+      tas58xx_helpers::low_shelf_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
   // uint32_t end2 = micros();
   // ESP_LOGD(TAG, "Execution time = %dus", end2 - start2);
-  // delay(2);
+  delay(2);
 
   // ESP_LOGD(TAG, "High Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
   // start2 = micros();
