@@ -136,34 +136,45 @@ namespace esphome::tas58xx_helpers {
     const double ag_plus1 = ag + 1.0;
     const double ag_minus1 = ag - 1.0;
 
-    const double w0 = TWO_PI * frequency / sample_rate;
-    double sinw0, cosw0;
-    sincos(w0, &sinw0, &cosw0);
+    // Half-angle approach suggested by Claude to reduce calculation errors at higher frequencies
+    // cosw0-dependent terms are rewritten using sin²(w0/2) and cos²(w0/2)
+    // to eliminate where cos(w0) approaches -1 and large nearly-equal values cancel, losing precision
+    const double half_w0 = std::numbers::pi * frequency / sample_rate;
+    double sin_half, cos_half;
+    sincos(half_w0, &sin_half, &cos_half);
+    const double sin2_half = sin_half * sin_half;
+    const double cos2_half = cos_half * cos_half;
+
+    // sin(w0) = 2·sin(w0/2)·cos(w0/2)
+    const double sinw0 = 2.0 * sin_half * cos_half;
 
     // used multple times - precompute once
-    const double ag_plus1_cosw0 = ag_plus1 * cosw0;
-    const double ag_minus1_cosw0 = ag_minus1 * cosw0;
+    // stable replacements using half-angle variables
+    const double precalc_x = 2.0 * (ag * cos2_half + sin2_half);
+    const double precalc_y = 2.0 * (ag * sin2_half + cos2_half);
+
     // originally
     // alpha = sin(w0) / (2 * q_factor);
     // beta = 2 * sqrt(a) * sin(w0) / (2 * q_factor);
     const double beta = sqrt_ag * sinw0 / q_factor; // simplified
 
-    const double precalc_x = ag_plus1 + ag_minus1_cosw0;
-    const double precalc_y = ag_plus1 - ag_minus1_cosw0;
-
     // multiply is faster than divide
+    // a0 (denominator) = precalc_x + beta
     const double inverse_a0 = 1.0 / (precalc_x + beta);
 
-    // shared multipliers — precompute once
+    // shared multipliers — precompute once across b0, b1, b2
     const double ag_inv = ag * inverse_a0;       // saves recomputing 3× across b0, b1, b2
     const double ag_inv_y = ag_inv * precalc_y;  // shared between b0 and b2
     const double ag_inv_beta = ag_inv * beta;    // shared between b0 and b2
 
     BiquadCoefficients result{};
+    // stable replacements using half-angle variables
+    // b1 replace ag_minus1 - ag_plus1 * cos(w0) with more stable 2.0 * (ag_plus1 * sin²(w0/2) - 1)
+    // a1 replace ag_minus1 + ag_plus1 * cos(w0) with more stable 2.0 * (ag - ag_plus1 * sin²(w0/2))
     result.b0 = double_to_5_27( ag_inv_y + ag_inv_beta );
-    result.b1 = double_to_5_27( 2.0 * ag_inv * (ag_minus1 - ag_plus1_cosw0) );
+    result.b1 = double_to_5_27( 4.0 * ag_inv * (ag_plus1 * sin2_half - 1.0) );
     result.b2 = double_to_5_27( ag_inv_y - ag_inv_beta );
-    result.a1 = double_to_5_27( 2.0 * (ag_minus1 + ag_plus1_cosw0) * inverse_a0 );
+    result.a1 = double_to_5_27( 4.0 * (ag - ag_plus1 * sin2_half) * inverse_a0 );
     result.a2 = double_to_5_27( (beta - precalc_x) * inverse_a0 );
     return result;
 };
