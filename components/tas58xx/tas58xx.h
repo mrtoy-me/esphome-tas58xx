@@ -21,7 +21,7 @@
 
 namespace esphome::tas58xx {
 
-class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
+class Tas58xxComponent final : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
   void setup() override;
 
