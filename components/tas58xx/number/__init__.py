@@ -7,6 +7,7 @@ from esphome.const import (
     CONF_AUDIO_DAC,
     CONF_ID,
     CONF_PLATFORM,
+    CONF_SPEAKER,
     DEVICE_CLASS_SOUND_PRESSURE,
     ENTITY_CATEGORY_CONFIG,
     UNIT_PERCENT,
@@ -199,6 +200,16 @@ def _final_validate(config):
         else:
             if (have_this_number_channel_volume_right):
                 raise cv.Invalid("channel_volume_right is not required when dac_mode is PBTL - remove channel_volume_right from YAML configuration")
+
+    speaker_audio_dac_id_matches = False
+    all_speaker = full_conf.get(CONF_SPEAKER, [])
+    for speaker_conf in all_speaker:
+        if speaker_conf.get(CONF_AUDIO_DAC) == this_number_id:
+              speaker_audio_dac_id_matches = True
+              break
+
+    if speaker_audio_dac_id_matches and CONF_DIGITAL_VOLUME in config:
+              raise cv.Invalid("digital_volume number cannot be used for tas58xx audio_dac when speaker component is also configured")
 
     return config
 
