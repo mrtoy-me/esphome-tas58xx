@@ -21,7 +21,7 @@ namespace esphome::tas58xx_helpers {
     if (linear < MIN_VALUE) linear = MIN_VALUE;
 
     // scale to fixed 9.23
-    int32_t fixed_9_23 = static_cast<int32_t>(linear * static_cast<float>(SCALE));
+    int32_t fixed_9_23 = static_cast<int32_t>(linear * static_cast<double>(SCALE));
 
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_9_23);
