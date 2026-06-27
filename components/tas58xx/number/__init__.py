@@ -9,6 +9,7 @@ from esphome.const import (
     CONF_PLATFORM,
     DEVICE_CLASS_SOUND_PRESSURE,
     ENTITY_CATEGORY_CONFIG,
+    UNIT_PERCENT,
     UNIT_DECIBEL,
 )
 
@@ -19,6 +20,7 @@ DAC_MODE_BTL = "BTL"
 EQ_MODE = "eq_mode"
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 
+CONF_DIGITAL_VOLUME = "digital_volume"
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
 CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
 CONF_LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
@@ -56,6 +58,8 @@ CONF_RIGHT_EQ_GAIN_16000HZ = "right_eq_gain_16000Hz"
 ICON_VOLUME_SOURCE = "mdi:volume-source"
 
 from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
+
+DigitalVolume = tas58xx_ns.class_("DigitalVolume", number.Number, cg.Component)
 
 ChannelVolumeLeft = tas58xx_ns.class_("ChannelVolumeLeft", number.Number, cg.Component)
 ChannelVolumeRight = tas58xx_ns.class_("ChannelVolumeRight", number.Number, cg.Component)
@@ -203,6 +207,18 @@ FINAL_VALIDATE_SCHEMA = _final_validate
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
+
+        cv.Optional(CONF_DIGITAL_VOLUME): number.number_schema(
+            DigitalVolume,
+            device_class=DEVICE_CLASS_SOUND_PRESSURE,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon=ICON_VOLUME_SOURCE,
+            unit_of_measurement=UNIT_PERCENT,
+        )
+        .extend(cv.COMPONENT_SCHEMA),
+
+
+
         cv.Optional(CONF_CHANNEL_VOLUME_LEFT): number.number_schema(
             ChannelVolumeLeft,
             device_class=DEVICE_CLASS_SOUND_PRESSURE,
@@ -496,6 +512,13 @@ CONFIG_SCHEMA = cv.Schema(
 async def to_code(config):
     tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])
 
+    if digital_volume_config := config.get(CONF_DIGITAL_VOLUME):
+        n = await number.new_number(
+           digital_volume_config, min_value=0.0, max_value=100.0, step=1
+        )
+        await cg.register_component(n, digital_volume_config)
+        await cg.register_parented(n, tas58xx_component)
+
     if channel_volume_left_config := config.get(CONF_CHANNEL_VOLUME_LEFT):
         cg.add_define("USE_TAS58XX_CHANNEL_VOLUMES")
         n = await number.new_number(
@@ -518,6 +541,7 @@ async def to_code(config):
         )
         await cg.register_component(n, left_gain_20hz_config)
         await cg.register_parented(n, tas58xx_component)
+        cg.add(tas58xx_component.set_band1(n))
 
     if left_gain_31p5hz_config := config.get(CONF_LEFT_EQ_GAIN_31P5HZ):
         n = await number.new_number(
