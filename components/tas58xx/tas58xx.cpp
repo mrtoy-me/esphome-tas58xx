@@ -589,7 +589,13 @@ float Tas58xxComponent::volume() {
   return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
 }
 
+// override for audio_dac component set_volume, so mediaplayer can adjust volume of tas58xx dac
 bool Tas58xxComponent::set_volume(float volume) {
+  return this->set_tas58xx_volume(volume);
+}
+
+// public function to set directly the volume of tas58xx dac
+bool Tas58xxComponent::set_tas58xx_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
   uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
   if (!this->set_digital_volume_(raw_volume)) return false;
