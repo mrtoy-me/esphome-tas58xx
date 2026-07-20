@@ -472,7 +472,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
 #endif
 
   if (eq_address == NULL) {
-    ESP_LOGE(TAG, "%s NULL discovered %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+    ESP_LOGE(TAG, "NULL discovered %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
 
