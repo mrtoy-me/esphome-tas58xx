@@ -104,8 +104,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   bool using_manual_eq_refresh();
 
   float volume() override;
-
-  bool set_tas58xx_volume(float volume);
   bool set_volume(float value) override;
 
  protected:
