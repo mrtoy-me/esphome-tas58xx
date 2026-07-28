@@ -14,6 +14,16 @@ struct BiquadCoefficients {
 
 int32_t gain_to_f9_23_(int8_t gain);
 
-BiquadCoefficients equalizer_qfactor_calc(uint32_t sample_rate, uint16_t frequency, int16_t gain, float qFactor);
+BiquadCoefficients equalizer_qfactor_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor);
+
+BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor);
+
+BiquadCoefficients high_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor);
+
+BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain);
+
+BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain);
+
+BiquadCoefficients peaking_eq_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor);
 
 }  // namespace esphome::tas58xx_helpers
