@@ -277,7 +277,7 @@ BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, in
 
   // originally A = pow(10, gain / 20))
   // pow(10, gain / 20) <=> exp(gain * (ln(10) / 20)
-  const double ag = std::exp(gain * LN10_DIV_20);
+  const double ag = std::exp(static_cast<double>(gain) * LN10_DIV_20);
 
   // w0 = 2 * pi * f0 / Fs
   const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
@@ -310,7 +310,7 @@ BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, i
 
   // originally A = pow(10, gain / 20))
   // pow(10, gain / 20) <=> exp(gain * (ln(10) / 20)
-  const double ag = std::exp(gain * LN10_DIV_20);
+  const double ag = std::exp(static_cast<double>(gain) * LN10_DIV_20);
 
   // w0 = 2 * pi * f0 / Fs
   const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
@@ -340,7 +340,7 @@ BiquadCoefficients peaking_eq_(uint32_t sample_rate, uint16_t frequency, int8_t 
   // derived from biquad.model.js
 
   // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
-  const double ag = std::exp(gain * LN10_DIV_40);
+  const double ag = std::exp(static_cast<double>(gain) * LN10_DIV_40);
 
   const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
 
