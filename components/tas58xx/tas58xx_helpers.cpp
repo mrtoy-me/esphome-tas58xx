@@ -73,7 +73,7 @@ namespace esphome::tas58xx_helpers {
   }
 
   BiquadCoefficients equalizer_qfactor_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-    // derived from biquad.model.js
+    // derived from biquad.model.js in TI Pure Path Console 3
 
     // originally A = pow(10, gain / 20)
     // pow(10, gain / 20) <=> exp(gain * (ln(10) / 20)
@@ -89,10 +89,10 @@ namespace esphome::tas58xx_helpers {
       beta = t0 / (2.0 * static_cast<double>(q_factor));
     }
 
-    // Simpify Original <=> a2 = -0.5 * (1 - beta) / (1 + beta)
-    // Flip the sign into the numerator <=> 0.5 * (beta − 1) / (1 + beta)
-    // Rewrite (beta - 1) as (1 + beta - 2) <=> 0.5 * ((1 + beta) − 2) / (1 + beta)
-    // Split the fraction <=> (0.5 * (1 + beta)) / (1 + beta) − (1 / (1 + beta))
+    // simpify original <=> a2 = -0.5 * (1 - beta) / (1 + beta)
+    // flip the sign into the numerator <=> 0.5 * (beta − 1) / (1 + beta)
+    // rewrite (beta - 1) as (1 + beta - 2) <=> 0.5 * ((1 + beta) − 2) / (1 + beta)
+    // split the fraction <=> (0.5 * (1 + beta)) / (1 + beta) − (1 / (1 + beta))
     // (1 + beta) cancels in the left term <=> 0.5 − (1 / (1 + beta))
     const double a2 = 0.5 - (1.0 / (1.0 + beta)); // simpified equivalent
 
@@ -100,92 +100,35 @@ namespace esphome::tas58xx_helpers {
 
     const double a1 = (0.5 - a2) * std::cos(t0);
 
-    // Original -> simpify and pass direct to double_to_5_27
-    // b0 = x + 0.5;
+    // original initially
+    // b0 = "expression" + 0.5;
     // b1 = -a1;
     // b2 = -x - a2;
-
+    // then later
     // b0 = 2.0 * b0;
     // b1 = 2.0 * b1;
     // b2 = 2.0 * b2;
-    // a1 = -2.0 * a1;
-    // a2 = -2.0 * a2;
+    // a1 = -2.0 * a1; then -a1 passed to result
+    // a2 = -2.0 * a2; then -a1 passed to result
+    // simpify and pass direct to double_to_5_27
 
     BiquadCoefficients result{};
 
     result.b0 = double_to_5_27( 1.0 + (2.0 * precalc) );
     result.b1 = double_to_5_27( -2.0 * a1 );
     result.b2 = double_to_5_27( -2.0 * (precalc + a2) );
-    result.a1 = double_to_5_27( 2.0 * a1 ) ;
+    result.a1 = double_to_5_27( 2.0 * a1 );
     result.a2 = double_to_5_27( 2.0 * a2 );
 
     return result;
   }
 
-//   BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-//     // derived from biquad.model.js
-
-//     // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
-//     // sqrt(a) = pow(10, gain / 80) <=> exp(gain * ln(10) / 80)
-//     // calculating ag using multiplication sqrt_ag * sqrt_ag eliminates sqrt here and in "beta" calculation
-//     const double sqrt_ag = std::exp(static_cast<double>(gain) * LN10_DIV_80);
-//     const double ag = sqrt_ag * sqrt_ag;
-
-//     // used multple times - precompute once
-//     const double ag_plus1 = ag + 1.0;
-//     const double ag_minus1 = ag - 1.0;
-
-//     // Half-angle approach suggested by Claude to reduce calculation errors at higher frequencies
-//     // cosw0-dependent terms are rewritten using sin²(w0/2) and cos²(w0/2)
-//     // to eliminate where cos(w0) approaches -1 and large nearly-equal values cancel, losing precision
-//     const double half_w0 = std::numbers::pi * static_cast<double>(frequency) / static_cast<double>(sample_rate);
-//     // double sin_half, cos_half;
-//     // sincos(half_w0, &sin_half, &cos_half);
-//     const double sinhalf = std::sin(half_w0);
-//     const double coshalf = std::cos(half_w0);
-//     const double sin2_half = sin_half * sin_half;
-//     const double cos2_half = cos_half * cos_half;
-
-//     // sin(w0) = 2·sin(w0/2)·cos(w0/2)
-//     const double sinw0 = 2.0 * sin_half * cos_half;
-
-//     // used multple times - precompute once
-//     // stable replacements using half-angle variables
-//     const double precalc_x = 2.0 * (ag * cos2_half + sin2_half);
-//     const double precalc_y = 2.0 * (ag * sin2_half + cos2_half);
-
-//     // originally
-//     // alpha = sin(w0) / (2 * q_factor);
-//     // beta = 2 * sqrt(a) * sin(w0) / (2 * q_factor);
-//     const double beta = sqrt_ag * sinw0 /static_cast<double>(q_factor); // simplified
-
-//     // multiply is faster than divide
-//     // a0 (denominator) = precalc_x + beta
-//     const double inverse_a0 = 1.0 / (precalc_x + beta);
-
-//     // shared multipliers — precompute once across b0, b1, b2
-//     const double ag_inv = ag * inverse_a0;       // saves recomputing 3× across b0, b1, b2
-//     const double ag_inv_y = ag_inv * precalc_y;  // shared between b0 and b2
-//     const double ag_inv_beta = ag_inv * beta;    // shared between b0 and b2
-
-//     BiquadCoefficients result{};
-//     // stable replacements using half-angle variables
-//     // b1 replace ag_minus1 - ag_plus1 * cos(w0) with more stable 2.0 * (ag_plus1 * sin²(w0/2) - 1)
-//     // a1 replace ag_minus1 + ag_plus1 * cos(w0) with more stable 2.0 * (ag - ag_plus1 * sin²(w0/2))
-//     result.b0 = double_to_5_27( ag_inv_y + ag_inv_beta );
-//     result.b1 = double_to_5_27( 4.0 * ag_inv * (ag_plus1 * sin2_half - 1.0) );
-//     result.b2 = double_to_5_27( ag_inv_y - ag_inv_beta );
-//     result.a1 = double_to_5_27( 4.0 * (ag - ag_plus1 * sin2_half) * inverse_a0 );
-//     result.a2 = double_to_5_27( (beta - precalc_x) * inverse_a0 );
-//     return result;
-// };
-
 BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-    // derived from biquad.model.js
+    // derived from biquad.model.js in TI Pure Path Console 3
 
-    // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
+    // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) <=> exp(ln(10) * gain / 40)
     // sqrt(a) = pow(10, gain / 80) <=> exp(gain * ln(10) / 80)
-    // calculating ag using multiplication sqrt_ag * sqrt_ag eliminates sqrt here and in "beta" calculation
+    // calculating ag using multiplication sqrt_ag * sqrt_ag eliminates performing sqrt
     const double sqrt_ag = std::exp(static_cast<double>(gain) * LN10_DIV_80);
     const double ag = sqrt_ag * sqrt_ag;
 
@@ -195,26 +138,28 @@ BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, i
 
     const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
 
-    const double cosw0 = std::cos(w0);
+    const double cos_w0 = std::cos(w0);
     // used multple times - precompute once
-    const double ag_plus1_cosw0 = ag_plus1 * cosw0;
-    const double ag_minus1_cosw0 = ag_minus1 * cosw0;
+    const double ag_plus1_cosw0 = ag_plus1 * cos_w0;
+    const double ag_minus1_cosw0 = ag_minus1 * cos_w0;
 
     // originally
-    // alpha = sin(w0) / (2.0 * q_factor);
-    // beta = 2.0 * sqrt(A) * sin(w0) / (2.0 * q_factor);
-    const double beta = sqrt_ag * std::sin(w0) / static_cast<double>(q_factor); // simplified
+    // alpha = sin(w0) / (2 * q_factor);
+    // coefficients use common calculation = 2 * (Math.sqrt(A)) * alpha
+    // use beta = 2 * sqrt(A) * sin(w0) / (2 * q_factor) and simplify
+    const double beta = sqrt_ag * std::sin(w0) / static_cast<double>(q_factor);
 
+    // used multple times - precompute once
     const double precalc_x = ag_plus1 + ag_minus1_cosw0;
     const double precalc_y = ag_plus1 - ag_minus1_cosw0;
 
     // multiply is faster than divide
     const double inverse_a0 = 1.0 / (precalc_x + beta);
 
-    // shared multipliers — precompute once
-    const double ag_inv = ag * inverse_a0;       // saves recomputing 3× across b0, b1, b2
-    const double ag_inv_y = ag_inv * precalc_y;  // shared between b0 and b2 (high shelf uses precalc_x here)
-    const double ag_inv_beta = ag_inv * beta;    // shared between b0 and b2
+    // used multple times - precompute once
+    const double ag_inv = ag * inverse_a0;       // saves re-calculating for b0, b1, b2
+    const double ag_inv_y = ag_inv * precalc_y;  // saves re-calculating for b0 and b2
+    const double ag_inv_beta = ag_inv * beta;    // saves re-calculating for b0 and b2
 
     BiquadCoefficients result{};
     result.b0 = double_to_5_27( ag_inv_y + ag_inv_beta );
@@ -226,11 +171,11 @@ BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, i
 };
 
 BiquadCoefficients high_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-    // derived from biquad.model.js
+    // derived from biquad.model.js in TI Pure Path Console 3
 
-    // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
+    // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) <=> exp(ln(10) * gain / 40)
     // sqrt(a) = pow(10, gain / 80) <=> exp(gain * ln(10) / 80)
-    // calculating ag using multiplication sqrt_ag * sqrt_ag eliminates sqrt here and in "beta" calculation
+    // calculating ag using multiplication sqrt_ag * sqrt_ag eliminates performing sqrt
     const double sqrt_ag = std::exp(static_cast<double>(gain) * LN10_DIV_80);
     const double ag = sqrt_ag * sqrt_ag;
 
@@ -240,26 +185,28 @@ BiquadCoefficients high_shelf_filter_(uint32_t sample_rate, uint16_t frequency, 
 
     const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
 
-    const double cosw0 = std::cos(w0);
+    const double cos_w0 = std::cos(w0);
     // used multple times - precompute once
-    const double ag_plus1_cosw0 = ag_plus1 * cosw0;
-    const double ag_minus1_cosw0 = ag_minus1 * cosw0;
+    const double ag_plus1_cosw0 = ag_plus1 * cos_w0;
+    const double ag_minus1_cosw0 = ag_minus1 * cos_w0;
 
     // originally
-    // alpha = sin(w0) / (2.0 * q_factor);
-    // beta = 2.0 * sqrt(A) * sin(w0) / (2.0 * q_factor);
-    const double beta = sqrt_ag * std::sin(w0) / static_cast<double>(q_factor); // simplified
+    // alpha = sin(w0) / (2 * q_factor);
+    // coefficients use common calculation = 2 * (Math.sqrt(A)) * alpha
+    // use beta = 2 * sqrt(A) * sin(w0) / (2 * q_factor) and simplify
+    const double beta = sqrt_ag * std::sin(w0) / static_cast<double>(q_factor);
 
+    // used multple times - precompute once
     const double precalc_x = ag_plus1 + ag_minus1_cosw0;
     const double precalc_y = ag_plus1 - ag_minus1_cosw0;
 
     // multiply is faster than divide
     const double inverse_a0 = 1.0 / (precalc_y + beta);
 
-    // shared multipliers — precompute once
-    const double ag_inv = ag * inverse_a0;       // saves recomputing 3× across b0, b1, b2
-    const double ag_inv_x = ag_inv * precalc_x;  // shared between b0 and b2
-    const double ag_inv_beta = ag_inv * beta;    // shared between b0 and b2
+    // used multple times - precompute once
+    const double ag_inv = ag * inverse_a0;       // saves re-calculating for b0, b1, b2
+    const double ag_inv_x = ag_inv * precalc_x;  // saves re-calculating for b0 and b2
+    const double ag_inv_beta = ag_inv * beta;    // saves re-calculating for b0 and b2
 
     BiquadCoefficients result{};
     result.b0 = double_to_5_27( ag_inv_x + ag_inv_beta );
@@ -337,22 +284,22 @@ BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, i
 };
 
 BiquadCoefficients peaking_eq_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-  // derived from biquad.model.js
+  // derived from biquad.model.js in TI Pure Path Console 3
 
   // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
   const double ag = std::exp(static_cast<double>(gain) * LN10_DIV_40);
 
   const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
 
-  // use multiple times - precompute once
+  // used multiple times - precompute once
   const double alpha = std::sin(w0) / (2.0 * static_cast<double>(q_factor));
   const double alpha_divide_ag = alpha / ag;
 
-  // a0 = 1 + alpha / A
-  const double inverse_a0 = 1.0 / (1.0 +  alpha_divide_ag);
+  // multiply is faster than divide
+  const double inverse_a0 = 1.0 / (1.0 +  alpha_divide_ag);            // a0 = 1 + alpha / A
 
-  // shared between b0 and b2 - precompute once
-  const double aag_inverse_a0 = alpha * ag * inverse_a0;
+  // used multiple times - precompute once
+  const double aag_inverse_a0 = alpha * ag * inverse_a0;               // saves re-calculating for b0 and b2
 
   const double b1 = -2.0 * std::cos(w0) * inverse_a0;                  // b1 = -2 * cos(w0) then normalise
 
@@ -366,63 +313,6 @@ BiquadCoefficients peaking_eq_(uint32_t sample_rate, uint16_t frequency, int8_t 
 
   return result;
 };
-
-// BiquadCoefficients band_pass_filter_(uint32_t sample_rate, uint16_t frequency, uint16_t bandwidth) {
-//   // derived from biquad.model.js
-
-//   const double pi_inverse_sample_rate = std::numbers::pi / sample_rate;
-//   const double wf = 2.0 * pi_inverse_sample_rate * frequency;   // (Wu+Wl)/2
-//   const double wb_half = pi_inverse_sample_rate * bandwidth;    // (Wu-Wl)/2
-//   const double wc = std::sqrt((wf * wf) - (wb_half * wb_half)); // Wc = sqrt(Wu*Wl) — without computing Wu/Wl separately
-
-//   // C = tan(Wc/2) via sincos - avoids tan
-//   double sin_wch, cos_wch;
-//   sincos(wc * 0.5, &sin_wch, &cos_wch);
-//   const double c = cos_wch / cos_wch;
-
-//   double sin_bw, cos_bw;
-//   sincos(wb_half, &sin_bw, &cos_bw);
-
-//   // k and alpha share sin/cos of wb_half - one sincos replaces two tan calls
-//   const double k = c * cos_bw / sin_bw;                         // c / tan(wb)
-
-//   const double alpha = std::cos(wf) / cos_bw;
-
-//   const double inverse_kpc = 1.0 / (k + c);
-//   const double c_x = c * inverse_kpc;
-//   const double k_x = k * inverse_kpc;
-
-//   BiquadCoefficients result{};
-//   result.b0 = double_to_5_27( c_x );
-//   result.b1 = double_to_5_27( 0.0 );
-//   result.b2 = double_to_5_27( -c_x );
-//   result.a1 = double_to_5_27( 2.0 * alpha * k_x );
-//   result.a2 = double_to_5_27( c_x - k_x );
-
-//   return result;
-
-// };
-
-// BiquadCoefficients notch_filter_(uint32_t sample_rate, uint16_t frequency, uint16_t bandwidth) {
-//   // derived from biquad.model.js
-
-//   const double pi_inverse_sample_rate = std::numbers::pi / sample_rate;
-//   const double w0 = 2.0 * pi_inverse_sample_rate * frequency;
-//   const double interim = std::tan(pi_inverse_sample_rate * bandwidth);
-//   const double alpha = (1 - interim) / (1 + interim);
-//   const double cos_w0 = std::cos(w0);
-
-//   const double b0 = (1.0 + alpha) * 0.5;
-//   const double b1 = -cos_w0 * (1.0 + alpha);
-
-//   BiquadCoefficients result{};
-//   result.b0 = double_to_5_27( b0 );
-//   result.b1 = double_to_5_27( b1 );
-//   result.b2 = double_to_5_27( b0 );
-//   result.a1 = double_to_5_27( -b1 );
-//   result.a2 = double_to_5_27( -alpha );
-//   return result;
-// };
 
 }  // namespace esphome::tas58xx_helpers
 
