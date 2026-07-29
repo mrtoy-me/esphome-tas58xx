@@ -14,6 +14,8 @@ struct BiquadCoefficients {
 
 int32_t gain_to_f9_23_(int8_t gain);
 
+BiquadCoefficients all_pass_();
+
 BiquadCoefficients equalizer_qfactor_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor);
 
 BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor);

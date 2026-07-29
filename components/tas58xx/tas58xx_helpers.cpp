@@ -9,6 +9,14 @@ namespace esphome::tas58xx_helpers {
 
   static constexpr const char* HELPER_TAG = "tas58xx.helper";
 
+  // pre-converted little endian all pass values
+  constexpr BiquadCoefficients ALL_PASS = {
+    0x00000008, 0x00000000,
+    0x00000000,
+    0x00000000,
+    0x00000000
+  };
+
   constexpr double TWO_PI = 2.0 * std::numbers::pi;
 
   // used in low and high pass fileters where Q is fixed = 1 / sqrt(2)
@@ -68,9 +76,20 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     const int32_t little_endian = byteswap(fixed_5_27);
 
-    ESP_LOGD(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, x, fixed_5_27, little_endian);
+    ESP_LOGV(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, x, fixed_5_27, little_endian);
     return little_endian;
   }
+
+  BiquadCoefficients all_pass_() {
+    // return pre-converted all pass values
+    // b0 = 1.0
+    // b1 = 0.0
+    // b2 = 0.0
+    // a1 = 0.0
+    // a2 = 0.0
+    // then double_to_5_27 conversion
+    return ALL_PASS;
+  };
 
   BiquadCoefficients equalizer_qfactor_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
     // derived from biquad.model.js in TI Pure Path Console 3

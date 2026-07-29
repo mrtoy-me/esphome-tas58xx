@@ -534,6 +534,8 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
   delay(2);
 
+  tas58xx_helpers::BiquadCoefficients biquad_allpass = tas58xx_helpers::all_pass_();
+
   // float temp = EQ_BAND_FREQUENCY[band_index]/2.148;
   // uint16_t bandwidth = static_cast<uint16_t>(temp);
   // ESP_LOGD(TAG, "Band Pass test with Frequency %d, Bandwidth %d", EQ_BAND_FREQUENCY[band_index], bandwidth);
