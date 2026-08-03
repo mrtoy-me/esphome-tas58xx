@@ -13,7 +13,31 @@ namespace esphome::tas58xx {
 
 static constexpr int8_t  EQ_PROFILE_MAXIMUM_INDEX = 20;
 static constexpr int8_t  EQ_PROFILE_BIQUADS = 3;
+static constexpr int8_t  PROFILE_VARIABLES_SIZE = 10;
+static constexpr int8_t  LF_PROFILE_MAXIMUM_INDEX = 10;
 
+// "Flat","LF 60Hz", "LF 70Hz", "LF 80Hz", "LF 90Hz", "LF 100Hz", "LF 110Hz", "LF 120Hz", "LF 130Hz", "LF 140Hz", "LF 150Hz",
+// "HF 60Hz", "HF 70Hz", "HF 80Hz", "HF 90Hz", "HF 100Hz", "HF 110Hz", "HF 120Hz", "HF 130Hz", "HF 140Hz", "HF 150Hz
+
+struct ProfileVariables {
+	uint16_t biquad_1_and_2_frequency;
+  uint16_t biquad_3_frequency;
+  uint8_t  biquid_3_gain;
+  float biquid_3_qfactor,
+};
+
+constexpr ProfileVariables PROFILES[PROFILE_VARIABLES_SIZE] =
+  {  60, 200, 1, 0.50 },
+  {  70, 200, 1, 0.50 },
+  {  80, 200, 1, 0.50 },
+  {  90, 200, 1, 0.50 },
+  { 100, 200, 1, 0.50 },
+  { 110, 220, 1, 0.50 },
+  { 120  240, 1, 0.50 },
+  { 130, 260, 1, 0.50 },
+  { 140, 280, 1, 0.50 },
+  { 150, 300, 1, 0.50 },
+};
 
 static constexpr BiquadSequence EQ_PROFILE_COEFFICIENTS_LEFT_FLAT[EQ_PROFILE_BIQUADS] = {
     //  BIQUAD - BQ1 Left - Filter: All Pass  Frequency: 1000 Hz  QVal: 0.71  Bandwidth: 1000 Hz
