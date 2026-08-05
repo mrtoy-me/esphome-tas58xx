@@ -123,7 +123,7 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.GenerateID(): cv.declare_id(Tas58xxComponent),
             cv.Required(CONF_ENABLE_PIN): pins.gpio_output_pin_schema,
-            cv.Optional(CONF_SPEAKER_ID): cv.use_id(speaker.Speaker),
+            cv.Required(CONF_SPEAKER_ID): cv.use_id(speaker.Speaker),
             cv.Optional(CONF_TAS58XX_DAC, default=TAS5805M_DAC): cv.enum(
                         TAS_DACS, upper=True
             ),
@@ -208,9 +208,9 @@ async def to_code(config):
     enable = await cg.gpio_pin_expression(config[CONF_ENABLE_PIN])
 
 
-    if speaker_config := config.get(CONF_SPEAKER_ID):
-      spk = await cg.get_variable(speaker_config)
-      cg.add(var.set_speaker(spk))
+    # if speaker_config := config.get(CONF_SPEAKER_ID):
+    spk = await cg.get_variable(config[CONF_SPEAKER_ID])
+    cg.add(var.set_speaker(spk))
 
     cg.add(var.set_enable_pin(enable))
     cg.add(var.config_analog_gain(config[CONF_ANALOG_GAIN]))

@@ -123,6 +123,7 @@ void Tas58xxComponent::loop() {
       }
       //this->loop_setup_stage_ = INPUT_MIXER_SETUP;
       this->loop_setup_stage_ = PLAY_BOOT_SOUND;
+      ESP_LOGD(TAG, "Loop delay complete");
       return;
 
     case PLAY_BOOT_SOUND:
@@ -140,7 +141,7 @@ void Tas58xxComponent::loop() {
         }
       }
 
-      ESP_LOGD(TAG, "I2S prime frame drained, finalizing codec init");
+      ESP_LOGD(TAG, "Boot sound played");
       this->loop_setup_stage_ = INPUT_MIXER_SETUP;
       return;
 
