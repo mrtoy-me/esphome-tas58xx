@@ -19,7 +19,7 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-static constexpr uint8_t DELAY_LOOPS = 400;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
+static constexpr uint16_t DELAY_LOOPS = 400;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
 
 static constexpr uint16_t INITIAL_UPDATE_DELAY = 8000;  // was 4000 initial ms delay before starting fault updates
 
@@ -76,12 +76,6 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_state_(CTRL_PLAY)) return false;
 
-  if (this->speaker_ == NULL) {
-    ESP_LOGW(TAG, "speaker pointer is NULL - marking component failed" );
-    this->mark_failed();
-    this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
-  }
-
   this->loop_setup_stage_ = RUN_DELAY_LOOP;
   this->start_time_ = App.get_loop_component_start_time();
   return true;
@@ -107,7 +101,6 @@ void Tas58xxComponent::play_i2s_boot_sound() {
 
   ESP_LOGD(TAG, "Queued %u bytes to prime I2S clocks", written);
   this->play_boot_sound_timeout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
-  this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
 }
 
 void Tas58xxComponent::loop() {
@@ -133,7 +126,14 @@ void Tas58xxComponent::loop() {
       return;
 
     case PLAY_BOOT_SOUND:
+      if (this->speaker_ == NULL) {
+        ESP_LOGW(TAG, "speaker pointer is NULL - marking component failed" );
+        this->mark_failed();
+        this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
+        return;
+      }
       this->play_i2s_boot_sound();
+      this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
       return;
 
     case WAIT_UNTIL_PLAYED:

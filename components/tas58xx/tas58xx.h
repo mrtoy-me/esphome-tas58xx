@@ -245,7 +245,7 @@ void set_band1(number::Number *band1) { gain_band1_ = band1; }
 
    uint8_t i2c_error_{0}; // last i2c error
 
-   uint8_t loop_counter_{0}; // counts number of 'loop' iterations before proceeding
+   uint16_t loop_counter_{0}; // counts number of 'loop' iterations before proceeding
 
    //LoopSetupStage loop_setup_stage_{WAIT_FOR_TRIGGER}; // used for state machine in 'loop'
    LoopSetupStage loop_setup_stage_{RUN_DELAY_LOOP}; // testing
