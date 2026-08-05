@@ -100,7 +100,7 @@ void Tas58xxComponent::play_i2s_boot_sound() {
   }
 
   ESP_LOGD(TAG, "Queued %u bytes to prime I2S clocks", written);
-  this->play_boot_sound_timout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
+  this->play_boot_sound_timeout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
   this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
 }
 
@@ -122,7 +122,7 @@ void Tas58xxComponent::loop() {
         return;
       }
       //this->loop_setup_stage_ = INPUT_MIXER_SETUP;
-      this->loop_setup_stage_ = SEND_BOOT_SOUND;
+      this->loop_setup_stage_ = PLAY_BOOT_SOUND;
       return;
 
     case PLAY_BOOT_SOUND:
