@@ -76,6 +76,12 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_state_(CTRL_PLAY)) return false;
 
+  if (this->speaker_ == NULL) {
+    ESP_LOGW(TAG, "speaker pointer is NULL - marking component failed" );
+    this->mark_failed();
+    this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
+  }
+
   this->loop_setup_stage_ = RUN_DELAY_LOOP;
   this->start_time_ = App.get_loop_component_start_time();
   return true;
