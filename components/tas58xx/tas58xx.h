@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esphome/components/audio_dac/audio_dac.h"
+#include "esphome/components/speaker/speaker.h"
 #include "esphome/core/component.h"
 #include "esphome/components/i2c/i2c.h"
 #include "esphome/core/hal.h"
@@ -60,6 +61,9 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
     this->user_eq_frequencies_ = eq_frequencies;
     this->user_eq_frequencies_length_ = eq_frequencies_length;
   }
+
+  void set_speaker(speaker::Speaker *spk) { this->speaker_ = spk; }
+
 #ifdef USE_TAS58XX_EQ_GAINS
 void set_band1(number::Number *band1) { gain_band1_ = band1; }
 #endif
@@ -126,8 +130,12 @@ void set_band1(number::Number *band1) { gain_band1_ = band1; }
 #endif
 
    GPIOPin* enable_pin_{nullptr};
+   speaker::Speaker *speaker_{nullptr};
+   size_t play_boot_sound_timeout_{0};
 
    bool configure_registers_();
+
+   void play_i2s_boot_sound();
 
    bool get_analog_gain_(uint8_t* raw_gain);
    bool set_analog_gain_(float gain_db);
@@ -239,8 +247,8 @@ void set_band1(number::Number *band1) { gain_band1_ = band1; }
 
    uint8_t loop_counter_{0}; // counts number of 'loop' iterations before proceeding
 
-   LoopSetupStage loop_setup_stage_{WAIT_FOR_TRIGGER}; // used for state machine in 'loop'
-
+   //LoopSetupStage loop_setup_stage_{WAIT_FOR_TRIGGER}; // used for state machine in 'loop'
+   LoopSetupStage loop_setup_stage_{RUN_DELAY_LOOP}; // testing
    uint16_t number_registers_configured_{0}; // number tas58xx registers configured during 'setup'
 
    uint8_t refresh_band_{0}; // eq band currently being refreshed by 'loop'

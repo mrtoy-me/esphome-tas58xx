@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
 from esphome.core import CORE, ID
-from esphome.components import i2c
+from esphome.components import i2c, speaker
 from esphome.components.audio_dac import AudioDac
 from esphome import pins
 
@@ -16,7 +16,7 @@ from esphome.const import (
 
 #MULTI_CONF = True
 CODEOWNERS = ["@mrtoy-me"]
-DEPENDENCIES = ["i2c"]
+DEPENDENCIES = ["i2c", "speaker"]
 
 # yaml configuration constants
 CONF_ANALOG_GAIN = "analog_gain"
@@ -30,6 +30,7 @@ CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 CONF_CUSTOM_EQ_FREQS = "custom_eq_freqs"
+CONF_SPEAKER_ID = "speaker_id"
 
 # used for looking through CORE.config to derive eq configuration
 PLATFORM_TAS58XX = "tas58xx"
@@ -122,6 +123,7 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.GenerateID(): cv.declare_id(Tas58xxComponent),
             cv.Required(CONF_ENABLE_PIN): pins.gpio_output_pin_schema,
+            cv.Optional(CONF_SPEAKER_ID): cv.use_id(speaker.Speaker),
             cv.Optional(CONF_TAS58XX_DAC, default=TAS5805M_DAC): cv.enum(
                         TAS_DACS, upper=True
             ),
@@ -150,6 +152,7 @@ CONFIG_SCHEMA = cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
             cv.Optional(CONF_CUSTOM_EQ_FREQS): validate_eq_frequencies
+
         }
     )
     .extend(cv.polling_component_schema("1s"))
@@ -203,6 +206,12 @@ async def to_code(config):
     await cg.register_component(var, config)
     await i2c.register_i2c_device(var, config)
     enable = await cg.gpio_pin_expression(config[CONF_ENABLE_PIN])
+
+
+    if speaker_config := config.get(CONF_SPEAKER_ID):
+      spk = await cg.get_variable(speaker_config)
+      cg.add(var.set_speaker(spk))
+
     cg.add(var.set_enable_pin(enable))
     cg.add(var.config_analog_gain(config[CONF_ANALOG_GAIN]))
     cg.add(var.config_dac_mode(config[CONF_DAC_MODE]))

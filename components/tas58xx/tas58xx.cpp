@@ -76,8 +76,32 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_state_(CTRL_PLAY)) return false;
 
+  this->loop_setup_stage_ = RUN_DELAY_LOOP;
   this->start_time_ = App.get_loop_component_start_time();
   return true;
+}
+void Tas58xxComponent::play_i2s_boot_sound() {
+  // Silence frame, sized/formatted to match whatever audio_stream_info
+  // the speaker component was configured with (sample_rate, bits, channels).
+  // Zeros are fine here -- the codec only needs to see clocking + a data line
+  // toggling, not any particular waveform.
+
+  size_t written = this->speaker_->play(BOOT_SOUND, BOOT_SOUND_BYTES);
+
+  if (written == 0) {
+    ESP_LOGD(TAG, "Speaker not ready yet, retrying boot sound write next loop");
+    return;  // state_ unchanged -> loop() calls this again next pass
+  }
+
+  if (written < BOOT_SOUND_BYTES) {
+    // Ring buffer accepted a partial frame (it was nearly full already).
+    // Still counts as "queued" -- log it, but don't treat it as failure.
+    ESP_LOGW(TAG, "boot sound partially queued (%u/%u bytes)", written, BOOT_SOUND_BYTES);
+  }
+
+  ESP_LOGD(TAG, "Queued %u bytes to prime I2S clocks", written);
+  this->play_boot_sound_timout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
+  this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
 }
 
 void Tas58xxComponent::loop() {
@@ -89,14 +113,34 @@ void Tas58xxComponent::loop() {
   // loop_setup_stage_ is initially WAIT_FOR_TRIGGER
 
   switch (this->loop_setup_stage_) {
-    case WAIT_FOR_TRIGGER:
-      return;
+    // case WAIT_FOR_TRIGGER:
+    //   return;
 
     case RUN_DELAY_LOOP:
       if (this->loop_counter_ < DELAY_LOOPS) {    // loop_count was initialised to 0
         this->loop_counter_++;
         return;
       }
+      //this->loop_setup_stage_ = INPUT_MIXER_SETUP;
+      this->loop_setup_stage_ = SEND_BOOT_SOUND;
+      return;
+
+    case PLAY_BOOT_SOUND:
+      this->play_i2s_boot_sound();
+      return;
+
+    case WAIT_UNTIL_PLAYED:
+      if (this->speaker_->has_buffered_data()) {
+        if (App.get_loop_component_start_time() < this->play_boot_sound_timeout_) {
+          return;
+        } else {
+          ESP_LOGE(TAG, "Timed out waiting for I2S boot sound to play - component marked as failed");
+          this->mark_failed();
+          this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
+        }
+      }
+
+      ESP_LOGD(TAG, "I2S prime frame drained, finalizing codec init");
       this->loop_setup_stage_ = INPUT_MIXER_SETUP;
       return;
 
