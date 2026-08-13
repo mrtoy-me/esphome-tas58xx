@@ -31,10 +31,13 @@ CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 CONF_CUSTOM_EQ_FREQS = "custom_eq_freqs"
 CONF_SPEAKER_ID = "speaker_id"
+CONF_ID = "id"
 
 # used for looking through CORE.config to derive eq configuration
 PLATFORM_TAS58XX = "tas58xx"
+PLATFORM_I2S_AUDIO = "i2s_audio"
 SELECT_COMPONENT = "select"
+SPEAKER_COMPONENT = "speaker"
 
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
@@ -179,6 +182,8 @@ def select_eq_presets_configured(config):
                 return EQ_PRESET_LEFT_CHANNEL in select
     return False
 
+
+
 async def to_code(config):
     derived_eq_mode_configuration = EQ_OFF
     number_left_eq_gain_configured, number_right_eq_gain_configured = get_configured_number_eq_gains(config)
@@ -202,15 +207,25 @@ async def to_code(config):
         else:
             config[CONF_ADDRESS] = TAS5825M_I2C_ADDR
 
+    all_speaker = CORE.config.get(SPEAKER_COMPONENT, [])
+    found_i2s_speaker_id = False
+    for the_speaker in all_speaker:
+        if the_speaker.get(CONF_PLATFORM) == PLATFORM_I2S_AUDIO:
+            i2s_speaker_id = the_speaker.get(CONF_ID)
+            found_i2s_speaker_id = True
+
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await i2c.register_i2c_device(var, config)
     enable = await cg.gpio_pin_expression(config[CONF_ENABLE_PIN])
 
 
-    # if speaker_config := config.get(CONF_SPEAKER_ID):
-    spk = await cg.get_variable(config[CONF_SPEAKER_ID])
-    cg.add(var.set_speaker(spk))
+    ## if speaker_config := config.get(CONF_SPEAKER_ID):
+    #spk = await cg.get_variable(config[CONF_SPEAKER_ID])
+    #cg.add(var.set_speaker(spk))
+
+    if found_i2s_speaker_id:
+      cg.add(var.set_speaker(i2s_speaker_id))
 
     cg.add(var.set_enable_pin(enable))
     cg.add(var.config_analog_gain(config[CONF_ANALOG_GAIN]))
