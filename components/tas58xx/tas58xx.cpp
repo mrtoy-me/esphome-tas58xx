@@ -101,6 +101,7 @@ void Tas58xxComponent::play_i2s_boot_sound() {
 
   ESP_LOGD(TAG, "queued %u bytes to I2S clocks", written);
   this->play_boot_sound_timeout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
+  this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
 }
 
 void Tas58xxComponent::loop() {
@@ -133,7 +134,6 @@ void Tas58xxComponent::loop() {
         return;
       }
       this->play_i2s_boot_sound();
-      this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
       return;
 
     case WAIT_UNTIL_PLAYED:
