@@ -221,9 +221,10 @@ async def to_code(config):
     ## if speaker_config := config.get(CONF_SPEAKER_ID):
     #spk = await cg.get_variable(config[CONF_SPEAKER_ID])
     #cg.add(var.set_speaker(spk))
-
+    spk = None
     if found_i2s_speaker_id:
-      cg.add(var.set_speaker(i2s_speaker_id))
+      spk = await cg.get_variable(i2s_speaker_id)
+    cg.add(var.set_speaker(spk))
 
     cg.add(var.set_enable_pin(enable))
     cg.add(var.config_analog_gain(config[CONF_ANALOG_GAIN]))
