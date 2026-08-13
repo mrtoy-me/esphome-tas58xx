@@ -64,9 +64,9 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
   void set_speaker(speaker::Speaker *spk) { this->speaker_ = spk; }
 
-#ifdef USE_TAS58XX_EQ_GAINS
-void set_band1(number::Number *band1) { gain_band1_ = band1; }
-#endif
+// #ifdef USE_TAS58XX_EQ_GAINS
+// void set_band1(number::Number *band1) { gain_band1_ = band1; }
+// #endif
 #ifdef USE_TAS58XX_BINARY_SENSOR
   void config_exclude_fault(ExcludeIgnoreMode exclude_fault) {
     this->exclude_clock_fault_from_have_faults_ = (exclude_fault == ExcludeIgnoreMode::CLOCK_FAULT);
@@ -125,13 +125,14 @@ void set_band1(number::Number *band1) { gain_band1_ = band1; }
   bool set_volume(float value) override;
 
  protected:
-#ifdef USE_TAS58XX_EQ_GAINS
-   number::Number *gain_band1_;
-#endif
+// #ifdef USE_TAS58XX_EQ_GAINS
+//    number::Number *gain_band1_;
+// #endif
 
    GPIOPin* enable_pin_{nullptr};
    speaker::Speaker *speaker_{nullptr};
-   size_t play_boot_sound_timeout_{0};
+   uint32_t play_boot_sound_timeout_{0};
+   uint8_t number_tries_waiting_for_speaker_{0};
 
    bool configure_registers_();
 

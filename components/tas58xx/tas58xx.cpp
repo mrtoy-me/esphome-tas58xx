@@ -19,7 +19,7 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-static constexpr uint16_t DELAY_LOOPS = 40;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
+static constexpr uint16_t DELAY_LOOPS = 400;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
 
 static constexpr uint16_t INITIAL_UPDATE_DELAY = 8000;  // was 4000 initial ms delay before starting fault updates
 
@@ -86,20 +86,15 @@ void Tas58xxComponent::play_i2s_boot_sound() {
   // Zeros are fine here -- the codec only needs to see clocking + a data line
   // toggling, not any particular waveform.
 
-  size_t written = this->speaker_->play(BOOT_SOUND, BOOT_SOUND_BYTES);
+  uint16_t bytes_in_ring_buffer = this->speaker_->play(BOOT_SOUND, BOOT_SOUND_BYTES);
 
-  if (written == 0) {
-    ESP_LOGD(TAG, "speaker not ready yet, retrying boot sound write next loop");
-    return;  // state_ unchanged -> loop() calls this again next pass
+  if (bytes_in_ring_buffer == 0) {
+    ESP_LOGD(TAG, "speaker not ready - boot sound will be sent next loop cycle");
+    number_tries_waiting_for_speaker_++;
+    return;  // loop_setup_stage_ unchanged so loop() will try speaker->play again next loop
   }
 
-  if (written < BOOT_SOUND_BYTES) {
-    // Ring buffer accepted a partial frame (it was nearly full already).
-    // Still counts as "queued" -- log it, but don't treat it as failure.
-    ESP_LOGW(TAG, "boot sound partially queued (%u/%u bytes)", written, BOOT_SOUND_BYTES);
-  }
-
-  ESP_LOGD(TAG, "queued %u bytes to I2S clocks", written);
+  ESP_LOGD(TAG, "speaker has %u bytes of boot sound queued to play", written);
   this->play_boot_sound_timeout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
   this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
 }
@@ -128,22 +123,26 @@ void Tas58xxComponent::loop() {
 
     case PLAY_BOOT_SOUND:
       if (this->speaker_ == NULL) {
-        ESP_LOGE(TAG, "speaker pointer is NULL - marking component failed" );
+        ESP_LOGE(TAG, "speaker component not assigned - marking component failed" );
         this->mark_failed();
-        this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
+        this->loop_setup_stage_ = SETUP_COMPLETE;
         return;
       }
       this->play_i2s_boot_sound();
+      if (number_tries_waiting_for_speaker_ == MAX_LOOPS_TO_WAIT_FOR_SPEAKER) {
+        ESP_LOGE(TAG, "timed out waiting for speaker component to be ready - component marked as failed");
+        this->mark_failed();
+        this->loop_setup_stage_ = SETUP_COMPLETE;
+      }
       return;
 
     case WAIT_UNTIL_PLAYED:
       if (this->speaker_->has_buffered_data()) {
-        if (App.get_loop_component_start_time() < this->play_boot_sound_timeout_) {
-          return;
-        } else {
-          ESP_LOGE(TAG, "Timed out waiting for I2S boot sound to play - component marked as failed");
-          this->mark_failed();
-          this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
+        if (App.get_loop_component_start_time() < this->play_boot_sound_timeout_) return;
+
+        ESP_LOGE(TAG, "timed out waiting for boot sound to play - component marked as failed");
+        this->mark_failed();
+        this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
         }
       }
 
