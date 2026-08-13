@@ -30,7 +30,7 @@ CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 CONF_CUSTOM_EQ_FREQS = "custom_eq_freqs"
-CONF_SPEAKER_ID = "speaker_id"
+# CONF_SPEAKER_ID = "speaker_id"
 CONF_ID = "id"
 
 # used for looking through CORE.config to derive eq configuration
@@ -126,7 +126,7 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.GenerateID(): cv.declare_id(Tas58xxComponent),
             cv.Required(CONF_ENABLE_PIN): pins.gpio_output_pin_schema,
-            cv.Required(CONF_SPEAKER_ID): cv.use_id(speaker.Speaker),
+            # cv.Required(CONF_SPEAKER_ID): cv.use_id(speaker.Speaker),
             cv.Optional(CONF_TAS58XX_DAC, default=TAS5805M_DAC): cv.enum(
                         TAS_DACS, upper=True
             ),
@@ -181,8 +181,6 @@ def select_eq_presets_configured(config):
             if select.get(CONF_TAS58XX_ID) == audio_dac_id:
                 return EQ_PRESET_LEFT_CHANNEL in select
     return False
-
-
 
 async def to_code(config):
     derived_eq_mode_configuration = EQ_OFF
