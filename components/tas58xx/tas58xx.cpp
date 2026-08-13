@@ -143,7 +143,6 @@ void Tas58xxComponent::loop() {
         ESP_LOGE(TAG, "timed out waiting for boot sound to play - component marked as failed");
         this->mark_failed();
         this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
-        }
       }
 
       ESP_LOGD(TAG, "Boot sound played");
