@@ -94,7 +94,7 @@ void Tas58xxComponent::play_i2s_boot_sound() {
     return;  // loop_setup_stage_ unchanged so loop() will try speaker->play again next loop
   }
 
-  ESP_LOGD(TAG, "speaker has %u bytes of boot sound queued to play", written);
+  ESP_LOGD(TAG, "speaker has %u bytes of boot sound queued to play", bytes_in_ring_buffer);
   this->play_boot_sound_timeout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
   this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
 }
