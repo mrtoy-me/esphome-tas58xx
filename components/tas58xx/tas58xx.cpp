@@ -19,7 +19,7 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-static constexpr uint16_t DELAY_LOOPS = 1000;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
+static constexpr uint16_t DELAY_LOOPS = 40;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
 
 static constexpr uint16_t INITIAL_UPDATE_DELAY = 8000;  // was 4000 initial ms delay before starting fault updates
 
