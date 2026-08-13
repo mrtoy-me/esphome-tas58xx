@@ -17,10 +17,10 @@ void EqModeSelect::setup() {
   size_t initial_select_index = EqMode::EQ_OFF;
 
 #ifdef USE_TAS58XX_EQ_PRESETS
-  if (this->parent_->using_auto_eq_refresh()) {
-    this->parent_->refresh_eq_settings();
-    ESP_LOGD(TAG, "EQ Mode Select Setup triggered EQ settings refresh");
-  }
+  // if (this->parent_->using_auto_eq_refresh()) {
+  //   this->parent_->refresh_eq_settings();
+  //   ESP_LOGD(TAG, "EQ Mode Select Setup triggered EQ settings refresh");
+  // }
 #endif
 
   if (this->parent_->is_eq_configured()) {

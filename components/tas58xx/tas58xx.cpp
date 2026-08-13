@@ -443,9 +443,9 @@ bool Tas58xxComponent::is_eq_configured() {
 // used by 'left_gain_band16000hz' or 'right_gain_band16000hz' or 'select eq_mode'
 // to trigger loop setup
 void Tas58xxComponent::refresh_eq_settings() {
-  if (this->loop_setup_stage_ == WAIT_FOR_TRIGGER) {
-    this->loop_setup_stage_ = RUN_DELAY_LOOP;
-  }
+  // if (this->loop_setup_stage_ == WAIT_FOR_TRIGGER) {
+  //   this->loop_setup_stage_ = RUN_DELAY_LOOP;
+  // }
   return;
 }
 
