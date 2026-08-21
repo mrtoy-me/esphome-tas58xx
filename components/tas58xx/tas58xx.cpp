@@ -80,57 +80,12 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
-  // setup Eq Mode first
-  if (!this->set_eq_mode_(this->tas58xx_eq_mode_)) {
-      ESP_LOGW(TAG, "%s setting EQ Mode: %s", ERROR, EQ_MODE_TEXT[this->tas58xx_eq_mode_]);
-  }
 
-  if (!this->set_input_mixer_mode(this->tas58xx_input_mixer_mode_)) {
-    ESP_LOGW(TAG, "%s setting %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_]);
-  }
-
-  #ifdef USE_TAS58XX_CHANNEL_VOLUMES
-  if (!this->set_channel_volume(LEFT_CHANNEL, this->tas58xx_channel_volume_[LEFT_CHANNEL])) {
-    ESP_LOGW(TAG, "%s setting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[LEFT_CHANNEL]);
-  }
-
-  if (!this->set_channel_volume(RIGHT_CHANNEL, this->tas58xx_channel_volume_[RIGHT_CHANNEL])) {
-    ESP_LOGW(TAG, "%s setting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[RIGHT_CHANNEL]);
-  }
-  #endif
-
-
-  #ifdef USE_TAS58XX_EQ_GAINS
-  for (int band = 1; band < NUMBER_EQ_BANDS; bandt++) {
-    if (!this->set_eq_gain(LEFT_CHANNEL, band, this->tas58xx_eq_gain_[LEFT_CHANNEL][band])) {
-    #ifdef USE_TAS58XX_EQ_BIAMP
-        ESP_LOGW(TAG, "%s setting Gain Left %s: %d", ERROR, EQ_BAND, band + 1);
-    #else
-        ESP_LOGW(TAG, "%s setting Gain %s: %d", ERROR, EQ_BAND, band + 1);
-    #endif
-    }
-
-    #ifdef USE_TAS58XX_EQ_BIAMP
-      if (!this->set_eq_gain(RIGHT_CHANNEL, band, this->tas58xx_eq_gain_[RIGHT_CHANNEL][band])) {
-        ESP_LOGW(TAG, "%s setting Gain Right %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-      }
-    #endif
-  }
-  #endif // USE_TAS58XX_EQ_GAINS;
-
-  #ifdef USE_TAS58XX_EQ_PRESETS
-  if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
-    ESP_LOGW(TAG, "%s setting Left Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
-  }
-  if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
-    ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
-  }
-  #endif // USE_TAS58XX_EQ_PRESETS
+  this->loop_setup_stage_ = SETUP_COMPLETE;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
-  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;{
 
-  this->loop_setup_stage_ = RUN_DELAY_LOOP;
+  //this->loop_setup_stage_ = RUN_DELAY_LOOP;
   this->start_time_ = App.get_loop_component_start_time();
   return true;
 }
@@ -288,17 +243,18 @@ bool Tas58xxComponent::configure_registers_() {
 // }
 
 void Tas58xxComponent::update() {
-  // initial delay before proceeding with updates
+  // initial delay allows DAC to stabilise before proceeding with checking for faults
   if (!this->update_delay_finished_) {
     const uint32_t current_time = App.get_loop_component_start_time();
     this->update_delay_finished_ = ((current_time - this->start_time_) > INITIAL_UPDATE_DELAY);
 
     if (!this->update_delay_finished_) return;
+    ESP_LOGD(TAG, "update delay finished");
+    //finished delay so clear faults
+    if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
+      ESP_LOGW(TAG, "%s initialising faults", ERROR);
+    }
 
-    // finished delay so clear faults
-    // if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
-    //   ESP_LOGW(TAG, "%s initialising faults", ERROR);
-    // }
 
     // publish all binary sensors as false on first update
 #ifdef USE_TAS58XX_BINARY_SENSOR
@@ -311,7 +267,7 @@ void Tas58xxComponent::update() {
   }
 
   // after delay updates starts here
-
+  ESP_LOGD(TAG, "running update");
   // if there was a fault last update then clear any faults
   if (this->is_fault_to_clear_) {
     if (!this->clear_fault_registers_()) {
@@ -907,7 +863,7 @@ bool Tas58xxComponent::using_manual_eq_refresh() {
   return (this->eq_refresh_ == EqRefreshMode::MANUAL);
 }
 
-// override for audio_dac component volume, so mediaplayer can determine currnet volume of tas58xx dac
+// override for audio_dac component volume, so mediaplayer can determine current volume of tas58xx dac
 float Tas58xxComponent::volume() {
   uint8_t raw_volume;
   this->get_digital_volume_(&raw_volume);
@@ -1121,6 +1077,7 @@ bool Tas58xxComponent::clear_fault_registers_() {
 #ifdef USE_TAS58XX_BINARY_SENSOR
 void Tas58xxComponent::publish_faults_() {
   if (this->is_new_common_fault_) {
+    ESP_LOGD(TAG, "publish common faults");
     if (this->have_fault_binary_sensor_ != nullptr) {
       this->have_fault_binary_sensor_->publish_state(this->tas58xx_faults_.have_fault);
     }
@@ -1152,19 +1109,24 @@ void Tas58xxComponent::publish_faults_() {
 }
 
 void Tas58xxComponent::publish_channel_faults_() {
+  ESP_LOGD(TAG, "publish channel faults");
   if (this->right_channel_over_current_fault_binary_sensor_ != nullptr) {
+    ESP_LOGD(TAG, "publish channel fault0");
     this->right_channel_over_current_fault_binary_sensor_->publish_state(this->tas58xx_faults_.channel_fault & (1 << 0));
   }
 
   if (this->left_channel_over_current_fault_binary_sensor_ != nullptr) {
+    ESP_LOGD(TAG, "publish channel fault1");
     this->left_channel_over_current_fault_binary_sensor_->publish_state(this->tas58xx_faults_.channel_fault & (1 << 1));
   }
 
   if (this->right_channel_dc_fault_binary_sensor_ != nullptr) {
+    ESP_LOGD(TAG, "publish channel fault2");
     this->right_channel_dc_fault_binary_sensor_->publish_state(this->tas58xx_faults_.channel_fault & (1 << 2));
   }
 
   if (this->left_channel_dc_fault_binary_sensor_ != nullptr) {
+    ESP_LOGD(TAG, "publish channel fault3");
     this->left_channel_dc_fault_binary_sensor_->publish_state(this->tas58xx_faults_.channel_fault & (1 << 3));
   }
 
@@ -1175,6 +1137,7 @@ void Tas58xxComponent::publish_channel_faults_() {
 
 
 void Tas58xxComponent::publish_global_faults_() {
+  ESP_LOGD(TAG, "publish global faults");
   if (this->pvdd_under_voltage_fault_binary_sensor_ != nullptr) {
     this->pvdd_under_voltage_fault_binary_sensor_->publish_state(this->tas58xx_faults_.global_fault & (1 << 0));
   }
