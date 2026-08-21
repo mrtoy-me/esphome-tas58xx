@@ -19,7 +19,7 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-static constexpr uint16_t DELAY_LOOPS = 40;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
+static constexpr uint16_t DELAY_LOOPS = 0;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
 
 static constexpr uint16_t INITIAL_UPDATE_DELAY = 8000;  // was 4000 initial ms delay before starting fault updates
 
@@ -65,6 +65,13 @@ bool Tas58xxComponent::configure_registers_() {
   }
   this->number_registers_configured_ = counter;
 
+  if (!this->i2s_prime_open_channel_()) {
+    ESP_LOGW(TAG, "I2S priming unavailable, DAC will fault on Play transition");
+  } else {
+    size_t bytes_written = 0;
+    this->i2s_prime_write_(PRIME_BUFFER, sizeof(PRIME_BUFFER), &bytes_written);
+    this->i2s_prime_close_channel_();
+  }
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
 
@@ -75,29 +82,30 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
+  if (!this->clear_fault_registers_()) return false;
 
   this->loop_setup_stage_ = RUN_DELAY_LOOP;
   this->start_time_ = App.get_loop_component_start_time();
   return true;
 }
-void Tas58xxComponent::play_i2s_boot_sound() {
-  // Silence frame, sized/formatted to match whatever audio_stream_info
-  // the speaker component was configured with (sample_rate, bits, channels).
-  // Zeros are fine here -- the codec only needs to see clocking + a data line
-  // toggling, not any particular waveform.
+// void Tas58xxComponent::play_i2s_boot_sound() {
+//   // Silence frame, sized/formatted to match whatever audio_stream_info
+//   // the speaker component was configured with (sample_rate, bits, channels).
+//   // Zeros are fine here -- the codec only needs to see clocking + a data line
+//   // toggling, not any particular waveform.
 
-  uint16_t bytes_in_ring_buffer = this->speaker_->play(BOOT_SOUND, BOOT_SOUND_BYTES);
+//   uint16_t bytes_in_ring_buffer = this->speaker_->play(BOOT_SOUND, BOOT_SOUND_BYTES);
 
-  if (bytes_in_ring_buffer == 0) {
-    ESP_LOGD(TAG, "speaker not ready - boot sound will be sent next loop cycle");
-    number_tries_waiting_for_speaker_++;
-    return;  // loop_setup_stage_ unchanged so loop() will try speaker->play again next loop
-  }
+//   if (bytes_in_ring_buffer == 0) {
+//     ESP_LOGD(TAG, "speaker not ready - boot sound will be sent next loop cycle");
+//     number_tries_waiting_for_speaker_++;
+//     return;  // loop_setup_stage_ unchanged so loop() will try speaker->play again next loop
+//   }
 
-  ESP_LOGD(TAG, "speaker has %u bytes of boot sound queued to play", bytes_in_ring_buffer);
-  this->play_boot_sound_timeout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
-  this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
-}
+//   ESP_LOGD(TAG, "speaker has %u bytes of boot sound queued to play", bytes_in_ring_buffer);
+//   this->play_boot_sound_timeout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
+//   this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
+// }
 
 void Tas58xxComponent::loop() {
   // 'play_file' is initiated by YAML on_boot with priority 220.0f
@@ -116,38 +124,38 @@ void Tas58xxComponent::loop() {
         this->loop_counter_++;
         return;
       }
-      //this->loop_setup_stage_ = INPUT_MIXER_SETUP;
-      this->loop_setup_stage_ = PLAY_BOOT_SOUND;
+      this->loop_setup_stage_ = INPUT_MIXER_SETUP;
+      // this->loop_setup_stage_ = PLAY_BOOT_SOUND;
       ESP_LOGD(TAG, "Loop delay complete");
       return;
 
-    case PLAY_BOOT_SOUND:
-      if (this->speaker_ == NULL) {
-        ESP_LOGE(TAG, "speaker component not assigned - marking component failed" );
-        this->mark_failed();
-        this->loop_setup_stage_ = SETUP_COMPLETE;
-        return;
-      }
-      this->play_i2s_boot_sound();
-      if (number_tries_waiting_for_speaker_ == MAX_LOOPS_TO_WAIT_FOR_SPEAKER) {
-        ESP_LOGE(TAG, "timed out waiting for speaker component to be ready - component marked as failed");
-        this->mark_failed();
-        this->loop_setup_stage_ = SETUP_COMPLETE;
-      }
-      return;
+    // case PLAY_BOOT_SOUND:
+    //   if (this->speaker_ == NULL) {
+    //     ESP_LOGE(TAG, "speaker component not assigned - marking component failed" );
+    //     this->mark_failed();
+    //     this->loop_setup_stage_ = SETUP_COMPLETE;
+    //     return;
+    //   }
+    //   this->play_i2s_boot_sound();
+    //   if (number_tries_waiting_for_speaker_ == MAX_LOOPS_TO_WAIT_FOR_SPEAKER) {
+    //     ESP_LOGE(TAG, "timed out waiting for speaker component to be ready - component marked as failed");
+    //     this->mark_failed();
+    //     this->loop_setup_stage_ = SETUP_COMPLETE;
+    //   }
+    //   return;
 
-    case WAIT_UNTIL_PLAYED:
-      if (this->speaker_->has_buffered_data()) {
-        if (App.get_loop_component_start_time() < this->play_boot_sound_timeout_) return;
+    // case WAIT_UNTIL_PLAYED:
+    //   if (this->speaker_->has_buffered_data()) {
+    //     if (App.get_loop_component_start_time() < this->play_boot_sound_timeout_) return;
 
-        ESP_LOGE(TAG, "timed out waiting for boot sound to play - component marked as failed");
-        this->mark_failed();
-        this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
-      }
+    //     ESP_LOGE(TAG, "timed out waiting for boot sound to play - component marked as failed");
+    //     this->mark_failed();
+    //     this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
+    //   }
 
-      ESP_LOGD(TAG, "Boot sound played");
-      this->loop_setup_stage_ = INPUT_MIXER_SETUP;
-      return;
+    //   ESP_LOGD(TAG, "Boot sound played");
+    //   this->loop_setup_stage_ = INPUT_MIXER_SETUP;
+    //   return;
 
     case INPUT_MIXER_SETUP:
       // setup Eq Mode first
@@ -344,6 +352,117 @@ void Tas58xxComponent::dump_config() {
 }
 
 // public //
+bool Tas58xxComponent::i2s_prime_open_channel_() {
+  // try_lock(), not lock(): priming runs synchronously in setup(), before
+  // any other component's loop()/background task exists to hold the mutex.
+  // Defensive insurance only — not expected to actually contend.
+  if (!this->parent_->try_lock()) {
+    return false;
+  }
+
+  i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(
+      static_cast<i2s_port_t>(this->parent_->get_port()), I2S_ROLE_MASTER);
+  esp_err_t err = i2s_new_channel(&chan_cfg, &this->prime_tx_handle_, nullptr);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "i2s_new_channel failed: %s", esp_err_to_name(err));
+    this->prime_tx_handle_ = nullptr;  // don't rely on i2s_new_channel's own behavior
+    this->parent_->unlock();
+    return false;
+  }
+
+  i2s_std_gpio_config_t pin_cfg = this->parent_->get_pin_config();
+  pin_cfg.dout = this->dout_pin_;  // patch in our own dout — shared pin_config leaves it unused
+
+  i2s_std_clk_config_t clk_cfg = {
+      .sample_rate_hz = 48000,
+      .clk_src = I2S_CLK_SRC_DEFAULT,
+      .mclk_multiple = I2S_MCLK_MULTIPLE_256,
+  };
+  i2s_std_slot_config_t slot_cfg =
+      I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
+  i2s_std_config_t std_cfg = {.clk_cfg = clk_cfg, .slot_cfg = slot_cfg, .gpio_cfg = pin_cfg};
+
+  ESP_LOGW(TAG, "prime pins: bclk=%d ws=%d dout=%d din=%d mclk=%d",
+          pin_cfg.bclk, pin_cfg.ws, pin_cfg.dout, pin_cfg.din, pin_cfg.mclk);
+
+  err = i2s_channel_init_std_mode(this->prime_tx_handle_, &std_cfg);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "i2s_channel_init_std_mode failed: %s", esp_err_to_name(err));
+    i2s_del_channel(this->prime_tx_handle_);
+    this->prime_tx_handle_ = nullptr;
+    this->parent_->unlock();
+    return false;
+  }
+
+  err = i2s_channel_enable(this->prime_tx_handle_);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "i2s_channel_enable failed: %s", esp_err_to_name(err));
+    i2s_del_channel(this->prime_tx_handle_);
+    this->prime_tx_handle_ = nullptr;
+    this->parent_->unlock();
+    return false;
+  }
+
+  return true;
+}
+
+// bool Tas58xxComponent::i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written) {
+//   if (this->prime_tx_handle_ == nullptr) return false;
+
+//   // 16 bytes into a freshly-enabled, empty channel completes immediately.
+//   // Fixed 20ms timeout is generous; no retry-across-ticks logic needed at this size.
+//   esp_err_t err = i2s_channel_write(this->prime_tx_handle_, data, len, bytes_written,
+//                                      pdMS_TO_TICKS(20));
+//   if (err != ESP_OK || *bytes_written != len) {
+//     ESP_LOGW(TAG, "I2S prime write incomplete: %u of %u bytes (err=%d)",
+//               (unsigned) *bytes_written, (unsigned) len, (int) err);
+//     return false;
+//   }
+//   ESP_LOGW(TAG, "I2S prime write completed for %u bytes",
+//               (unsigned) *bytes_written);
+//   return true;
+// }
+bool Tas58xxComponent::i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written) {
+  if (this->prime_tx_handle_ == nullptr) return false;
+
+  static constexpr int MAX_ATTEMPTS = 5;       // 5 x 2ms = 10ms worst-case budget
+  static constexpr int ATTEMPT_TIMEOUT_MS = 4;  // stays well under your 10ms-per-call limit
+
+  for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    esp_err_t err = i2s_channel_write(this->prime_tx_handle_, data, len, bytes_written,
+                                       pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
+    if (err == ESP_OK && *bytes_written == len) {
+      ESP_LOGW(TAG, "I2S prime write completed for %u bytes (attempt %d)",
+                (unsigned) *bytes_written, attempt);
+      return true;
+    }
+    if (err == ESP_ERR_TIMEOUT && *bytes_written == 0) {
+      continue;  // clock still settling — retry, not a real failure yet
+    }
+    ESP_LOGW(TAG, "I2S prime write incomplete: %u of %u bytes (err=%d, attempt %d)",
+              (unsigned) *bytes_written, (unsigned) len, (int) err, attempt);
+    return false;
+  }
+
+  ESP_LOGE(TAG, "I2S prime write never succeeded after %d attempts", MAX_ATTEMPTS);
+  return false;
+}
+
+void Tas58xxComponent::i2s_prime_close_channel_() {
+  if (this->prime_tx_handle_ != nullptr) {
+    i2s_channel_disable(this->prime_tx_handle_);
+    i2s_del_channel(this->prime_tx_handle_);
+    this->prime_tx_handle_ = nullptr;
+
+    // Detach dout from the GPIO matrix and drive it low — i2s_del_channel() does not undo
+    // esp_rom_gpio_connect_out_signal(); without this the priming channel's last output
+    // state keeps driving the pin until the real speaker platform re-inits it.
+    gpio_reset_pin(this->dout_pin_);
+    gpio_set_direction(this->dout_pin_, GPIO_MODE_OUTPUT);
+    gpio_set_level(this->dout_pin_, 0);
+  }
+  this->parent_->unlock();  // unconditional — always attempts release, matches built-in speaker
+}
 
 // used by 'enable_dac_switch'
 void Tas58xxComponent::enable_dac(bool enable) {

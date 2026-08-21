@@ -40,8 +40,8 @@ static constexpr Tas58xxConfiguration TAS58XX_CONFIG[] = {
     { 0x4c, 0x30 },
     { 0x53, 0x00 },
     { 0x54, 0x00 }, // analog gain 0db
-    { 0x03, 0x03 },
-    { 0x78, 0x80 },
+    // { 0x03, 0x03 }, remove and implement after sending boot sound
+    // { 0x78, 0x80 },
 };
 
 }  // namespace esphome::tas58xx

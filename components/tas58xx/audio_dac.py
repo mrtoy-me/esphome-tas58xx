@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
 from esphome.core import CORE, ID
-from esphome.components import i2c, speaker
+from esphome.components import i2c, i2s_audio #, speaker
 from esphome.components.audio_dac import AudioDac
 from esphome import pins
 
@@ -16,7 +16,8 @@ from esphome.const import (
 
 #MULTI_CONF = True
 CODEOWNERS = ["@mrtoy-me"]
-DEPENDENCIES = ["i2c", "speaker"]
+#DEPENDENCIES = ["i2c", "speaker"]
+DEPENDENCIES = ["i2c", "i2s_audio"]
 
 # yaml configuration constants
 CONF_ANALOG_GAIN = "analog_gain"
@@ -30,8 +31,8 @@ CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 CONF_CUSTOM_EQ_FREQS = "custom_eq_freqs"
-# CONF_SPEAKER_ID = "speaker_id"
-CONF_ID = "id"
+CONF_I2S_AUDIO_ID = "i2s_audio_id"
+CONF_I2S_DOUT_PIN = "i2s_dout_pin"
 
 # used for looking through CORE.config to derive eq configuration
 PLATFORM_TAS58XX = "tas58xx"
@@ -57,12 +58,12 @@ TAS5805M_DAC = "TAS5805M"
 TAS5825M_DAC = "TAS5825M"
 
 # i2c addresses of dac models
-DUMMY_I2C_ADDR = 0x00
 TAS5805M_I2C_ADDR = 0x2D
 TAS5825M_I2C_ADDR = 0x4C
+PLACEHOLDER_I2C_ADDR = 0x00
 
 tas58xx_ns = cg.esphome_ns.namespace("tas58xx")
-Tas58xxComponent = tas58xx_ns.class_("Tas58xxComponent", AudioDac, cg.PollingComponent, i2c.I2CDevice)
+Tas58xxComponent = tas58xx_ns.class_("Tas58xxComponent", AudioDac, cg.PollingComponent, i2c.I2CDevice, i2s_audio.I2SAudioOut)
 
 EqRefreshMode = tas58xx_ns.enum("EqRefreshMode")
 EQ_REFRESH_MODES = {
@@ -125,6 +126,8 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(Tas58xxComponent),
+            cv.GenerateID(CONF_I2S_AUDIO_ID): cv.use_id(i2s_audio.I2SAudioComponent),
+            cv.Required(CONF_I2S_DOUT_PIN): pins.internal_gpio_output_pin_number,
             cv.Required(CONF_ENABLE_PIN): pins.gpio_output_pin_schema,
             # cv.Required(CONF_SPEAKER_ID): cv.use_id(speaker.Speaker),
             cv.Optional(CONF_TAS58XX_DAC, default=TAS5805M_DAC): cv.enum(
@@ -159,7 +162,7 @@ CONFIG_SCHEMA = cv.All(
         }
     )
     .extend(cv.polling_component_schema("1s"))
-    .extend(i2c.i2c_device_schema(DUMMY_I2C_ADDR))
+    .extend(i2c.i2c_device_schema(PLACEHOLDER_I2C_ADDR))
     .add_extra(validate_config),
     cv.only_on_esp32,
 )
@@ -197,34 +200,38 @@ async def to_code(config):
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
 
     # when the user has not defined an audio dac i2c address
-    # CONF_ADDRESS == DUMMY_I2C_ADDR
+    # CONF_ADDRESS == PLACEHOLDER_I2C_ADDR
     # and it needs to be correctly assigned based on the defined tas58xx_dac
-    if config[CONF_ADDRESS] == DUMMY_I2C_ADDR:
+    # this allows the user to use a custom dac i2c address
+    if config[CONF_ADDRESS] == PLACEHOLDER_I2C_ADDR:
         if tas58xx_dac == TAS5805M_DAC:
             config[CONF_ADDRESS] = TAS5805M_I2C_ADDR
         else:
             config[CONF_ADDRESS] = TAS5825M_I2C_ADDR
 
-    all_speaker = CORE.config.get(SPEAKER_COMPONENT, [])
-    found_i2s_speaker_id = False
-    for the_speaker in all_speaker:
-        if the_speaker.get(CONF_PLATFORM) == PLATFORM_I2S_AUDIO:
-            i2s_speaker_id = the_speaker.get(CONF_ID)
-            found_i2s_speaker_id = True
+    # all_speaker = CORE.config.get(SPEAKER_COMPONENT, [])
+    # found_i2s_speaker_id = False
+    # for the_speaker in all_speaker:
+    #     if the_speaker.get(CONF_PLATFORM) == PLATFORM_I2S_AUDIO:
+    #         i2s_speaker_id = the_speaker.get(CONF_ID)
+    #         found_i2s_speaker_id = True
 
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await i2c.register_i2c_device(var, config)
     enable = await cg.gpio_pin_expression(config[CONF_ENABLE_PIN])
 
+    i2s_parent = await cg.get_variable(config[CONF_I2S_AUDIO_ID])
+    cg.add(var.set_parent(i2s_parent))
+    cg.add(var.set_dout_pin(config[CONF_I2S_DOUT_PIN]))
 
     ## if speaker_config := config.get(CONF_SPEAKER_ID):
     #spk = await cg.get_variable(config[CONF_SPEAKER_ID])
     #cg.add(var.set_speaker(spk))
-    spk = None
-    if found_i2s_speaker_id:
-      spk = await cg.get_variable(i2s_speaker_id)
-    cg.add(var.set_speaker(spk))
+    # spk = None
+    # if found_i2s_speaker_id:
+    #   spk = await cg.get_variable(i2s_speaker_id)
+    # cg.add(var.set_speaker(spk))
 
     cg.add(var.set_enable_pin(enable))
     cg.add(var.config_analog_gain(config[CONF_ANALOG_GAIN]))

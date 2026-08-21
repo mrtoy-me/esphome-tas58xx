@@ -1,10 +1,13 @@
 #pragma once
 
 #include "esphome/components/audio_dac/audio_dac.h"
-#include "esphome/components/speaker/speaker.h"
+//#include "esphome/components/speaker/speaker.h"
+#include "esphome/components/i2s_audio/i2s_audio.h"
 #include "esphome/core/component.h"
 #include "esphome/components/i2c/i2c.h"
 #include "esphome/core/hal.h"
+#include <driver/i2s_std.h>
+#include <driver/gpio.h>
 
 #include "tas58xx_defs.h"
 #include "tas58xx_eq_common.h"
@@ -16,13 +19,13 @@
 #endif
 
 #if defined(USE_TAS58XX_DIGITAL_VOLUME) || defined(USE_TAS58XX_EQ_GAINS)
-#include "esphome/components/number/number.h"
+//#include "esphome/components/number/number.h"
 //#include "number/left_eq_gain_20hz.h"
 #endif
 
 namespace esphome::tas58xx {
 
-class Tas58xxComponent final : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
+class Tas58xxComponent final : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice, public i2s_audio::I2SAudioOut {
  public:
   void setup() override;
 
@@ -36,6 +39,8 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   void set_enable_pin(GPIOPin *enable) { this->enable_pin_ = enable; }
 
   // optional YAML config
+
+  void set_dout_pin(int pin) { this->dout_pin_ = static_cast<gpio_num_t>(pin); }
 
   void config_analog_gain(float analog_gain) { this->tas58xx_analog_gain_ = analog_gain; }
 
@@ -62,7 +67,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
     this->user_eq_frequencies_length_ = eq_frequencies_length;
   }
 
-  void set_speaker(speaker::Speaker *spk) { this->speaker_ = spk; }
+ // void set_speaker(speaker::Speaker *spk) { this->speaker_ = spk; }
 
 // #ifdef USE_TAS58XX_EQ_GAINS
 // void set_band1(number::Number *band1) { gain_band1_ = band1; }
@@ -87,6 +92,15 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   SUB_BINARY_SENSOR(over_temperature_shutdown_fault)
   SUB_BINARY_SENSOR(over_temperature_warning)
 #endif
+  gpio_num_t dout_pin_;
+
+  // I2S priming channel — prime_tx_handle_ is the single source of truth for
+  // "is a channel open right now." No separate bool: nullptr means closed.
+  i2s_chan_handle_t prime_tx_handle_{};
+
+  bool i2s_prime_open_channel_();
+  bool i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written);
+  void i2s_prime_close_channel_();
 
   void enable_dac(bool enable);
 
@@ -130,13 +144,13 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 // #endif
 
    GPIOPin* enable_pin_{nullptr};
-   speaker::Speaker *speaker_{nullptr};
+   //speaker::Speaker *speaker_{nullptr};
    uint32_t play_boot_sound_timeout_{0};
-   uint8_t number_tries_waiting_for_speaker_{0};
+   //uint8_t number_tries_waiting_for_speaker_{0};
 
    bool configure_registers_();
 
-   void play_i2s_boot_sound();
+   //void play_i2s_boot_sound();
 
    bool get_analog_gain_(uint8_t* raw_gain);
    bool set_analog_gain_(float gain_db);
