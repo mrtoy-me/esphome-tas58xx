@@ -29,7 +29,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
  public:
   void setup() override;
 
-  void loop() override;
+  // void loop() override;
   void update() override;
 
   void dump_config() override;

@@ -21,7 +21,7 @@ static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute contr
 
 static constexpr uint16_t DELAY_LOOPS = 0;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
 
-static constexpr uint16_t INITIAL_UPDATE_DELAY = 8000;  // was 4000 initial ms delay before starting fault updates
+static constexpr uint16_t INITIAL_UPDATE_DELAY = 0; //8000;  // was 4000 initial ms delay before starting fault updates
 
 void Tas58xxComponent::setup() {
   ESP_LOGCONFIG(TAG, "Running setup");
@@ -80,9 +80,55 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
+  // setup Eq Mode first
+  if (!this->set_eq_mode_(this->tas58xx_eq_mode_)) {
+      ESP_LOGW(TAG, "%s setting EQ Mode: %s", ERROR, EQ_MODE_TEXT[this->tas58xx_eq_mode_]);
+  }
+
+  if (!this->set_input_mixer_mode(this->tas58xx_input_mixer_mode_)) {
+    ESP_LOGW(TAG, "%s setting %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_]);
+  }
+
+  #ifdef USE_TAS58XX_CHANNEL_VOLUMES
+  if (!this->set_channel_volume(LEFT_CHANNEL, this->tas58xx_channel_volume_[LEFT_CHANNEL])) {
+    ESP_LOGW(TAG, "%s setting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[LEFT_CHANNEL]);
+  }
+
+  if (!this->set_channel_volume(RIGHT_CHANNEL, this->tas58xx_channel_volume_[RIGHT_CHANNEL])) {
+    ESP_LOGW(TAG, "%s setting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[RIGHT_CHANNEL]);
+  }
+  #endif
+
+
+  #ifdef USE_TAS58XX_EQ_GAINS
+  for (int band = 1; band < NUMBER_EQ_BANDS; bandt++) {
+    if (!this->set_eq_gain(LEFT_CHANNEL, band, this->tas58xx_eq_gain_[LEFT_CHANNEL][band])) {
+    #ifdef USE_TAS58XX_EQ_BIAMP
+        ESP_LOGW(TAG, "%s setting Gain Left %s: %d", ERROR, EQ_BAND, band + 1);
+    #else
+        ESP_LOGW(TAG, "%s setting Gain %s: %d", ERROR, EQ_BAND, band + 1);
+    #endif
+    }
+
+    #ifdef USE_TAS58XX_EQ_BIAMP
+      if (!this->set_eq_gain(RIGHT_CHANNEL, band, this->tas58xx_eq_gain_[RIGHT_CHANNEL][band])) {
+        ESP_LOGW(TAG, "%s setting Gain Right %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
+      }
+    #endif
+  }
+  #endif // USE_TAS58XX_EQ_GAINS;
+
+  #ifdef USE_TAS58XX_EQ_PRESETS
+  if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
+    ESP_LOGW(TAG, "%s setting Left Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
+  }
+  if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
+    ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
+  }
+  #endif // USE_TAS58XX_EQ_PRESETS
 
   if (!this->set_state_(CTRL_PLAY)) return false;
-  if (!this->clear_fault_registers_()) return false;
+  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;{
 
   this->loop_setup_stage_ = RUN_DELAY_LOOP;
   this->start_time_ = App.get_loop_component_start_time();
@@ -107,139 +153,139 @@ bool Tas58xxComponent::configure_registers_() {
 //   this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
 // }
 
-void Tas58xxComponent::loop() {
-  // 'play_file' is initiated by YAML on_boot with priority 220.0f
-  // 'refresh_eq_settings' is triggered by Number 'left_eq_gain_16000hz' or 'right_eq_gain_16000hz' or Select 'eq_mode'
-  // each with setup priority AFTER_CONNECTION = 100.0f
-  // delay refreshing EQ settings until refresh is triggered so tas58xx has detected i2s clock through sound being played
+// void Tas58xxComponent::loop() {
+//   // 'play_file' is initiated by YAML on_boot with priority 220.0f
+//   // 'refresh_eq_settings' is triggered by Number 'left_eq_gain_16000hz' or 'right_eq_gain_16000hz' or Select 'eq_mode'
+//   // each with setup priority AFTER_CONNECTION = 100.0f
+//   // delay refreshing EQ settings until refresh is triggered so tas58xx has detected i2s clock through sound being played
 
-  // loop_setup_stage_ is initially WAIT_FOR_TRIGGER
+//   // loop_setup_stage_ is initially WAIT_FOR_TRIGGER
 
-  switch (this->loop_setup_stage_) {
-    // case WAIT_FOR_TRIGGER:
-    //   return;
+//   switch (this->loop_setup_stage_) {
+//     // case WAIT_FOR_TRIGGER:
+//     //   return;
 
-    case RUN_DELAY_LOOP:
-      if (this->loop_counter_ < DELAY_LOOPS) {    // loop_count was initialised to 0
-        this->loop_counter_++;
-        return;
-      }
-      this->loop_setup_stage_ = INPUT_MIXER_SETUP;
-      // this->loop_setup_stage_ = PLAY_BOOT_SOUND;
-      ESP_LOGD(TAG, "Loop delay complete");
-      return;
+//     case RUN_DELAY_LOOP:
+//       if (this->loop_counter_ < DELAY_LOOPS) {    // loop_count was initialised to 0
+//         this->loop_counter_++;
+//         return;
+//       }
+//       this->loop_setup_stage_ = INPUT_MIXER_SETUP;
+//       // this->loop_setup_stage_ = PLAY_BOOT_SOUND;
+//       ESP_LOGD(TAG, "Loop delay complete");
+//       return;
 
-    // case PLAY_BOOT_SOUND:
-    //   if (this->speaker_ == NULL) {
-    //     ESP_LOGE(TAG, "speaker component not assigned - marking component failed" );
-    //     this->mark_failed();
-    //     this->loop_setup_stage_ = SETUP_COMPLETE;
-    //     return;
-    //   }
-    //   this->play_i2s_boot_sound();
-    //   if (number_tries_waiting_for_speaker_ == MAX_LOOPS_TO_WAIT_FOR_SPEAKER) {
-    //     ESP_LOGE(TAG, "timed out waiting for speaker component to be ready - component marked as failed");
-    //     this->mark_failed();
-    //     this->loop_setup_stage_ = SETUP_COMPLETE;
-    //   }
-    //   return;
+//     // case PLAY_BOOT_SOUND:
+//     //   if (this->speaker_ == NULL) {
+//     //     ESP_LOGE(TAG, "speaker component not assigned - marking component failed" );
+//     //     this->mark_failed();
+//     //     this->loop_setup_stage_ = SETUP_COMPLETE;
+//     //     return;
+//     //   }
+//     //   this->play_i2s_boot_sound();
+//     //   if (number_tries_waiting_for_speaker_ == MAX_LOOPS_TO_WAIT_FOR_SPEAKER) {
+//     //     ESP_LOGE(TAG, "timed out waiting for speaker component to be ready - component marked as failed");
+//     //     this->mark_failed();
+//     //     this->loop_setup_stage_ = SETUP_COMPLETE;
+//     //   }
+//     //   return;
 
-    // case WAIT_UNTIL_PLAYED:
-    //   if (this->speaker_->has_buffered_data()) {
-    //     if (App.get_loop_component_start_time() < this->play_boot_sound_timeout_) return;
+//     // case WAIT_UNTIL_PLAYED:
+//     //   if (this->speaker_->has_buffered_data()) {
+//     //     if (App.get_loop_component_start_time() < this->play_boot_sound_timeout_) return;
 
-    //     ESP_LOGE(TAG, "timed out waiting for boot sound to play - component marked as failed");
-    //     this->mark_failed();
-    //     this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
-    //   }
+//     //     ESP_LOGE(TAG, "timed out waiting for boot sound to play - component marked as failed");
+//     //     this->mark_failed();
+//     //     this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
+//     //   }
 
-    //   ESP_LOGD(TAG, "Boot sound played");
-    //   this->loop_setup_stage_ = INPUT_MIXER_SETUP;
-    //   return;
+//     //   ESP_LOGD(TAG, "Boot sound played");
+//     //   this->loop_setup_stage_ = INPUT_MIXER_SETUP;
+//     //   return;
 
-    case INPUT_MIXER_SETUP:
-      // setup Eq Mode first
-      if (!this->set_eq_mode_(this->tas58xx_eq_mode_)) {
-         ESP_LOGW(TAG, "%s setting EQ Mode: %s", ERROR, EQ_MODE_TEXT[this->tas58xx_eq_mode_]);
-      }
+//     case INPUT_MIXER_SETUP:
+//       // setup Eq Mode first
+//       if (!this->set_eq_mode_(this->tas58xx_eq_mode_)) {
+//          ESP_LOGW(TAG, "%s setting EQ Mode: %s", ERROR, EQ_MODE_TEXT[this->tas58xx_eq_mode_]);
+//       }
 
-      if (!this->set_input_mixer_mode(this->tas58xx_input_mixer_mode_)) {
-        ESP_LOGW(TAG, "%s setting %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_]);
-      }
-      this->loop_setup_stage_ = LR_VOLUME_SETUP;
-      return;
+//       if (!this->set_input_mixer_mode(this->tas58xx_input_mixer_mode_)) {
+//         ESP_LOGW(TAG, "%s setting %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_]);
+//       }
+//       this->loop_setup_stage_ = LR_VOLUME_SETUP;
+//       return;
 
-    case LR_VOLUME_SETUP:
-#ifdef USE_TAS58XX_CHANNEL_VOLUMES
-      if (!this->set_channel_volume(LEFT_CHANNEL, this->tas58xx_channel_volume_[LEFT_CHANNEL])) {
-        ESP_LOGW(TAG, "%s setting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[LEFT_CHANNEL]);
-      }
+//     case LR_VOLUME_SETUP:
+// #ifdef USE_TAS58XX_CHANNEL_VOLUMES
+//       if (!this->set_channel_volume(LEFT_CHANNEL, this->tas58xx_channel_volume_[LEFT_CHANNEL])) {
+//         ESP_LOGW(TAG, "%s setting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[LEFT_CHANNEL]);
+//       }
 
-      if (!this->set_channel_volume(RIGHT_CHANNEL, this->tas58xx_channel_volume_[RIGHT_CHANNEL])) {
-        ESP_LOGW(TAG, "%s setting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[RIGHT_CHANNEL]);
-      }
-#endif
+//       if (!this->set_channel_volume(RIGHT_CHANNEL, this->tas58xx_channel_volume_[RIGHT_CHANNEL])) {
+//         ESP_LOGW(TAG, "%s setting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[RIGHT_CHANNEL]);
+//       }
+// #endif
 
-#ifdef USE_TAS58XX_EQ_GAINS
-      this->loop_setup_stage_ = EQ_BANDS_SETUP;
-#endif
+// #ifdef USE_TAS58XX_EQ_GAINS
+//       this->loop_setup_stage_ = EQ_BANDS_SETUP;
+// #endif
 
-#ifdef USE_TAS58XX_EQ_PRESETS
-      this->loop_setup_stage_ = EQ_PRESETS_SETUP;
-#endif
+// #ifdef USE_TAS58XX_EQ_PRESETS
+//       this->loop_setup_stage_ = EQ_PRESETS_SETUP;
+// #endif
 
-      // if loop_setup_stage_ has not changed then no EQ Gains or EQ Presets configured
-      if (this->loop_setup_stage_ == LR_VOLUME_SETUP) {
-        // nothing more to setup so complete
-        this->loop_setup_stage_ = SETUP_COMPLETE;
-      }
-      return;
+//       // if loop_setup_stage_ has not changed then no EQ Gains or EQ Presets configured
+//       if (this->loop_setup_stage_ == LR_VOLUME_SETUP) {
+//         // nothing more to setup so complete
+//         this->loop_setup_stage_ = SETUP_COMPLETE;
+//       }
+//       return;
 
-    case EQ_BANDS_SETUP:
-#ifdef USE_TAS58XX_EQ_GAINS
-      if (this->refresh_band_ == NUMBER_EQ_BANDS) { // refresh_band_ starts as initialised to 0
-        // finished writing all bands so either continue with speaker config or setup is complete
-        this->loop_setup_stage_ = SETUP_COMPLETE;
-        this->refresh_band_ = 0;
-        return;
-      }
+//     case EQ_BANDS_SETUP:
+// #ifdef USE_TAS58XX_EQ_GAINS
+//       if (this->refresh_band_ == NUMBER_EQ_BANDS) { // refresh_band_ starts as initialised to 0
+//         // finished writing all bands so either continue with speaker config or setup is complete
+//         this->loop_setup_stage_ = SETUP_COMPLETE;
+//         this->refresh_band_ = 0;
+//         return;
+//       }
 
-      if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
-  #ifdef USE_TAS58XX_EQ_BIAMP
-        ESP_LOGW(TAG, "%s setting Gain Left %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-  #else
-        ESP_LOGW(TAG, "%s setting Gain %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-  #endif
-      }
+//       if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
+//   #ifdef USE_TAS58XX_EQ_BIAMP
+//         ESP_LOGW(TAG, "%s setting Gain Left %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
+//   #else
+//         ESP_LOGW(TAG, "%s setting Gain %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
+//   #endif
+//       }
 
-  #ifdef USE_TAS58XX_EQ_BIAMP
-      if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
-        ESP_LOGW(TAG, "%s setting Gain Right %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-      }
-  #endif
+//   #ifdef USE_TAS58XX_EQ_BIAMP
+//       if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
+//         ESP_LOGW(TAG, "%s setting Gain Right %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
+//       }
+//   #endif
 
-      this->refresh_band_++;
-#endif // USE_TAS58XX_EQ_GAINS
-      return;
+//       this->refresh_band_++;
+// #endif // USE_TAS58XX_EQ_GAINS
+//       return;
 
-    case EQ_PRESETS_SETUP:
-#ifdef USE_TAS58XX_EQ_PRESETS
-      if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
-        ESP_LOGW(TAG, "%s setting Left Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
-      }
-      if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
-        ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
-      }
-      this->loop_setup_stage_ = SETUP_COMPLETE;
-#endif // USE_TAS58XX_EQ_PRESETS
-      return;
+//     case EQ_PRESETS_SETUP:
+// #ifdef USE_TAS58XX_EQ_PRESETS
+//       if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
+//         ESP_LOGW(TAG, "%s setting Left Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
+//       }
+//       if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
+//         ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
+//       }
+//       this->loop_setup_stage_ = SETUP_COMPLETE;
+// #endif // USE_TAS58XX_EQ_PRESETS
+//       return;
 
-    case SETUP_COMPLETE:
-      ESP_LOGD(TAG, "SETUP_COMPLETE");
-      this->disable_loop(); // requires Esphome 2025.7.0 or greater
-      return;
-  }
-}
+//     case SETUP_COMPLETE:
+//       ESP_LOGD(TAG, "SETUP_COMPLETE");
+//       this->disable_loop(); // requires Esphome 2025.7.0 or greater
+//       return;
+//   }
+// }
 
 void Tas58xxComponent::update() {
   // initial delay before proceeding with updates
@@ -250,9 +296,9 @@ void Tas58xxComponent::update() {
     if (!this->update_delay_finished_) return;
 
     // finished delay so clear faults
-    if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
-      ESP_LOGW(TAG, "%s initialising faults", ERROR);
-    }
+    // if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
+    //   ESP_LOGW(TAG, "%s initialising faults", ERROR);
+    // }
 
     // publish all binary sensors as false on first update
 #ifdef USE_TAS58XX_BINARY_SENSOR
@@ -382,8 +428,8 @@ bool Tas58xxComponent::i2s_prime_open_channel_() {
       I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
   i2s_std_config_t std_cfg = {.clk_cfg = clk_cfg, .slot_cfg = slot_cfg, .gpio_cfg = pin_cfg};
 
-  ESP_LOGW(TAG, "prime pins: bclk=%d ws=%d dout=%d din=%d mclk=%d",
-          pin_cfg.bclk, pin_cfg.ws, pin_cfg.dout, pin_cfg.din, pin_cfg.mclk);
+  //ESP_LOGW(TAG, "prime pins: bclk=%d ws=%d dout=%d din=%d mclk=%d",
+  //        pin_cfg.bclk, pin_cfg.ws, pin_cfg.dout, pin_cfg.din, pin_cfg.mclk);
 
   err = i2s_channel_init_std_mode(this->prime_tx_handle_, &std_cfg);
   if (err != ESP_OK) {
@@ -425,8 +471,10 @@ bool Tas58xxComponent::i2s_prime_open_channel_() {
 bool Tas58xxComponent::i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written) {
   if (this->prime_tx_handle_ == nullptr) return false;
 
-  static constexpr int MAX_ATTEMPTS = 5;       // 5 x 2ms = 10ms worst-case budget
-  static constexpr int ATTEMPT_TIMEOUT_MS = 4;  // stays well under your 10ms-per-call limit
+  static constexpr int ATTEMPT_TIMEOUT_MS = 2;
+  static constexpr int MAX_ATTEMPTS = 10;
+  // 20ms worst case - speaker component uses 60ms but in dedicated FreeRTOS task
+  // esp32 completes in 2 attempts => 4ms
 
   for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     esp_err_t err = i2s_channel_write(this->prime_tx_handle_, data, len, bytes_written,
