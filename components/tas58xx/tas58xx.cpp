@@ -19,9 +19,9 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-static constexpr uint16_t DELAY_LOOPS = 0;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
+// static constexpr uint16_t DELAY_LOOPS = 0;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
 
-static constexpr uint16_t INITIAL_UPDATE_DELAY = 0; //8000;  // was 4000 initial ms delay before starting fault updates
+// static constexpr uint16_t INITIAL_UPDATE_DELAY = 0; //8000;  // was 4000 initial ms delay before starting fault updates
 
 void Tas58xxComponent::setup() {
   ESP_LOGCONFIG(TAG, "Running setup");
@@ -81,12 +81,13 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
-  this->loop_setup_stage_ = SETUP_COMPLETE;
+  // this->loop_setup_stage_ = SETUP_COMPLETE;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
+  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
 
   //this->loop_setup_stage_ = RUN_DELAY_LOOP;
-  this->start_time_ = App.get_loop_component_start_time();
+  // this->start_time_ = App.get_loop_component_start_time();
   return true;
 }
 // void Tas58xxComponent::play_i2s_boot_sound() {
@@ -244,49 +245,55 @@ bool Tas58xxComponent::configure_registers_() {
 
 void Tas58xxComponent::update() {
   // initial delay allows DAC to stabilise before proceeding with checking for faults
-  if (!this->update_delay_finished_) {
-    const uint32_t current_time = App.get_loop_component_start_time();
-    this->update_delay_finished_ = ((current_time - this->start_time_) > INITIAL_UPDATE_DELAY);
+//   if (!this->update_delay_finished_) {
+//     const uint32_t current_time = App.get_loop_component_start_time();
+//     this->update_delay_finished_ = ((current_time - this->start_time_) > INITIAL_UPDATE_DELAY);
 
-    if (!this->update_delay_finished_) return;
-    ESP_LOGD(TAG, "update delay finished");
-    //finished delay so clear faults
-    if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
-      ESP_LOGW(TAG, "%s initialising faults", ERROR);
-    }
+//     if (!this->update_delay_finished_) return;
+//     ESP_LOGD(TAG, "update delay finished");
+//     //finished delay so clear faults
+//     if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
+//       ESP_LOGW(TAG, "%s initialising faults", ERROR);
+//     }
 
 
-    // publish all binary sensors as false on first update
-#ifdef USE_TAS58XX_BINARY_SENSOR
-    this->publish_faults_();
-    //this->gain_band1_->make_call().set_value(15.0).perform(); //testing
-#endif
+//     // publish all binary sensors as false on first update
+// #ifdef USE_TAS58XX_BINARY_SENSOR
+//     this->publish_faults_();
+//     //this->gain_band1_->make_call().set_value(15.0).perform(); //testing
+// #endif
 
-    // read and process faults from next update
-    return;
-  }
+//     // read and process faults from next update
+//     return;
+//   }
 
   // after delay updates starts here
   ESP_LOGD(TAG, "running update");
   // if there was a fault last update then clear any faults
-  if (this->is_fault_to_clear_) {
-    if (!this->clear_fault_registers_()) {
-      ESP_LOGW(TAG, "%s clearing faults", ERROR);
-    }
-  }
+  // if (this->is_fault_to_clear_) {
+  //   if (!this->clear_fault_registers_()) {
+  //     ESP_LOGW(TAG, "%s clearing faults", ERROR);
+  //   }
+  // }
 
   if (!this->read_fault_registers_()) {
     ESP_LOGW(TAG, "%s reading faults", ERROR);
     return;
   }
 
-  // is there a fault that should be cleared next update
-  this->is_fault_to_clear_ =
-     ( this->tas58xx_faults_.is_fault_except_clock_fault || (this->tas58xx_faults_.clock_fault && (!this->ignore_clock_faults_when_clearing_faults_)) );
+  if (this->tas58xx_faults_.have_fault) {
+    if (!this->clear_fault_registers_()) {
+      ESP_LOGW(TAG, "%s clearing faults", ERROR);
+    }
+  }
+  // // is there a fault that should be cleared next update
+  // this->is_fault_to_clear_ =
+  //    ( this->tas58xx_faults_.is_fault_except_clock_fault || (this->tas58xx_faults_.clock_fault && (!this->ignore_clock_faults_when_clearing_faults_)) );
 
 
   // if no change in faults bypass publishing
-  if ( !(this->is_new_common_fault_ || this->is_new_over_temperature_issue_ || this->is_new_channel_fault_ || this->is_new_global_fault_) ) return;
+  //if ( !(this->is_new_common_fault_ || this->is_new_over_temperature_issue_ || this->is_new_channel_fault_ || this->is_new_global_fault_) ) return;
+  if ( !(this->is_new_common_fault_ || this->is_new_channel_fault_ || this->is_new_global_fault_) ) return;
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
   this->publish_faults_();
@@ -1082,12 +1089,12 @@ void Tas58xxComponent::publish_faults_() {
       this->have_fault_binary_sensor_->publish_state(this->tas58xx_faults_.have_fault);
     }
 
-    if (this->clock_fault_binary_sensor_ != nullptr) {
-      this->clock_fault_binary_sensor_->publish_state(this->tas58xx_faults_.clock_fault);
-    }
+    // if (this->clock_fault_binary_sensor_ != nullptr) {
+    //   this->clock_fault_binary_sensor_->publish_state(this->tas58xx_faults_.clock_fault);
+    // }
   }
 
-  if (this->is_new_over_temperature_issue_) {
+  // if (this->is_new_over_temperature_issue_) {
     if (this->over_temperature_shutdown_fault_binary_sensor_ != nullptr) {
       this->over_temperature_shutdown_fault_binary_sensor_->publish_state(this->tas58xx_faults_.temperature_fault);
     }
@@ -1095,7 +1102,7 @@ void Tas58xxComponent::publish_faults_() {
     if (this->over_temperature_warning_binary_sensor_ != nullptr) {
       this->over_temperature_warning_binary_sensor_->publish_state(this->tas58xx_faults_.temperature_warning);
     }
-  }
+  // }
 
   // publish channel and global faults in separate loop iterations to spread component time when publishing binary sensors
   if (this->is_new_channel_fault_) {
@@ -1177,29 +1184,32 @@ bool Tas58xxComponent::read_fault_registers_() {
   this->tas58xx_faults_.global_fault = current_global_fault;
 
   // over temperature fault is only fault condition in global_fault2 register
-  this->is_new_over_temperature_issue_ = (current_faults[2] != this->tas58xx_faults_.temperature_fault);
+  // this->is_new_over_temperature_issue_ = (current_faults[2] != this->tas58xx_faults_.temperature_fault);
   this->tas58xx_faults_.temperature_fault = current_faults[2];
 
   // over temperature warning is only fault condition in ot_warning register
-  this->is_new_over_temperature_issue_ = (this->is_new_over_temperature_issue_ || (current_faults[3] != this->tas58xx_faults_.temperature_warning));
+  // this->is_new_over_temperature_issue_ = (this->is_new_over_temperature_issue_ || (current_faults[3] != this->tas58xx_faults_.temperature_warning));
   this->tas58xx_faults_.temperature_warning = current_faults[3];
 
-  bool new_fault_state; // reuse for temporary storage of new fault state
+  //bool new_fault_state; // reuse for temporary storage of new fault state
 
-  // process clock_fault binary sensor
-  new_fault_state = (current_faults[1] & (1 << 2));
-  this->is_new_common_fault_ = (new_fault_state != this->tas58xx_faults_.clock_fault);
-  this->tas58xx_faults_.clock_fault = new_fault_state;
+  // // process clock_fault binary sensor
+  // new_fault_state = (current_faults[1] & (1 << 2));
+  // this->is_new_common_fault_ = (new_fault_state != this->tas58xx_faults_.clock_fault);
+  // this->tas58xx_faults_.clock_fault = new_fault_state;
 
-  this->tas58xx_faults_.is_fault_except_clock_fault =
-    ( this->tas58xx_faults_.channel_fault || this->tas58xx_faults_.global_fault ||
-      this->tas58xx_faults_.temperature_fault || this->tas58xx_faults_.temperature_warning );
+  // this->tas58xx_faults_.is_fault_except_clock_fault =
+  //   ( this->tas58xx_faults_.channel_fault || this->tas58xx_faults_.global_fault ||
+  //     this->tas58xx_faults_.temperature_fault || this->tas58xx_faults_.temperature_warning );
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
+  bool new_have_fault_state;
   // process have_fault binary sensor
-  new_fault_state = (this->tas58xx_faults_.is_fault_except_clock_fault || (this->tas58xx_faults_.clock_fault && (!this->exclude_clock_fault_from_have_faults_)));
-  this->is_new_common_fault_ = this->is_new_common_fault_ || (new_fault_state != this->tas58xx_faults_.have_fault);
-  this->tas58xx_faults_.have_fault = new_fault_state;
+  //new_fault_state = (this->tas58xx_faults_.is_fault_except_clock_fault || (this->tas58xx_faults_.clock_fault && (!this->exclude_clock_fault_from_have_faults_)));
+  new_have_fault_state =  ( this->tas58xx_faults_.channel_fault || this->tas58xx_faults_.global_fault ||
+                            this->tas58xx_faults_.temperature_fault || this->tas58xx_faults_.temperature_warning );
+  this->is_new_common_fault_ = (new_have_fault_state != this->tas58xx_faults_.have_fault);
+  this->tas58xx_faults_.have_fault = new_have_fault_state;
 #endif
 
   return true;

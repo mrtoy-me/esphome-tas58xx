@@ -35,12 +35,13 @@ CONFIG_SCHEMA = {
     cv.Optional(CONF_HAVE_FAULT): binary_sensor.binary_sensor_schema(
         device_class=DEVICE_CLASS_PROBLEM,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ).extend(
-        {
-            cv.Optional(CONF_EXCLUDE, default="CLOCK_FAULT"): cv.enum(
-                        EXCLUDE_IGNORE_MODES, upper=True),
-        }
     ),
+    # ).extend(
+    #     {
+    #         cv.Optional(CONF_EXCLUDE, default="CLOCK_FAULT"): cv.enum(
+    #                     EXCLUDE_IGNORE_MODES, upper=True),
+    #     }
+    #
 
     cv.Optional(CONF_LEFT_CHANNEL_DC_FAULT): binary_sensor.binary_sensor_schema(
         device_class=DEVICE_CLASS_PROBLEM,
@@ -66,10 +67,10 @@ CONFIG_SCHEMA = {
         device_class=DEVICE_CLASS_PROBLEM,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
     ),
-    cv.Optional(CONF_CLOCK_FAULT): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
+    # cv.Optional(CONF_CLOCK_FAULT): binary_sensor.binary_sensor_schema(
+    #     device_class=DEVICE_CLASS_PROBLEM,
+    #     entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+    # ),
     cv.Optional(CONF_PVDD_OVER_VOLTAGE): binary_sensor.binary_sensor_schema(
         device_class=DEVICE_CLASS_PROBLEM,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
@@ -95,7 +96,7 @@ async def to_code(config):
     if has_fault_config := config.get(CONF_HAVE_FAULT):
         sens = await binary_sensor.new_binary_sensor(has_fault_config)
         cg.add(tas58xx_component.set_have_fault_binary_sensor(sens))
-        cg.add(tas58xx_component.config_exclude_fault(config[CONF_HAVE_FAULT][CONF_EXCLUDE]))
+        # cg.add(tas58xx_component.config_exclude_fault(config[CONF_HAVE_FAULT][CONF_EXCLUDE]))
 
     if has_fault_config := config.get(CONF_LEFT_CHANNEL_DC_FAULT):
         sens = await binary_sensor.new_binary_sensor(has_fault_config)
@@ -121,9 +122,9 @@ async def to_code(config):
         sens = await binary_sensor.new_binary_sensor(has_fault_config)
         cg.add(tas58xx_component.set_bq_write_failed_fault_binary_sensor(sens))
 
-    if has_fault_config := config.get(CONF_CLOCK_FAULT):
-        sens = await binary_sensor.new_binary_sensor(has_fault_config)
-        cg.add(tas58xx_component.set_clock_fault_binary_sensor(sens))
+    # if has_fault_config := config.get(CONF_CLOCK_FAULT):
+    #     sens = await binary_sensor.new_binary_sensor(has_fault_config)
+    #     cg.add(tas58xx_component.set_clock_fault_binary_sensor(sens))
 
     if has_fault_config := config.get(CONF_PVDD_OVER_VOLTAGE):
         sens = await binary_sensor.new_binary_sensor(has_fault_config)

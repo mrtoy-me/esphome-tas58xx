@@ -19,45 +19,45 @@ enum ModulationScheme : uint8_t {
   MODE_1SPW = 1,
 };
 
-enum EqRefreshMode : uint8_t {
-    AUTO   = 0,
-    MANUAL = 1,
-};
+// enum EqRefreshMode : uint8_t {
+//     AUTO   = 0,
+//     MANUAL = 1,
+// };
 
-enum ExcludeIgnoreMode : uint8_t {
-    NONE        = 0,
-    CLOCK_FAULT = 1,
-};
+// enum ExcludeIgnoreMode : uint8_t {
+//     NONE        = 0,
+//     CLOCK_FAULT = 1,
+// };
 
-enum LoopSetupStage : uint8_t {
-    WAIT_FOR_TRIGGER = 0,
-    RUN_DELAY_LOOP,
-    PLAY_BOOT_SOUND,
-    WAIT_UNTIL_PLAYED,
-    INPUT_MIXER_SETUP,
-    LR_VOLUME_SETUP,
-    EQ_BANDS_SETUP,
-    EQ_PRESETS_SETUP,
-#ifdef USE_SPEAKER_CONFIG
-    EQ_SUBCHANNEL_SETUP,
-    CROSSBAR_SETUP,
-    MONO_MIXER_SETUP,
-#endif
-    SETUP_COMPLETE,
-};
+// enum LoopSetupStage : uint8_t {
+//     WAIT_FOR_TRIGGER = 0,
+//     RUN_DELAY_LOOP,
+//     PLAY_BOOT_SOUND,
+//     WAIT_UNTIL_PLAYED,
+//     INPUT_MIXER_SETUP,
+//     LR_VOLUME_SETUP,
+//     EQ_BANDS_SETUP,
+//     EQ_PRESETS_SETUP,
+// #ifdef USE_SPEAKER_CONFIG
+//     EQ_SUBCHANNEL_SETUP,
+//     CROSSBAR_SETUP,
+//     MONO_MIXER_SETUP,
+// #endif
+//     SETUP_COMPLETE,
+// };
 
 struct Tas58xxFault {
   uint8_t channel_fault{0};                  // individual faults extracted when publishing
-  uint8_t global_fault{0};                   // individual faults extracted when publishing
+  uint8_t global_fault{0};                   // individual faults extracted when publishing excludes clock fault
 
-  bool clock_fault{false};
+  // bool clock_fault{false};
   bool temperature_fault{false};
   bool temperature_warning{false};
 
-  bool is_fault_except_clock_fault{false};   // fault conditions combined except clock fault
+  // bool is_fault_except_clock_fault{false};   // fault conditions combined except clock fault
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
-  bool have_fault{false};                    // combined binary sensor - any fault found but does not include clock fault if excluded
+  bool have_fault{false};                    // combined binary sensor - any fault found but does not include clock fault
 #endif
 };
 

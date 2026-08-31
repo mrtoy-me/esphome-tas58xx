@@ -30,7 +30,7 @@ CONF_REFRESH_EQ = "refresh_eq"
 CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
-CONF_CUSTOM_EQ_FREQS = "custom_eq_freqs"
+# CONF_CUSTOM_EQ_FREQS = "custom_eq_freqs"
 CONF_I2S_AUDIO_ID = "i2s_audio_id"
 CONF_I2S_DOUT_PIN = "i2s_dout_pin"
 
@@ -38,7 +38,7 @@ CONF_I2S_DOUT_PIN = "i2s_dout_pin"
 PLATFORM_TAS58XX = "tas58xx"
 PLATFORM_I2S_AUDIO = "i2s_audio"
 SELECT_COMPONENT = "select"
-SPEAKER_COMPONENT = "speaker"
+# SPEAKER_COMPONENT = "speaker"
 
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
@@ -142,22 +142,22 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_MODULATION, default="BD_MODE"): cv.enum(
                         MODULATION_SCHEMES, upper=True
             ),
-            cv.Optional(CONF_IGNORE_FAULT, default="CLOCK_FAULT"): cv.enum(
-                        EXCLUDE_IGNORE_MODES, upper=True
-            ),
+            # cv.Optional(CONF_IGNORE_FAULT, default="CLOCK_FAULT"): cv.enum(
+            #             EXCLUDE_IGNORE_MODES, upper=True
+            # ),
             cv.Optional(CONF_MIXER_MODE, default="STEREO"): cv.enum(
                         INPUT_MIXER_MODES, upper=True
             ),
-            cv.Optional(CONF_REFRESH_EQ, default="AUTO"): cv.enum(
-                        EQ_REFRESH_MODES, upper=True
-            ),
+            # cv.Optional(CONF_REFRESH_EQ, default="AUTO"): cv.enum(
+            #             EQ_REFRESH_MODES, upper=True
+            # ),
             cv.Optional(CONF_VOLUME_MAX, default=24): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
             cv.Optional(CONF_VOLUME_MIN, default=-103): cv.All(
                         cv.decibel, cv.int_range(-103, 24)
             ),
-            cv.Optional(CONF_CUSTOM_EQ_FREQS): validate_eq_frequencies
+            # cv.Optional(CONF_CUSTOM_EQ_FREQS): validate_eq_frequencies
 
         }
     )
@@ -197,13 +197,12 @@ async def to_code(config):
             if select_eq_presets_configured(config):
                 derived_eq_mode_configuration = EQ_PRESETS
 
-    tas58xx_dac = config.get(CONF_TAS58XX_DAC)
-
     # when the user has not defined an audio dac i2c address
     # CONF_ADDRESS == PLACEHOLDER_I2C_ADDR
     # and it needs to be correctly assigned based on the defined tas58xx_dac
     # this allows the user to use a custom dac i2c address
     if config[CONF_ADDRESS] == PLACEHOLDER_I2C_ADDR:
+        tas58xx_dac = config.get(CONF_TAS58XX_DAC)
         if tas58xx_dac == TAS5805M_DAC:
             config[CONF_ADDRESS] = TAS5805M_I2C_ADDR
         else:
@@ -237,21 +236,21 @@ async def to_code(config):
     cg.add(var.config_analog_gain(config[CONF_ANALOG_GAIN]))
     cg.add(var.config_dac_mode(config[CONF_DAC_MODE]))
     cg.add(var.config_modulation_scheme(config[CONF_MODULATION]))
-    cg.add(var.config_ignore_fault_mode(config[CONF_IGNORE_FAULT]))
+    # cg.add(var.config_ignore_fault_mode(config[CONF_IGNORE_FAULT]))
     cg.add(var.config_input_mixer_mode(config[CONF_MIXER_MODE]))
     cg.add(var.config_refresh_eq(config[CONF_REFRESH_EQ]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
 
-    if eq_frequency_list := config.get(CONF_CUSTOM_EQ_FREQS):
-        eq_frequency_list_id = ID(
-            f"user_defined_eq_frequencies_{config[CONF_ID]}", is_declaration=True, type=cg.uint16
-        )
-        frequency_list_pointer = cg.static_const_array(
-            eq_frequency_list_id, cg.ArrayInitializer(*eq_frequency_list)
-        )
-        cg.add(var.config_eq_frequencies(frequency_list_pointer, len(eq_frequency_list)))
+    # if eq_frequency_list := config.get(CONF_CUSTOM_EQ_FREQS):
+    #     eq_frequency_list_id = ID(
+    #         f"user_defined_eq_frequencies_{config[CONF_ID]}", is_declaration=True, type=cg.uint16
+    #     )
+    #     frequency_list_pointer = cg.static_const_array(
+    #         eq_frequency_list_id, cg.ArrayInitializer(*eq_frequency_list)
+    #     )
+    #     cg.add(var.config_eq_frequencies(frequency_list_pointer, len(eq_frequency_list)))
 
     if tas58xx_dac == TAS5805M_DAC:
         cg.add_define("USE_TAS5805M_DAC")
