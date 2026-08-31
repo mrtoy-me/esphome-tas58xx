@@ -16,22 +16,22 @@ void EqModeSelect::setup() {
 
   size_t initial_select_index = EqMode::EQ_OFF;
 
-#ifdef USE_TAS58XX_EQ_PRESETS
-  // if (this->parent_->using_auto_eq_refresh()) {
-  //   this->parent_->refresh_eq_settings();
-  //   ESP_LOGD(TAG, "EQ Mode Select Setup triggered EQ settings refresh");
-  // }
-#endif
+// #ifdef USE_TAS58XX_EQ_PRESETS
+//   // if (this->parent_->using_auto_eq_refresh()) {
+//   //   this->parent_->refresh_eq_settings();
+//   //   ESP_LOGD(TAG, "EQ Mode Select Setup triggered EQ settings refresh");
+//   // }
+// #endif
 
   if (this->parent_->is_eq_configured()) {
     initial_select_index = EqMode::EQ_ON;
   }
 
-  // if manual eq refresh - start with Select EQ OFF and set trigger for transition from Off to Eq Mode
-  if(this->parent_->using_manual_eq_refresh()) {
-    initial_select_index = EqMode::EQ_OFF;
-    this->trigger_refresh_settings_ = true;
-  }
+  // // if manual eq refresh - start with Select EQ OFF and set trigger for transition from Off to Eq Mode
+  // if(this->parent_->using_manual_eq_refresh()) {
+  //   initial_select_index = EqMode::EQ_OFF;
+  //   this->trigger_refresh_settings_ = true;
+  // }
 
   // based on select options enum (index) which was derived from YAML configuration
   // set size of select option as either 1 = EQ Off only or 2 = EQ Off plus one of the other EQ On options
@@ -60,18 +60,18 @@ void EqModeSelect::control(size_t index) {
   this->publish_state(index);
   this->parent_->select_eq_mode(index);
 
-  // normal condition
-  if (!this->trigger_refresh_settings_) return;
+  // // normal condition
+  // if (!this->trigger_refresh_settings_) return;
 
-  // when 'trigger_refresh_settings_' is set true by 'setup' manual trigger refresh is active
-  // then effectively 'refresh_settings' triggers on first transition from Off to one of the Eq Modes
-  // if 'refresh_settings' has somehow been already been called somewhere else
-  // it does not matter as'parent_->refresh_settings()' will only run once
-  if (index > EqMode::EQ_OFF) {
-    ESP_LOGD(TAG, "EQ Mode Select manually triggered EQ settings refresh");
-    this->parent_->refresh_eq_settings();
-    this->trigger_refresh_settings_ = false;
-  }
+  // // when 'trigger_refresh_settings_' is set true by 'setup' manual trigger refresh is active
+  // // then effectively 'refresh_settings' triggers on first transition from Off to one of the Eq Modes
+  // // if 'refresh_settings' has somehow been already been called somewhere else
+  // // it does not matter as'parent_->refresh_settings()' will only run once
+  // if (index > EqMode::EQ_OFF) {
+  //   ESP_LOGD(TAG, "EQ Mode Select manually triggered EQ settings refresh");
+  //   this->parent_->refresh_eq_settings();
+  //   this->trigger_refresh_settings_ = false;
+  // }
 }
 
 }  // namespace esphome::tas58xx
