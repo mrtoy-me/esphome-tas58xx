@@ -268,20 +268,21 @@ void Tas58xxComponent::update() {
 //   }
 
   // after delay updates starts here
-  ESP_LOGD(TAG, "running update");
+  // ESP_LOGD(TAG, "running update");
   // if there was a fault last update then clear any faults
   // if (this->is_fault_to_clear_) {
   //   if (!this->clear_fault_registers_()) {
   //     ESP_LOGW(TAG, "%s clearing faults", ERROR);
   //   }
   // }
-
+  ESP_LOGD(TAG, "reading faults");
   if (!this->read_fault_registers_()) {
     ESP_LOGW(TAG, "%s reading faults", ERROR);
     return;
   }
 
   if (this->tas58xx_faults_.have_fault) {
+    ESP_LOGD(TAG, "clearing faults");
     if (!this->clear_fault_registers_()) {
       ESP_LOGW(TAG, "%s clearing faults", ERROR);
     }
@@ -296,6 +297,7 @@ void Tas58xxComponent::update() {
   if ( !(this->is_new_common_fault_ || this->is_new_channel_fault_ || this->is_new_global_fault_) ) return;
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
+  ESP_LOGD(TAG, "publishing faults");
   this->publish_faults_();
 #endif
 }
