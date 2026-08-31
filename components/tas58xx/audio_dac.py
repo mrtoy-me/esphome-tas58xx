@@ -238,7 +238,7 @@ async def to_code(config):
     cg.add(var.config_modulation_scheme(config[CONF_MODULATION]))
     # cg.add(var.config_ignore_fault_mode(config[CONF_IGNORE_FAULT]))
     cg.add(var.config_input_mixer_mode(config[CONF_MIXER_MODE]))
-    cg.add(var.config_refresh_eq(config[CONF_REFRESH_EQ]))
+    # cg.add(var.config_refresh_eq(config[CONF_REFRESH_EQ]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))
