@@ -55,10 +55,10 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = static_cast<int8_t>(volume_max); }
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = static_cast<int8_t>(volume_min); }
 
-  void config_eq_frequencies(const uint16_t *eq_frequencies, size_t eq_frequencies_length) {
-    this->user_eq_frequencies_ = eq_frequencies;
-    this->user_eq_frequencies_length_ = eq_frequencies_length;
-  }
+  // void config_eq_frequencies(const uint16_t *eq_frequencies, size_t eq_frequencies_length) {
+  //   this->user_eq_frequencies_ = eq_frequencies;
+  //   this->user_eq_frequencies_length_ = eq_frequencies_length;
+  // }
 
  // void set_speaker(speaker::Speaker *spk) { this->speaker_ = spk; }
 
@@ -191,7 +191,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    } error_code_{NONE};
 
    // configured by YAML
-   EqRefreshMode eq_refresh_;  // YAML default 'AUTO' = 0
+  //  EqRefreshMode eq_refresh_;  // YAML default 'AUTO' = 0
 
 // #ifdef USE_TAS58XX_BINARY_SENSOR
 //    bool exclude_clock_fault_from_have_faults_; // YAML default = true
