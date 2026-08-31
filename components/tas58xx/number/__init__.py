@@ -9,7 +9,7 @@ from esphome.const import (
     CONF_PLATFORM,
     DEVICE_CLASS_SOUND_PRESSURE,
     ENTITY_CATEGORY_CONFIG,
-    UNIT_PERCENT,
+    # UNIT_PERCENT,
     UNIT_DECIBEL,
 )
 
@@ -209,16 +209,14 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
 
-        cv.Optional(CONF_DIGITAL_VOLUME): number.number_schema(
-            DigitalVolume,
-            device_class=DEVICE_CLASS_SOUND_PRESSURE,
-            entity_category=ENTITY_CATEGORY_CONFIG,
-            icon=ICON_VOLUME_SOURCE,
-            unit_of_measurement=UNIT_PERCENT,
-        )
-        .extend(cv.COMPONENT_SCHEMA),
-
-
+        # cv.Optional(CONF_DIGITAL_VOLUME): number.number_schema(
+        #     DigitalVolume,
+        #     device_class=DEVICE_CLASS_SOUND_PRESSURE,
+        #     entity_category=ENTITY_CATEGORY_CONFIG,
+        #     icon=ICON_VOLUME_SOURCE,
+        #     unit_of_measurement=UNIT_PERCENT,
+        # )
+        # .extend(cv.COMPONENT_SCHEMA),
 
         cv.Optional(CONF_CHANNEL_VOLUME_LEFT): number.number_schema(
             ChannelVolumeLeft,
