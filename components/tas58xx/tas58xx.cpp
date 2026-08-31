@@ -322,28 +322,28 @@ void Tas58xxComponent::dump_config() {
               "  DAC Mode: %s\n"
               "  Mixer Mode: %s\n"
               "  Volume Maximum: %idB\n"
-              "  Volume Minimum: %idB\n"
-              "  Ignore Fault: %s\n"
-              "  Refresh EQ: %s\n",
+              "  Volume Minimum: %idB\n",
+              // "  Ignore Fault: %s\n"
+              // "  Refresh EQ: %s\n",
               this->number_registers_configured_, this->tas58xx_analog_gain_,
               this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
               INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_],
-              this->tas58xx_volume_max_, this->tas58xx_volume_min_,
-              this->ignore_clock_faults_when_clearing_faults_ ? "CLOCK FAULTS" : "NONE",
-              this->eq_refresh_ ? "MANUAL" : "AUTO"
+              this->tas58xx_volume_max_, this->tas58xx_volume_min_ //,
+              // this->ignore_clock_faults_when_clearing_faults_ ? "CLOCK FAULTS" : "NONE",
+              // this->eq_refresh_ ? "MANUAL" : "AUTO"
               );
       LOG_UPDATE_INTERVAL(this);
-      for (uint8_t i = 0; i < this->user_eq_frequencies_length_; i++) {
-        ESP_LOGW(TAG, "EQ Freq: %d = %d", i, this->user_eq_frequencies_[i]);
-      }
+      // for (uint8_t i = 0; i < this->user_eq_frequencies_length_; i++) {
+      //   ESP_LOGW(TAG, "EQ Freq: %d = %d", i, this->user_eq_frequencies_[i]);
+      // }
       break;
   }
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
   ESP_LOGCONFIG(TAG, "Tas58xx Binary Sensors:");
   LOG_BINARY_SENSOR("  ", "Any Faults", this->have_fault_binary_sensor_);
-  ESP_LOGCONFIG(TAG, "    Exclude: %s", this->exclude_clock_fault_from_have_faults_ ? "CLOCK FAULTS" : "NONE");
+  // ESP_LOGCONFIG(TAG, "    Exclude: %s", this->exclude_clock_fault_from_have_faults_ ? "CLOCK FAULTS" : "NONE");
 
   LOG_BINARY_SENSOR("  ", "Right Channel Over Current", this->right_channel_over_current_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Left Channel Over Current", this->left_channel_over_current_fault_binary_sensor_);
@@ -351,7 +351,7 @@ void Tas58xxComponent::dump_config() {
   LOG_BINARY_SENSOR("  ", "Left Channel DC Fault", this->left_channel_dc_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "PVDD Under Voltage", this->pvdd_under_voltage_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "PVDD Over Voltage", this->pvdd_over_voltage_fault_binary_sensor_);
-  LOG_BINARY_SENSOR("  ", "Clock Fault", this->clock_fault_binary_sensor_);
+  // LOG_BINARY_SENSOR("  ", "Clock Fault", this->clock_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "BQ Write Failed", this->bq_write_failed_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "OTP CRC Check Error", this->otp_crc_check_error_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Over Temperature Shutdown", this->over_temperature_shutdown_fault_binary_sensor_);
@@ -499,10 +499,10 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
   this->tas58xx_input_mixer_mode_ = mode;
 
   // only save until ready to setup in 'loop'
-  if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
-     ESP_LOGD(TAG, "Save %s: %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
-     return true;
-  }
+  // if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
+  //    ESP_LOGD(TAG, "Save %s: %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
+  //    return true;
+  // }
 
   // follows order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
   struct MixerCoefficients {
@@ -572,12 +572,12 @@ bool Tas58xxComponent::is_eq_configured() {
 
 // used by 'left_gain_band16000hz' or 'right_gain_band16000hz' or 'select eq_mode'
 // to trigger loop setup
-void Tas58xxComponent::refresh_eq_settings() {
-  // if (this->loop_setup_stage_ == WAIT_FOR_TRIGGER) {
-  //   this->loop_setup_stage_ = RUN_DELAY_LOOP;
-  // }
-  return;
-}
+// void Tas58xxComponent::refresh_eq_settings() {
+//   // if (this->loop_setup_stage_ == WAIT_FOR_TRIGGER) {
+//   //   this->loop_setup_stage_ = RUN_DELAY_LOOP;
+//   // }
+//   return;
+// }
 
 bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 #ifdef USE_TAS58XX_CHANNEL_VOLUMES
@@ -589,10 +589,10 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
   this->tas58xx_channel_volume_[channel] = volume_dB;
 
   // only save until ready to setup in 'loop'
-  if (this->loop_setup_stage_ < LR_VOLUME_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel Volume: %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
-    return true;
-  }
+  // if (this->loop_setup_stage_ < LR_VOLUME_SETUP) {
+  //   ESP_LOGD(TAG, "Save %s Channel Volume: %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
+  //   return true;
+  // }
 
   int32_t little_endian_9_23 = tas58xx_helpers::gain_to_f9_23_(volume_dB);
 
@@ -635,10 +635,10 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   this->tas58xx_eq_gain_[channel][band_index] = gain;
 
   // only save until ready to setup in 'loop'
-  if (this->loop_setup_stage_ < EQ_BANDS_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
-    return true;
-  }
+  // if (this->loop_setup_stage_ < EQ_BANDS_SETUP) {
+  //   ESP_LOGD(TAG, "Save %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+  //   return true;
+  // }
 
 #ifdef USE_TAS5805M_DAC
   #ifdef USE_TAS58XX_EQ_BIAMP
@@ -861,14 +861,14 @@ uint32_t Tas58xxComponent::times_faults_cleared() {
 }
 
 // used by 'left_gain_band16000hz' or 'right_gain_band16000hz' or 'select eq_mode'
-bool Tas58xxComponent::using_auto_eq_refresh() {
-  return (this->eq_refresh_ == EqRefreshMode::AUTO);
-}
+// bool Tas58xxComponent::using_auto_eq_refresh() {
+//   return (this->eq_refresh_ == EqRefreshMode::AUTO);
+// }
 
 // used by 'select eq_mode'
-bool Tas58xxComponent::using_manual_eq_refresh() {
-  return (this->eq_refresh_ == EqRefreshMode::MANUAL);
-}
+// bool Tas58xxComponent::using_manual_eq_refresh() {
+//   return (this->eq_refresh_ == EqRefreshMode::MANUAL);
+// }
 
 // override for audio_dac component volume, so mediaplayer can determine current volume of tas58xx dac
 float Tas58xxComponent::volume() {
@@ -1027,10 +1027,10 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
   this->tas58xx_eq_mode_ = new_mode;
 
   // only save until ready to setup in 'loop'
-  if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
-    ESP_LOGD(TAG, "Save EQ Mode: %s", EQ_MODE_TEXT[new_mode]);
-    return true;
-  }
+  // if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
+  //   ESP_LOGD(TAG, "Save EQ Mode: %s", EQ_MODE_TEXT[new_mode]);
+  //   return true;
+  // }
 
 #ifdef USE_TAS5805M_DAC
   if (!this->tas58xx_write_byte_(TAS5805M_DSP_MISC, TAS5805M_CTRL_EQ[new_mode])) {
