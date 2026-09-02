@@ -11,16 +11,6 @@ void RightEqGain16000hz::setup() {
   if (!this->pref_.load(&value)) value= 0.0;
   this->publish_state(value);
   this->parent_->set_eq_gain(RIGHT_CHANNEL, BAND_16000HZ, static_cast<int>(value));
-
-// #ifdef USE_TAS58XX_EQ_GAINS
-//   #ifdef USE_TAS58XX_EQ_BIAMP
-//   // if YAML configured auto_fresh: EQ_GAIN which is default then trigger refresh_settings
-//   // if(this->parent_->using_auto_eq_refresh()) {
-//   //   this->parent_->refresh_eq_settings();
-//   //   ESP_LOGD(TAG, "Right EQ Gain Number Setup triggered EQ settings refresh");
-//   // }
-//   #endif
-// #endif
 }
 
 void RightEqGain16000hz::dump_config() {

@@ -19,10 +19,6 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-// static constexpr uint16_t DELAY_LOOPS = 0;  // 40 loop iterations of initial delay in 'loop' before writing eq settings
-
-// static constexpr uint16_t INITIAL_UPDATE_DELAY = 0; //8000;  // was 4000 initial ms delay before starting fault updates
-
 void Tas58xxComponent::setup() {
   ESP_LOGCONFIG(TAG, "Running setup");
   if (this->enable_pin_ != nullptr) {
@@ -81,200 +77,13 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
-  // this->loop_setup_stage_ = SETUP_COMPLETE;
-
   if (!this->set_state_(CTRL_PLAY)) return false;
   if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
 
-  //this->loop_setup_stage_ = RUN_DELAY_LOOP;
-  // this->start_time_ = App.get_loop_component_start_time();
   return true;
 }
-// void Tas58xxComponent::play_i2s_boot_sound() {
-//   // Silence frame, sized/formatted to match whatever audio_stream_info
-//   // the speaker component was configured with (sample_rate, bits, channels).
-//   // Zeros are fine here -- the codec only needs to see clocking + a data line
-//   // toggling, not any particular waveform.
-
-//   uint16_t bytes_in_ring_buffer = this->speaker_->play(BOOT_SOUND, BOOT_SOUND_BYTES);
-
-//   if (bytes_in_ring_buffer == 0) {
-//     ESP_LOGD(TAG, "speaker not ready - boot sound will be sent next loop cycle");
-//     number_tries_waiting_for_speaker_++;
-//     return;  // loop_setup_stage_ unchanged so loop() will try speaker->play again next loop
-//   }
-
-//   ESP_LOGD(TAG, "speaker has %u bytes of boot sound queued to play", bytes_in_ring_buffer);
-//   this->play_boot_sound_timeout_ = App.get_loop_component_start_time() + PLAY_BOOT_SOUND_TIMEOUT;
-//   this->loop_setup_stage_ = WAIT_UNTIL_PLAYED;
-// }
-
-// void Tas58xxComponent::loop() {
-//   // 'play_file' is initiated by YAML on_boot with priority 220.0f
-//   // 'refresh_eq_settings' is triggered by Number 'left_eq_gain_16000hz' or 'right_eq_gain_16000hz' or Select 'eq_mode'
-//   // each with setup priority AFTER_CONNECTION = 100.0f
-//   // delay refreshing EQ settings until refresh is triggered so tas58xx has detected i2s clock through sound being played
-
-//   // loop_setup_stage_ is initially WAIT_FOR_TRIGGER
-
-//   switch (this->loop_setup_stage_) {
-//     // case WAIT_FOR_TRIGGER:
-//     //   return;
-
-//     case RUN_DELAY_LOOP:
-//       if (this->loop_counter_ < DELAY_LOOPS) {    // loop_count was initialised to 0
-//         this->loop_counter_++;
-//         return;
-//       }
-//       this->loop_setup_stage_ = INPUT_MIXER_SETUP;
-//       // this->loop_setup_stage_ = PLAY_BOOT_SOUND;
-//       ESP_LOGD(TAG, "Loop delay complete");
-//       return;
-
-//     // case PLAY_BOOT_SOUND:
-//     //   if (this->speaker_ == NULL) {
-//     //     ESP_LOGE(TAG, "speaker component not assigned - marking component failed" );
-//     //     this->mark_failed();
-//     //     this->loop_setup_stage_ = SETUP_COMPLETE;
-//     //     return;
-//     //   }
-//     //   this->play_i2s_boot_sound();
-//     //   if (number_tries_waiting_for_speaker_ == MAX_LOOPS_TO_WAIT_FOR_SPEAKER) {
-//     //     ESP_LOGE(TAG, "timed out waiting for speaker component to be ready - component marked as failed");
-//     //     this->mark_failed();
-//     //     this->loop_setup_stage_ = SETUP_COMPLETE;
-//     //   }
-//     //   return;
-
-//     // case WAIT_UNTIL_PLAYED:
-//     //   if (this->speaker_->has_buffered_data()) {
-//     //     if (App.get_loop_component_start_time() < this->play_boot_sound_timeout_) return;
-
-//     //     ESP_LOGE(TAG, "timed out waiting for boot sound to play - component marked as failed");
-//     //     this->mark_failed();
-//     //     this->loop_setup_stage_ = SETUP_COMPLETE;  // stop retrying
-//     //   }
-
-//     //   ESP_LOGD(TAG, "Boot sound played");
-//     //   this->loop_setup_stage_ = INPUT_MIXER_SETUP;
-//     //   return;
-
-//     case INPUT_MIXER_SETUP:
-//       // setup Eq Mode first
-//       if (!this->set_eq_mode_(this->tas58xx_eq_mode_)) {
-//          ESP_LOGW(TAG, "%s setting EQ Mode: %s", ERROR, EQ_MODE_TEXT[this->tas58xx_eq_mode_]);
-//       }
-
-//       if (!this->set_input_mixer_mode(this->tas58xx_input_mixer_mode_)) {
-//         ESP_LOGW(TAG, "%s setting %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_]);
-//       }
-//       this->loop_setup_stage_ = LR_VOLUME_SETUP;
-//       return;
-
-//     case LR_VOLUME_SETUP:
-// #ifdef USE_TAS58XX_CHANNEL_VOLUMES
-//       if (!this->set_channel_volume(LEFT_CHANNEL, this->tas58xx_channel_volume_[LEFT_CHANNEL])) {
-//         ESP_LOGW(TAG, "%s setting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[LEFT_CHANNEL]);
-//       }
-
-//       if (!this->set_channel_volume(RIGHT_CHANNEL, this->tas58xx_channel_volume_[RIGHT_CHANNEL])) {
-//         ESP_LOGW(TAG, "%s setting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[RIGHT_CHANNEL]);
-//       }
-// #endif
-
-// #ifdef USE_TAS58XX_EQ_GAINS
-//       this->loop_setup_stage_ = EQ_BANDS_SETUP;
-// #endif
-
-// #ifdef USE_TAS58XX_EQ_PRESETS
-//       this->loop_setup_stage_ = EQ_PRESETS_SETUP;
-// #endif
-
-//       // if loop_setup_stage_ has not changed then no EQ Gains or EQ Presets configured
-//       if (this->loop_setup_stage_ == LR_VOLUME_SETUP) {
-//         // nothing more to setup so complete
-//         this->loop_setup_stage_ = SETUP_COMPLETE;
-//       }
-//       return;
-
-//     case EQ_BANDS_SETUP:
-// #ifdef USE_TAS58XX_EQ_GAINS
-//       if (this->refresh_band_ == NUMBER_EQ_BANDS) { // refresh_band_ starts as initialised to 0
-//         // finished writing all bands so either continue with speaker config or setup is complete
-//         this->loop_setup_stage_ = SETUP_COMPLETE;
-//         this->refresh_band_ = 0;
-//         return;
-//       }
-
-//       if (!this->set_eq_gain(LEFT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[LEFT_CHANNEL][this->refresh_band_])) {
-//   #ifdef USE_TAS58XX_EQ_BIAMP
-//         ESP_LOGW(TAG, "%s setting Gain Left %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-//   #else
-//         ESP_LOGW(TAG, "%s setting Gain %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-//   #endif
-//       }
-
-//   #ifdef USE_TAS58XX_EQ_BIAMP
-//       if (!this->set_eq_gain(RIGHT_CHANNEL, this->refresh_band_, this->tas58xx_eq_gain_[RIGHT_CHANNEL][this->refresh_band_])) {
-//         ESP_LOGW(TAG, "%s setting Gain Right %s: %d", ERROR, EQ_BAND, this->refresh_band_ + 1);
-//       }
-//   #endif
-
-//       this->refresh_band_++;
-// #endif // USE_TAS58XX_EQ_GAINS
-//       return;
-
-//     case EQ_PRESETS_SETUP:
-// #ifdef USE_TAS58XX_EQ_PRESETS
-//       if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
-//         ESP_LOGW(TAG, "%s setting Left Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
-//       }
-//       if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
-//         ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
-//       }
-//       this->loop_setup_stage_ = SETUP_COMPLETE;
-// #endif // USE_TAS58XX_EQ_PRESETS
-//       return;
-
-//     case SETUP_COMPLETE:
-//       ESP_LOGD(TAG, "SETUP_COMPLETE");
-//       this->disable_loop(); // requires Esphome 2025.7.0 or greater
-//       return;
-//   }
-// }
 
 void Tas58xxComponent::update() {
-  // initial delay allows DAC to stabilise before proceeding with checking for faults
-//   if (!this->update_delay_finished_) {
-//     const uint32_t current_time = App.get_loop_component_start_time();
-//     this->update_delay_finished_ = ((current_time - this->start_time_) > INITIAL_UPDATE_DELAY);
-
-//     if (!this->update_delay_finished_) return;
-//     ESP_LOGD(TAG, "update delay finished");
-//     //finished delay so clear faults
-//     if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
-//       ESP_LOGW(TAG, "%s initialising faults", ERROR);
-//     }
-
-
-//     // publish all binary sensors as false on first update
-// #ifdef USE_TAS58XX_BINARY_SENSOR
-//     this->publish_faults_();
-//     //this->gain_band1_->make_call().set_value(15.0).perform(); //testing
-// #endif
-
-//     // read and process faults from next update
-//     return;
-//   }
-
-  // after delay updates starts here
-  // ESP_LOGD(TAG, "running update");
-  // if there was a fault last update then clear any faults
-  // if (this->is_fault_to_clear_) {
-  //   if (!this->clear_fault_registers_()) {
-  //     ESP_LOGW(TAG, "%s clearing faults", ERROR);
-  //   }
-  // }
   ESP_LOGD(TAG, "reading faults");
   if (!this->read_fault_registers_()) {
     ESP_LOGW(TAG, "%s reading faults", ERROR);
@@ -287,13 +96,7 @@ void Tas58xxComponent::update() {
       ESP_LOGW(TAG, "%s clearing faults", ERROR);
     }
   }
-  // // is there a fault that should be cleared next update
-  // this->is_fault_to_clear_ =
-  //    ( this->tas58xx_faults_.is_fault_except_clock_fault || (this->tas58xx_faults_.clock_fault && (!this->ignore_clock_faults_when_clearing_faults_)) );
 
-
-  // if no change in faults bypass publishing
-  //if ( !(this->is_new_common_fault_ || this->is_new_over_temperature_issue_ || this->is_new_channel_fault_ || this->is_new_global_fault_) ) return;
   if ( !(this->is_new_common_fault_ || this->is_new_channel_fault_ || this->is_new_global_fault_) ) return;
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
@@ -325,35 +128,25 @@ void Tas58xxComponent::dump_config() {
               "  Mixer Mode: %s\n"
               "  Volume Maximum: %idB\n"
               "  Volume Minimum: %idB\n",
-              // "  Ignore Fault: %s\n"
-              // "  Refresh EQ: %s\n",
               this->number_registers_configured_, this->tas58xx_analog_gain_,
               this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
               INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_],
-              this->tas58xx_volume_max_, this->tas58xx_volume_min_ //,
-              // this->ignore_clock_faults_when_clearing_faults_ ? "CLOCK FAULTS" : "NONE",
-              // this->eq_refresh_ ? "MANUAL" : "AUTO"
+              this->tas58xx_volume_max_, this->tas58xx_volume_min_
               );
       LOG_UPDATE_INTERVAL(this);
-      // for (uint8_t i = 0; i < this->user_eq_frequencies_length_; i++) {
-      //   ESP_LOGW(TAG, "EQ Freq: %d = %d", i, this->user_eq_frequencies_[i]);
-      // }
       break;
   }
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
   ESP_LOGCONFIG(TAG, "Tas58xx Binary Sensors:");
   LOG_BINARY_SENSOR("  ", "Any Faults", this->have_fault_binary_sensor_);
-  // ESP_LOGCONFIG(TAG, "    Exclude: %s", this->exclude_clock_fault_from_have_faults_ ? "CLOCK FAULTS" : "NONE");
-
   LOG_BINARY_SENSOR("  ", "Right Channel Over Current", this->right_channel_over_current_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Left Channel Over Current", this->left_channel_over_current_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Right Channel DC Fault", this->right_channel_dc_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Left Channel DC Fault", this->left_channel_dc_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "PVDD Under Voltage", this->pvdd_under_voltage_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "PVDD Over Voltage", this->pvdd_over_voltage_fault_binary_sensor_);
-  // LOG_BINARY_SENSOR("  ", "Clock Fault", this->clock_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "BQ Write Failed", this->bq_write_failed_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "OTP CRC Check Error", this->otp_crc_check_error_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Over Temperature Shutdown", this->over_temperature_shutdown_fault_binary_sensor_);
@@ -363,119 +156,6 @@ void Tas58xxComponent::dump_config() {
 }
 
 // public //
-bool Tas58xxComponent::i2s_prime_open_channel_() {
-  // try_lock(), not lock(): priming runs synchronously in setup(), before
-  // any other component's loop()/background task exists to hold the mutex.
-  // Defensive insurance only — not expected to actually contend.
-  if (!this->parent_->try_lock()) {
-    return false;
-  }
-
-  i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(
-      static_cast<i2s_port_t>(this->parent_->get_port()), I2S_ROLE_MASTER);
-  esp_err_t err = i2s_new_channel(&chan_cfg, &this->prime_tx_handle_, nullptr);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "i2s_new_channel failed: %s", esp_err_to_name(err));
-    this->prime_tx_handle_ = nullptr;  // don't rely on i2s_new_channel's own behavior
-    this->parent_->unlock();
-    return false;
-  }
-
-  i2s_std_gpio_config_t pin_cfg = this->parent_->get_pin_config();
-  pin_cfg.dout = this->dout_pin_;  // patch in our own dout — shared pin_config leaves it unused
-
-  i2s_std_clk_config_t clk_cfg = {
-      .sample_rate_hz = 48000,
-      .clk_src = I2S_CLK_SRC_DEFAULT,
-      .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-  };
-  i2s_std_slot_config_t slot_cfg =
-      I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
-  i2s_std_config_t std_cfg = {.clk_cfg = clk_cfg, .slot_cfg = slot_cfg, .gpio_cfg = pin_cfg};
-
-  //ESP_LOGW(TAG, "prime pins: bclk=%d ws=%d dout=%d din=%d mclk=%d",
-  //        pin_cfg.bclk, pin_cfg.ws, pin_cfg.dout, pin_cfg.din, pin_cfg.mclk);
-
-  err = i2s_channel_init_std_mode(this->prime_tx_handle_, &std_cfg);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "i2s_channel_init_std_mode failed: %s", esp_err_to_name(err));
-    i2s_del_channel(this->prime_tx_handle_);
-    this->prime_tx_handle_ = nullptr;
-    this->parent_->unlock();
-    return false;
-  }
-
-  err = i2s_channel_enable(this->prime_tx_handle_);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "i2s_channel_enable failed: %s", esp_err_to_name(err));
-    i2s_del_channel(this->prime_tx_handle_);
-    this->prime_tx_handle_ = nullptr;
-    this->parent_->unlock();
-    return false;
-  }
-
-  return true;
-}
-
-// bool Tas58xxComponent::i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written) {
-//   if (this->prime_tx_handle_ == nullptr) return false;
-
-//   // 16 bytes into a freshly-enabled, empty channel completes immediately.
-//   // Fixed 20ms timeout is generous; no retry-across-ticks logic needed at this size.
-//   esp_err_t err = i2s_channel_write(this->prime_tx_handle_, data, len, bytes_written,
-//                                      pdMS_TO_TICKS(20));
-//   if (err != ESP_OK || *bytes_written != len) {
-//     ESP_LOGW(TAG, "I2S prime write incomplete: %u of %u bytes (err=%d)",
-//               (unsigned) *bytes_written, (unsigned) len, (int) err);
-//     return false;
-//   }
-//   ESP_LOGW(TAG, "I2S prime write completed for %u bytes",
-//               (unsigned) *bytes_written);
-//   return true;
-// }
-bool Tas58xxComponent::i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written) {
-  if (this->prime_tx_handle_ == nullptr) return false;
-
-  static constexpr int ATTEMPT_TIMEOUT_MS = 2;
-  static constexpr int MAX_ATTEMPTS = 10;
-  // 20ms worst case - speaker component uses 60ms but in dedicated FreeRTOS task
-  // esp32 completes in 2 attempts => 4ms
-
-  for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    esp_err_t err = i2s_channel_write(this->prime_tx_handle_, data, len, bytes_written,
-                                       pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
-    if (err == ESP_OK && *bytes_written == len) {
-      ESP_LOGW(TAG, "I2S prime write completed for %u bytes (attempt %d)",
-                (unsigned) *bytes_written, attempt);
-      return true;
-    }
-    if (err == ESP_ERR_TIMEOUT && *bytes_written == 0) {
-      continue;  // clock still settling — retry, not a real failure yet
-    }
-    ESP_LOGW(TAG, "I2S prime write incomplete: %u of %u bytes (err=%d, attempt %d)",
-              (unsigned) *bytes_written, (unsigned) len, (int) err, attempt);
-    return false;
-  }
-
-  ESP_LOGE(TAG, "I2S prime write never succeeded after %d attempts", MAX_ATTEMPTS);
-  return false;
-}
-
-void Tas58xxComponent::i2s_prime_close_channel_() {
-  if (this->prime_tx_handle_ != nullptr) {
-    i2s_channel_disable(this->prime_tx_handle_);
-    i2s_del_channel(this->prime_tx_handle_);
-    this->prime_tx_handle_ = nullptr;
-
-    // Detach dout from the GPIO matrix and drive it low — i2s_del_channel() does not undo
-    // esp_rom_gpio_connect_out_signal(); without this the priming channel's last output
-    // state keeps driving the pin until the real speaker platform re-inits it.
-    gpio_reset_pin(this->dout_pin_);
-    gpio_set_direction(this->dout_pin_, GPIO_MODE_OUTPUT);
-    gpio_set_level(this->dout_pin_, 0);
-  }
-  this->parent_->unlock();  // unconditional — always attempts release, matches built-in speaker
-}
 
 // used by 'enable_dac_switch'
 void Tas58xxComponent::enable_dac(bool enable) {
@@ -499,12 +179,6 @@ uint8_t Tas58xxComponent::get_mixer_mode() {
 bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
 
   this->tas58xx_input_mixer_mode_ = mode;
-
-  // only save until ready to setup in 'loop'
-  // if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
-  //    ESP_LOGD(TAG, "Save %s: %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
-  //    return true;
-  // }
 
   // follows order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
   struct MixerCoefficients {
@@ -572,15 +246,6 @@ bool Tas58xxComponent::is_eq_configured() {
   return this->eq_configured_;
 }
 
-// used by 'left_gain_band16000hz' or 'right_gain_band16000hz' or 'select eq_mode'
-// to trigger loop setup
-// void Tas58xxComponent::refresh_eq_settings() {
-//   // if (this->loop_setup_stage_ == WAIT_FOR_TRIGGER) {
-//   //   this->loop_setup_stage_ = RUN_DELAY_LOOP;
-//   // }
-//   return;
-// }
-
 bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 #ifdef USE_TAS58XX_CHANNEL_VOLUMES
   if (volume_dB < TAS58XX_CHANNEL_VOLUME_MIN_DB || volume_dB > TAS58XX_CHANNEL_VOLUME_MAX_DB) {
@@ -589,12 +254,6 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
   }
 
   this->tas58xx_channel_volume_[channel] = volume_dB;
-
-  // only save until ready to setup in 'loop'
-  // if (this->loop_setup_stage_ < LR_VOLUME_SETUP) {
-  //   ESP_LOGD(TAG, "Save %s Channel Volume: %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
-  //   return true;
-  // }
 
   int32_t little_endian_9_23 = tas58xx_helpers::gain_to_f9_23_(volume_dB);
 
@@ -636,12 +295,6 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
 
   this->tas58xx_eq_gain_[channel][band_index] = gain;
 
-  // only save until ready to setup in 'loop'
-  // if (this->loop_setup_stage_ < EQ_BANDS_SETUP) {
-  //   ESP_LOGD(TAG, "Save %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
-  //   return true;
-  // }
-
 #ifdef USE_TAS5805M_DAC
   #ifdef USE_TAS58XX_EQ_BIAMP
   const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[band_index] : &TAS5805M_RIGHT_EQ_ADDRESS[band_index];
@@ -663,77 +316,15 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
 
   static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
   ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
-  // uint32_t start = micros();
+
   tas58xx_helpers::BiquadCoefficients biquad =
       tas58xx_helpers::equalizer_qfactor_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  // uint32_t end = micros();
+
   if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
     ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
-  // ESP_LOGD(TAG, "Execution time = %dus", end - start);
-  // delay(2);
-
-  // ESP_LOGD(TAG, "Low Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  // // uint32_t start2 = micros();
-  // tas58xx_helpers::BiquadCoefficients biquad_lowshelf =
-  //     tas58xx_helpers::low_shelf_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  // // uint32_t end2 = micros();
-  // // ESP_LOGD(TAG, "Execution time = %dus", end2 - start2);
-  // delay(2);
-
-  // ESP_LOGD(TAG, "High Shelf test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  // // start2 = micros();
-  // tas58xx_helpers::BiquadCoefficients biquad_highshelf =
-  //     tas58xx_helpers::high_shelf_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  // // end2 = micros();
-  // // ESP_LOGD(TAG, "Execution time = %dus", end2 - start2);
-  // delay(2);
-  // ESP_LOGD(TAG, "Low Pass test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  // // uint32_t start1 = micros();
-  // tas58xx_helpers::BiquadCoefficients biquad_lowpass =
-  //     tas58xx_helpers::low_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain);
-  // // uint32_t end1 = micros();
-  // // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  // delay(2);
-
-  // ESP_LOGD(TAG, "High Pass test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  // // start1 = micros();
-  // tas58xx_helpers::BiquadCoefficients biquad_highpass =
-  //     tas58xx_helpers::high_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain);
-  // // end1 = micros();
-  // // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  // delay(2);
-
-
-  // ESP_LOGD(TAG, "Peaking EQ test with Frequency %d, Gain %d", EQ_BAND_FREQUENCY[band_index], gain);
-  // // start1 = micros();
-  // tas58xx_helpers::BiquadCoefficients biquad_peaking_eq =
-  //     tas58xx_helpers::peaking_eq_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-  // // end1 = micros();
-  // // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  // delay(2);
-
-  // tas58xx_helpers::BiquadCoefficients biquad_allpass = tas58xx_helpers::all_pass_();
-
-  // float temp = EQ_BAND_FREQUENCY[band_index]/2.148;
-  // uint16_t bandwidth = static_cast<uint16_t>(temp);
-  // ESP_LOGD(TAG, "Band Pass test with Frequency %d, Bandwidth %d", EQ_BAND_FREQUENCY[band_index], bandwidth);
-  // start1 = micros();
-  // tas58xx_helpers::BiquadCoefficients biquad_band_pass =
-  //     tas58xx_helpers::band_pass_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], bandwidth);
-  // end1 = micros();
-  // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  // delay(2);
-
-  // ESP_LOGD(TAG, "Notch test with Frequency %d, Bandwidth %d", EQ_BAND_FREQUENCY[band_index], bandwidth);
-  // start1 = micros();
-  // tas58xx_helpers::BiquadCoefficients biquad_notch =
-  //     tas58xx_helpers::notch_filter_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], bandwidth);
-  // end1 = micros();
-  // ESP_LOGD(TAG, "Execution time = %dus", end1 - start1);
-  // delay(2);
 
 #endif
   return true;
@@ -764,19 +355,10 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
   const AddressSequence* biquad3_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[2] : &TAS5825M_RIGHT_EQ_ADDRESS[2];
 #endif
 
-  // const BiquadSequence* biquad1 = (channel == LEFT_CHANNEL) ? &EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][0] : &EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][0];
-  // const BiquadSequence* biquad2 = (channel == LEFT_CHANNEL) ? &EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][1] : &EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][1];
-  // const BiquadSequence* biquad3 = (channel == LEFT_CHANNEL) ? &EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][2] : &EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][2];
-
   if ((biquad1_address == NULL) || (biquad2_address == NULL) || (biquad3_address == NULL)) {
     ESP_LOGE(TAG, "NULL EQ Preset Address pointer");
     return false;
   }
-
-  // if ((biquad1 == NULL) || (biquad2 == NULL) || (biquad3 == NULL)) {
-  //   ESP_LOGE(TAG, "NULL EQ Preset Coefficent pointer");
-  //   return false;
-  // }
 
   static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
 
@@ -816,24 +398,6 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
     return false;
   }
 
-
-
-  // if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad1_address->page, biquad1_address->sub_addr,
-  //                                 reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad1->coefficients)), BIQUAD_SIZE)) {
-  //   ESP_LOGW(TAG, "%s writing Biquad 1 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-  //   return false;
-  // }
-  // if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad2_address->page, biquad2_address->sub_addr,
-  //                                 reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad2->coefficients)), BIQUAD_SIZE)) {
-  //   ESP_LOGW(TAG, "%s writing Biquad 2 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-  //   return false;
-  // }
-  // if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad3_address->page, biquad3_address->sub_addr,
-  //                                 reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad3->coefficients)), BIQUAD_SIZE)) {
-  //   ESP_LOGW(TAG, "%s writing Biquad 3 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-  //   return false;
-  // }
-
   ESP_LOGD(TAG, "%s Channel EQ Preset index >> %d", LR_CHANNEL_TEXT[channel], select_preset);
 #endif
   return true;
@@ -862,16 +426,6 @@ uint32_t Tas58xxComponent::times_faults_cleared() {
   return this->times_faults_cleared_;
 }
 
-// used by 'left_gain_band16000hz' or 'right_gain_band16000hz' or 'select eq_mode'
-// bool Tas58xxComponent::using_auto_eq_refresh() {
-//   return (this->eq_refresh_ == EqRefreshMode::AUTO);
-// }
-
-// used by 'select eq_mode'
-// bool Tas58xxComponent::using_manual_eq_refresh() {
-//   return (this->eq_refresh_ == EqRefreshMode::MANUAL);
-// }
-
 // override for audio_dac component volume, so mediaplayer can determine current volume of tas58xx dac
 float Tas58xxComponent::volume() {
   uint8_t raw_volume;
@@ -889,20 +443,7 @@ bool Tas58xxComponent::set_volume(float volume) {
     ESP_LOGV(TAG, "Volume >> %ddB", dB);
   #endif
   return true;
-  // return this->set_tas58xx_volume(volume);
 }
-
-// public function to set directly the volume of tas58xx dac
-// bool Tas58xxComponent::set_tas58xx_volume(float volume) {
-//   float new_volume = clamp(volume, 0.0f, 1.0f);
-//   uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
-//   if (!this->set_digital_volume_(raw_volume)) return false;
-//   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-//     int8_t dB = -(raw_volume / 2) + 24;
-//     ESP_LOGV(TAG, "Volume >> %ddB", dB);
-//   #endif
-//   return true;
-// }
 
 // protected //
 
@@ -1028,12 +569,6 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
   this->tas58xx_eq_mode_ = new_mode;
 
-  // only save until ready to setup in 'loop'
-  // if (this->loop_setup_stage_ < INPUT_MIXER_SETUP) {
-  //   ESP_LOGD(TAG, "Save EQ Mode: %s", EQ_MODE_TEXT[new_mode]);
-  //   return true;
-  // }
-
 #ifdef USE_TAS5805M_DAC
   if (!this->tas58xx_write_byte_(TAS5805M_DSP_MISC, TAS5805M_CTRL_EQ[new_mode])) {
     ESP_LOGW(TAG, "%s writing Eq Mode: %s", ERROR, EQ_MODE_TEXT[new_mode]);
@@ -1098,21 +633,15 @@ void Tas58xxComponent::publish_faults_() {
     if (this->have_fault_binary_sensor_ != nullptr) {
       this->have_fault_binary_sensor_->publish_state(this->tas58xx_faults_.have_fault);
     }
-
-    // if (this->clock_fault_binary_sensor_ != nullptr) {
-    //   this->clock_fault_binary_sensor_->publish_state(this->tas58xx_faults_.clock_fault);
-    // }
   }
 
-  // if (this->is_new_over_temperature_issue_) {
-    if (this->over_temperature_shutdown_fault_binary_sensor_ != nullptr) {
-      this->over_temperature_shutdown_fault_binary_sensor_->publish_state(this->tas58xx_faults_.temperature_fault);
-    }
+  if (this->over_temperature_shutdown_fault_binary_sensor_ != nullptr) {
+    this->over_temperature_shutdown_fault_binary_sensor_->publish_state(this->tas58xx_faults_.temperature_fault);
+  }
 
-    if (this->over_temperature_warning_binary_sensor_ != nullptr) {
-      this->over_temperature_warning_binary_sensor_->publish_state(this->tas58xx_faults_.temperature_warning);
-    }
-  // }
+  if (this->over_temperature_warning_binary_sensor_ != nullptr) {
+    this->over_temperature_warning_binary_sensor_->publish_state(this->tas58xx_faults_.temperature_warning);
+  }
 
   // publish channel and global faults in separate loop iterations to spread component time when publishing binary sensors
   if (this->is_new_channel_fault_) {
@@ -1187,35 +716,20 @@ bool Tas58xxComponent::read_fault_registers_() {
   this->is_new_channel_fault_ = (current_faults[0] != this->tas58xx_faults_.channel_fault);
   this->tas58xx_faults_.channel_fault = current_faults[0];
 
-  // separate clock fault from GLOBAL_FAULT1 register since clock faults can occur often
+  // separate GLOBAL_FAULT1 from clock faults since clock faults can occur often
   // check if any change in GLOBAL_FAULT1 register as it contains 4 fault conditions(binary sensors) excluding clock fault
   uint8_t current_global_fault = current_faults[1] & REMOVE_CLOCK_FAULT;
   this->is_new_global_fault_ = (current_global_fault != this->tas58xx_faults_.global_fault);
   this->tas58xx_faults_.global_fault = current_global_fault;
 
   // over temperature fault is only fault condition in global_fault2 register
-  // this->is_new_over_temperature_issue_ = (current_faults[2] != this->tas58xx_faults_.temperature_fault);
   this->tas58xx_faults_.temperature_fault = current_faults[2];
 
   // over temperature warning is only fault condition in ot_warning register
-  // this->is_new_over_temperature_issue_ = (this->is_new_over_temperature_issue_ || (current_faults[3] != this->tas58xx_faults_.temperature_warning));
   this->tas58xx_faults_.temperature_warning = current_faults[3];
-
-  //bool new_fault_state; // reuse for temporary storage of new fault state
-
-  // // process clock_fault binary sensor
-  // new_fault_state = (current_faults[1] & (1 << 2));
-  // this->is_new_common_fault_ = (new_fault_state != this->tas58xx_faults_.clock_fault);
-  // this->tas58xx_faults_.clock_fault = new_fault_state;
-
-  // this->tas58xx_faults_.is_fault_except_clock_fault =
-  //   ( this->tas58xx_faults_.channel_fault || this->tas58xx_faults_.global_fault ||
-  //     this->tas58xx_faults_.temperature_fault || this->tas58xx_faults_.temperature_warning );
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
   bool new_have_fault_state;
-  // process have_fault binary sensor
-  //new_fault_state = (this->tas58xx_faults_.is_fault_except_clock_fault || (this->tas58xx_faults_.clock_fault && (!this->exclude_clock_fault_from_have_faults_)));
   new_have_fault_state =  ( this->tas58xx_faults_.channel_fault || this->tas58xx_faults_.global_fault ||
                             this->tas58xx_faults_.temperature_fault || this->tas58xx_faults_.temperature_warning );
   this->is_new_common_fault_ = (new_have_fault_state != this->tas58xx_faults_.have_fault);
@@ -1227,9 +741,103 @@ bool Tas58xxComponent::read_fault_registers_() {
 
 //// low level functions
 
-bool Tas58xxComponent:: book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes) {
-  // use only when writing bytes to contiguous addresses
+// i2s priming functions run in setup() at HARDWARE priority
+// should be before any other component's loop()/background task exists
 
+bool Tas58xxComponent::i2s_prime_open_channel_() {
+  // defensive check — not expected to actually fail
+  if (!this->parent_->try_lock()) {
+    return false;
+  }
+
+  i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(
+      static_cast<i2s_port_t>(this->parent_->get_port()), I2S_ROLE_MASTER);
+  esp_err_t err = i2s_new_channel(&chan_cfg, &this->prime_tx_handle_, nullptr);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "I2S New Channel failed: %s", esp_err_to_name(err));
+    this->prime_tx_handle_ = nullptr;
+    this->parent_->unlock();
+    return false;
+  }
+
+  i2s_std_gpio_config_t pin_cfg = this->parent_->get_pin_config();
+  pin_cfg.dout = this->dout_pin_;  // use YAML configured dout
+
+  i2s_std_clk_config_t clk_cfg = {
+      .sample_rate_hz = 48000,
+      .clk_src = I2S_CLK_SRC_DEFAULT,
+      .mclk_multiple = I2S_MCLK_MULTIPLE_256,
+  };
+  i2s_std_slot_config_t slot_cfg =
+      I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
+  i2s_std_config_t std_cfg = {.clk_cfg = clk_cfg, .slot_cfg = slot_cfg, .gpio_cfg = pin_cfg};
+
+  err = i2s_channel_init_std_mode(this->prime_tx_handle_, &std_cfg);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "I2S Channel Init Std Mode failed: %s", esp_err_to_name(err));
+    i2s_del_channel(this->prime_tx_handle_);
+    this->prime_tx_handle_ = nullptr;
+    this->parent_->unlock();
+    return false;
+  }
+
+  err = i2s_channel_enable(this->prime_tx_handle_);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "I2S Channel Enable failed: %s", esp_err_to_name(err));
+    i2s_del_channel(this->prime_tx_handle_);
+    this->prime_tx_handle_ = nullptr;
+    this->parent_->unlock();
+    return false;
+  }
+
+  return true;
+}
+
+bool Tas58xxComponent::i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written) {
+  if (this->prime_tx_handle_ == nullptr) return false;
+
+  static constexpr int ATTEMPT_TIMEOUT_MS = 2;
+  static constexpr int MAX_ATTEMPTS = 10;
+  // 20ms worst case - speaker component uses 60ms but in dedicated FreeRTOS task
+  // esp32 completes in 2 attempts => 4ms
+
+  for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    esp_err_t err = i2s_channel_write(this->prime_tx_handle_, data, len, bytes_written,
+                                       pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
+    if (err == ESP_OK && *bytes_written == len) {
+      ESP_LOGD(TAG, "I2S Prime Write completed for %u bytes (attempt %d)",
+                (unsigned) *bytes_written, attempt);
+      return true;
+    }
+    if (err == ESP_ERR_TIMEOUT && *bytes_written == 0) {
+      continue;  // clock still settling — retry, not a real failure yet
+    }
+    ESP_LOGW(TAG, "I2S Prime Write incomplete: %u of %u bytes (err=%d, attempt %d)",
+              (unsigned) *bytes_written, (unsigned) len, (int) err, attempt);
+    return false;
+  }
+
+  ESP_LOGE(TAG, "I2S Prime Write failed to succeed after %d attempts", MAX_ATTEMPTS);
+  return false;
+}
+
+void Tas58xxComponent::i2s_prime_close_channel_() {
+  if (this->prime_tx_handle_ != nullptr) {
+    i2s_channel_disable(this->prime_tx_handle_);
+    i2s_del_channel(this->prime_tx_handle_);
+    this->prime_tx_handle_ = nullptr;
+
+    // detach dout from the GPIO matrix and drive it low — i2s_del_channel() does not undo esp_rom_gpio_connect_out_signal()
+    // without the following calls the i2s channel's last output state keeps driving the pin
+    gpio_reset_pin(this->dout_pin_);
+    gpio_set_direction(this->dout_pin_, GPIO_MODE_OUTPUT);
+    gpio_set_level(this->dout_pin_, 0);
+  }
+  this->parent_->unlock();  // unconditional — always attempts release, matches built-in speaker component
+}
+
+// use only when writing bytes to contiguous addresses
+bool Tas58xxComponent:: book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes) {
   if (!this->set_book_and_page_(book, page)) return false;
   if (!this->tas58xx_write_bytes_(sub_addr, data, number_bytes)) return false;
 
@@ -1237,10 +845,9 @@ bool Tas58xxComponent:: book_page_write_bytes_(uint8_t book, uint8_t page, uint8
   return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
 }
 
+// write up to 20 bytes (BIQUAD_SIZE) to a book and page starting at subaddress
+// limited to writing across one page boundary as is required for tas5805m while tas5825m has biquads aligned to page boundaries
 bool Tas58xxComponent::biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* biquad, uint8_t number_bytes) {
-  // write up to 20 bytes (BIQUAD_SIZE) to a book and page starting at subaddress
-  // limited to writing across one page boundary as is required for tas5805m while tas5825m has biquads aligned to page boundaries
-
   // Biquad addressing constants
   static constexpr uint8_t PAGE_SIZE = 0x80;           		// 0x7F + 1 = 0x80
   static constexpr uint8_t MINIMUM_PAGE_SUBADDR = 0x08;   // start subaddr for pages = 0x08
@@ -1280,33 +887,7 @@ bool Tas58xxComponent::biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t s
   return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
 }
 
-// void Tas58xxComponent::log_biquad_(uint8_t* biquad) {
-//   for (uint8_t i = 0; i < BIQUAD_SIZE; i++) {
-//     ESP_LOGD(TAG, "Biquad byte:%d value: %02x", i+1, *(biquad + i));
-//   }
-// }
-
-// bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
-//   ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
-
-//   if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
-//     ESP_LOGE(TAG, "%s setting page: 0x00", ERROR);
-//     return false;
-//   }
-//   if (!this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
-//     ESP_LOGE(TAG, "%s setting book: 0x%02X", ERROR, book);
-//     return false;
-//   }
-//   if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
-//     ESP_LOGE(TAG, "%s setting page: 0x%02X", ERROR, page);
-//     return false;
-//   }
-//   return true;
-// }
-
 bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
-  //ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
-
   if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
     if (this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
       if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
@@ -1352,7 +933,6 @@ bool Tas58xxComponent::tas58xx_write_bytes_(uint8_t a_register, uint8_t* data, u
     this->i2c_error_ = (uint8_t)error_code;
     return false;
   }
-  //ESP_LOGD(TAG, "Writing address:0x%02X bytes:%d", a_register, number_bytes);
   return true;
 }
 
