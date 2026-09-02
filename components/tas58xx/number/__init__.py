@@ -18,7 +18,7 @@ DAC_MODE = "dac_mode"
 DAC_MODE_BTL = "BTL"
 EQ_MODE = "eq_mode"
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
-
+CONF_LEFT_CHANNEL = "left Channel"
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
 CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
 CONF_LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
@@ -221,7 +221,7 @@ CONFIG_SCHEMA = cv.Schema(
             unit_of_measurement=UNIT_DECIBEL,
         )
         .extend(cv.COMPONENT_SCHEMA),
-
+        cv.Optional(CONF_LEFT_CHANNEL): cv.schema({
         cv.Optional(CONF_LEFT_EQ_GAIN_20HZ): number.number_schema(
             LeftEqGain20hz,
             device_class=DEVICE_CLASS_SOUND_PRESSURE,
@@ -356,6 +356,7 @@ CONFIG_SCHEMA = cv.Schema(
             unit_of_measurement=UNIT_DECIBEL,
         )
         .extend(cv.COMPONENT_SCHEMA),
+        }),
 
         cv.Optional(CONF_RIGHT_EQ_GAIN_20HZ): number.number_schema(
             RightEqGain20hz,
