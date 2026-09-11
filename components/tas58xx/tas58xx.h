@@ -13,6 +13,7 @@
 #include "tas58xx_eq_profiles.h"
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
+#include <array>
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
 
@@ -169,6 +170,9 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    bool eq_configured_{false};
 #endif
 
+   std::array<FaultBinarySensorEntry, MAX_FAULT_SENSORS> active_fault_sensors_{};
+   uint8_t active_fault_sensor_count_{0};
+
    int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
 
    EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
@@ -194,6 +198,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    uint8_t i2c_error_{0}; // last i2c error
 
    uint16_t number_registers_configured_{0}; // number tas58xx registers configured during 'setup'
+
 };
 
 }  // namespace esphome::tas58xx
