@@ -23,7 +23,9 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
  public:
   void setup() override;
 
+#ifdef USE_TAS58XX_BINARY_SENSOR
   void update() override;
+#endif
 
   void dump_config() override;
 
@@ -50,7 +52,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = static_cast<int8_t>(volume_min); }
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
-  SUB_BINARY_SENSOR(have_fault)
   SUB_BINARY_SENSOR(left_channel_dc_fault)
   SUB_BINARY_SENSOR(right_channel_dc_fault)
   SUB_BINARY_SENSOR(left_channel_over_current_fault)
@@ -106,6 +107,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
    uint32_t play_boot_sound_timeout_{0};
 
+   void configure_active_fault_sensors_();
    bool configure_registers_();
 
    bool get_analog_gain_(uint8_t* raw_gain);
@@ -130,14 +132,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
    // manage faults
    bool clear_fault_registers_();
-
-#ifdef USE_TAS58XX_BINARY_SENSOR
-   void publish_faults_();
-   void publish_channel_faults_();
-   void publish_global_faults_();
-#endif
-
-   bool read_fault_registers_();
 
    // low level functions
    bool set_book_and_page_(uint8_t book, uint8_t page);
@@ -172,6 +166,8 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
    std::array<FaultBinarySensorEntry, MAX_FAULT_SENSORS> active_fault_sensors_{};
    uint8_t active_fault_sensor_count_{0};
+
+   uint8_t fault_registers_current_state_[MAX_FAULT_REGISTERS];
 
    int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
 
