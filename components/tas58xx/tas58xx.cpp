@@ -88,12 +88,13 @@ bool Tas58xxComponent::configure_registers_() {
 #ifdef USE_TAS58XX_BINARY_SENSOR
 void Tas58xxComponent::configure_active_fault_sensors_() {
   // offset of CHAN_FAULT register from the first of the 4 fault registers
-  static constexpr uint8_t TAS58XX_CHAN_FAULT_OFFSET = 0;
-  // use TAS58xx datasheet field labelling for CHAN_FAULT register bits
-  static constexpr uint8_t CH1_DC_1 = 3;
-  static constexpr uint8_t CH2_DC_1 = 2;
-  static constexpr uint8_t CH1_OC_I = 1;
-  static constexpr uint8_t CH2_OC_I = 0;
+  static constexpr uint8_t CHAN_FAULT register_CHAN_FAULT_OFFSET = 0;
+  // use TAS58xx datasheet CHAN_FAULT register field(bit) labelling
+  // but convert the bit position to a bit mask
+  static constexpr uint8_t CH1_DC_1 = static_cast<uint8_t>(1u << 3);
+  static constexpr uint8_t CH2_DC_1 = static_cast<uint8_t>(1u << 2);
+  static constexpr uint8_t CH1_OC_I = static_cast<uint8_t>(1u << 1);
+  static constexpr uint8_t CH2_OC_I = static_cast<uint8_t>(1u << 0);
 
   if (this->left_channel_dc_fault_binary_sensor_ != nullptr) {
     this->left_channel_dc_fault_binary_sensor_->publish_initial_state(false);
@@ -121,12 +122,13 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
 
   // offset of GLOBAL_FAULT1 register from the first of the 4 fault registers
   static constexpr uint8_t TAS58XX_GLOBAL_FAULT1_OFFSET  = 1;
-  // use TAS58xx datasheet field labelling for GLOBAL_FAULT1 register bits
-  static constexpr uint8_t OTP_CRC_ERROR = 7;
-  static constexpr uint8_t BQ_WR_ERROR = 6;
+  // use TAS58xx datasheet GLOBAL_FAULT1 register field(bit) labelling
+  // but convert the bit position to a bit mask
+  static constexpr uint8_t OTP_CRC_ERROR = static_cast<uint8_t>(1u << 7);
+  static constexpr uint8_t BQ_WR_ERROR = static_cast<uint8_t>(1u << 6);
   // CLK_FAULT_I not used as it is gives false faults when i2s is manipulated by audio components
-  static constexpr uint8_t PVDD_OV_I = 1;
-  static constexpr uint8_t PVDD_UV_I = 0;
+  static constexpr uint8_t PVDD_OV_I = static_cast<uint8_t>(1u << 1);
+  static constexpr uint8_t PVDD_UV_I = static_cast<uint8_t>(1u << 0);
 
   if (this->otp_crc_check_error_binary_sensor_ != nullptr) {
     this->otp_crc_check_error_binary_sensor_->publish_initial_state(false);
@@ -154,8 +156,9 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
 
   // offset of GLOBAL_FAULT2 register from the first of the 4 fault registers
   static constexpr uint8_t TAS58XX_GLOBAL_FAULT2_OFFSET  = 2;
-  // use TAS58xx datasheet field labelling for GLOBAL_FAULT2 register bits
-  static constexpr uint8_t OTSD_I = 0;
+  // use TAS58xx datasheet GLOBAL_FAULT2 register field(bit) labelling
+  // but convert the bit position to a bit mask
+  static constexpr uint8_t OTSD_I = static_cast<uint8_t>(1u << 0);
 
   if (this->over_temperature_shutdown_fault_binary_sensor_ != nullptr) {
     this->over_temperature_shutdown_fault_binary_sensor_->publish_initial_state(false);
@@ -165,8 +168,9 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
 
   // offset of WARNING register from the first of the 4 fault registers
   static constexpr uint8_t TAS58XX_WARNING_OFFSET = 3;
-   // use TAS5825 datasheet field labelling for GLOBAL_FAULT2 register bits
-  static constexpr uint8_t OTW_LEVEL3_I = 2;
+  // use TAS5825 datasheet field labelling for GLOBAL_FAULT2 register bits
+  // but convert the bit position to a bit mask
+  static constexpr uint8_t OTW_LEVEL3_I = static_cast<uint8_t>(1u << 2);
   if (this->over_temperature_warning_binary_sensor_ != nullptr) {
     this->over_temperature_warning_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
@@ -187,9 +191,9 @@ void Tas58xxComponent::update() {
 
   for (uint8_t i = 0; i < this->active_fault_sensor_count_; i++) {
     auto &x = this->active_fault_sensors_[i];
-    bool state = (this->fault_registers_current_state_[x.register_index] >> x.bit_position) & 0x01;
+    bool state = (this->fault_registers_current_state_[x.register_index] & x.bit_mask) != 0;
 
-    trigger_clear_faults = trigger_clear_faults | state;
+    trigger_clear_faults |= state;
 
     // dedup is implemented in binary sensor component, but log messages are not shown at debug level
     // tas58xx faults/warnings require a log message
@@ -198,9 +202,9 @@ void Tas58xxComponent::update() {
     // only log and publish on an actual transition
     if (state != x.last_state) {
       if (state) {
-        ESP_LOGW(TAG, "%s triggered ON", x.fault_sensor->get_name().c_str());
+        ESP_LOGW(TAG, "%s >> ON", x.fault_sensor->get_name().c_str());
       } else {
-        ESP_LOGI(TAG, "%s now OFF", x.fault_sensor->get_name().c_str());
+        ESP_LOGI(TAG, "%s >> OFF", x.fault_sensor->get_name().c_str());
       }
       x.fault_sensor->publish_state(state);
       x.last_state = state;
@@ -209,7 +213,7 @@ void Tas58xxComponent::update() {
     if (trigger_clear_faults) {
       ESP_LOGD(TAG, "Clearing fault/warning registers");
       if (!this->clear_fault_registers_()) {
-        ESP_LOGW(TAG, "%s clearing fault registers", ERROR);
+        ESP_LOGW(TAG, "%s clearing fault/warning registers", ERROR);
       }
     }
   }
