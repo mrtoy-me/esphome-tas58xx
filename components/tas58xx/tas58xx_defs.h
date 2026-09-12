@@ -19,18 +19,6 @@ enum ModulationScheme : uint8_t {
   MODE_1SPW = 1,
 };
 
-struct Tas58xxFault {
-  uint8_t channel_fault{0};                  // individual faults extracted when publishing
-  uint8_t global_fault{0};                   // individual faults extracted when publishing excludes clock fault
-
-  bool temperature_fault{false};
-  bool temperature_warning{false};
-
-#ifdef USE_TAS58XX_BINARY_SENSOR
-  bool have_fault{false};                    // combined binary sensor - any fault found but does not include clock fault
-#endif
-};
-
 struct FaultBinarySensorProperties {
   binary_sensor::BinarySensor *fault_sensor{nullptr};
   uint8_t register_index{0};
