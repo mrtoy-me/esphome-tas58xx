@@ -34,7 +34,7 @@ struct Tas58xxFault {
 struct FaultBinarySensorProperties {
   binary_sensor::BinarySensor *fault_sensor{nullptr};
   uint8_t register_index{0};
-  uint8_t bit_position{0};
+  uint8_t bit_mask{0};
   bool last_state{false};
 };
 
