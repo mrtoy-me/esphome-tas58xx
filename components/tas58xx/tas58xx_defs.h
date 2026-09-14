@@ -26,7 +26,6 @@ struct FaultBinarySensorProperties {
   bool last_state{false};
 };
 
-static constexpr uint8_t MAX_FAULT_REGISTERS = 4;
 static constexpr uint8_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
 
 static constexpr float TAS58XX_MIN_ANALOG_GAIN         = -15.5;
@@ -53,16 +52,6 @@ static constexpr uint8_t TAS58XX_START_FAULT_REGISTERS = 0x70;
 static constexpr uint8_t TAS58XX_FAULT_CLEAR           = 0x78;
 static constexpr uint8_t TAS58XX_ANALOG_FAULT_CLEAR    = 0x80;
 
-static constexpr size_t BOOT_SOUND_BYTES = 16;
 
-// 4 frames of silence at 16-bit stereo = 4 * 2 channels * 2 bytes = 16 bytes
-// purpose is to toggle BCLK/LRCLK so the DAC sees a valid clock before
-// the CTRL_STATE -> Play transition
-static constexpr uint8_t PRIME_BUFFER[BOOT_SOUND_BYTES] = {
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-};
 
 }  // namespace esphome::tas58xx

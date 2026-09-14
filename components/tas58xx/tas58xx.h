@@ -74,7 +74,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   void enable_dac(bool enable);
 
   bool i2s_prime_open_channel_();
-  bool i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written);
+  bool i2s_prime_write_();
   void i2s_prime_close_channel_();
 
   bool is_eq_configured();
@@ -166,8 +166,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
    std::array<FaultBinarySensorEntry, MAX_FAULT_SENSORS> active_fault_sensors_{};
    uint8_t active_fault_sensor_count_{0};
-
-   uint8_t fault_registers_current_state_[MAX_FAULT_REGISTERS];
 
    int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
 

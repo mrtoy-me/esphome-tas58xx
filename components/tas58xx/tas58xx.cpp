@@ -87,10 +87,12 @@ bool Tas58xxComponent::configure_registers_() {
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 void Tas58xxComponent::configure_active_fault_sensors_() {
-  // offset of CHAN_FAULT register from the first of the 4 fault registers
-  static constexpr uint8_t CHAN_FAULT register_CHAN_FAULT_OFFSET = 0;
+  // CHAN_FAULT register offset offset from first of 4 consecutive fault registers
+  static constexpr uint8_t CHAN_FAULT_OFFSET = 0;
+
   // use TAS58xx datasheet CHAN_FAULT register field(bit) labelling
   // but convert the bit position to a bit mask
+  // bits 7 - 4 reserved
   static constexpr uint8_t CH1_DC_1 = static_cast<uint8_t>(1u << 3);
   static constexpr uint8_t CH2_DC_1 = static_cast<uint8_t>(1u << 2);
   static constexpr uint8_t CH1_OC_I = static_cast<uint8_t>(1u << 1);
@@ -99,92 +101,175 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
   if (this->left_channel_dc_fault_binary_sensor_ != nullptr) {
     this->left_channel_dc_fault_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {left_channel_dc_fault_binary_sensor_, TAS58XX_CHAN_FAULT_OFFSET, CH1_DC_1};
+        {left_channel_dc_fault_binary_sensor_, CHAN_FAULT_OFFSET, CH1_DC_1};
   }
 
   if (this->right_channel_dc_fault_binary_sensor_ != nullptr) {
     this->right_channel_dc_fault_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->right_channel_dc_fault_binary_sensor_, TAS58XX_CHAN_FAULT_OFFSET, CH2_DC_1};
+        {this->right_channel_dc_fault_binary_sensor_, CHAN_FAULT_OFFSET, CH2_DC_1};
   }
 
   if (this->left_channel_over_current_fault_binary_sensor_ != nullptr) {
     this->left_channel_over_current_fault_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->left_channel_over_current_fault_binary_sensor_, TAS58XX_CHAN_FAULT_OFFSET, CH1_OC_I};
+        {this->left_channel_over_current_fault_binary_sensor_, CHAN_FAULT_OFFSET, CH1_OC_I};
   }
 
   if (this->right_channel_over_current_fault_binary_sensor_ != nullptr) {
     this->right_channel_over_current_fault_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {right_channel_over_current_fault_binary_sensor_, TAS58XX_CHAN_FAULT_OFFSET, CH2_OC_I};
+        {right_channel_over_current_fault_binary_sensor_, CHAN_FAULT_OFFSET, CH2_OC_I};
   }
 
-  // offset of GLOBAL_FAULT1 register from the first of the 4 fault registers
-  static constexpr uint8_t TAS58XX_GLOBAL_FAULT1_OFFSET  = 1;
+  // GLOBAL_FAULT1 register offset from first of 4 consecutive fault registers
+  static constexpr uint8_t GLOBAL_FAULT1_OFFSET  = 1;
+
   // use TAS58xx datasheet GLOBAL_FAULT1 register field(bit) labelling
   // but convert the bit position to a bit mask
   static constexpr uint8_t OTP_CRC_ERROR = static_cast<uint8_t>(1u << 7);
   static constexpr uint8_t BQ_WR_ERROR = static_cast<uint8_t>(1u << 6);
-  // CLK_FAULT_I not used as it is gives false faults when i2s is manipulated by audio components
+  #ifdef USE_TAS5825M_DAC
+  static constexpr uint8_t LOAD_EEPROM_ERROR = static_cast<uint8_t>(1u << 5);
+  #endif
+  // bits 4 - 3 reserved
+  // bit 2 CLK_FAULT_I not used as it gives false faults when i2s is manipulated by audio components
   static constexpr uint8_t PVDD_OV_I = static_cast<uint8_t>(1u << 1);
   static constexpr uint8_t PVDD_UV_I = static_cast<uint8_t>(1u << 0);
 
   if (this->otp_crc_check_error_binary_sensor_ != nullptr) {
     this->otp_crc_check_error_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->otp_crc_check_error_binary_sensor_, TAS58XX_GLOBAL_FAULT1_OFFSET, OTP_CRC_ERROR};
+        {this->otp_crc_check_error_binary_sensor_, GLOBAL_FAULT1_OFFSET, OTP_CRC_ERROR};
   }
 
-  if (this->bq_write_failed_fault_binary_sensor_ != nullptr) {
-    this->bq_write_failed_fault_binary_sensor_->publish_initial_state(false);
+  if (this->bq_write_failed_binary_sensor_ != nullptr) {
+    this->bq_write_failed_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->bq_write_failed_fault_binary_sensor_, TAS58XX_GLOBAL_FAULT1_OFFSET, BQ_WR_ERROR};
+        {this->bq_write_failed_binary_sensor_, GLOBAL_FAULT1_OFFSET, BQ_WR_ERROR};
   }
+
+  #ifdef USE_TAS5825M_DAC
+  if (this->eeprom_load_error_binary_sensor_ != nullptr) {
+    this->eeprom_load_error_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->eeprom_load_error_binary_sensor_, GLOBAL_FAULT1_OFFSET, LOAD_EEPROM_ERROR};
+  }
+  #endif
 
   if (this->pvdd_over_voltage_fault_binary_sensor_ != nullptr) {
     this->pvdd_over_voltage_fault_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->pvdd_over_voltage_fault_binary_sensor_, TAS58XX_GLOBAL_FAULT1_OFFSET, PVDD_OV_I};
+        {this->pvdd_over_voltage_fault_binary_sensor_, GLOBAL_FAULT1_OFFSET, PVDD_OV_I};
   }
 
   if (this->pvdd_under_voltage_fault_binary_sensor_ != nullptr) {
     this->pvdd_under_voltage_fault_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->pvdd_under_voltage_fault_binary_sensor_, TAS58XX_GLOBAL_FAULT1_OFFSET, PVDD_UV_I};
+        {this->pvdd_under_voltage_fault_binary_sensor_, GLOBAL_FAULT1_OFFSET, PVDD_UV_I};
   }
 
-  // offset of GLOBAL_FAULT2 register from the first of the 4 fault registers
-  static constexpr uint8_t TAS58XX_GLOBAL_FAULT2_OFFSET  = 2;
+  // offset of GLOBAL_FAULT2 register from first of 4 consecutive fault registers
+  static constexpr uint8_t GLOBAL_FAULT2_OFFSET  = 2;
+
   // use TAS58xx datasheet GLOBAL_FAULT2 register field(bit) labelling
   // but convert the bit position to a bit mask
+  // bits 7 - 3 reserved
+  #ifdef USE_TAS5825M_DAC
+  static constexpr uint8_t CBC_FAULT_CH2_I = static_cast<uint8_t>(1u << 2);
+  static constexpr uint8_t CBC_FAULT_CH1_I = static_cast<uint8_t>(1u << 1);
+  #endif
   static constexpr uint8_t OTSD_I = static_cast<uint8_t>(1u << 0);
+
+  #ifdef USE_TAS5825M_DAC
+  if (this->right_channel_cbc_current_fault_binary_sensor_ != nullptr) {
+    this->right_channel_cbc_current_fault_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->right_channel_cbc_current_fault_binary_sensor_, GLOBAL_FAULT2_OFFSET, CBC_FAULT_CH2_I};
+  }
+
+  if (this->left_channel_cbc_current_fault_binary_sensor_ != nullptr) {
+    this->left_channel_cbc_current_fault_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->left_channel_cbc_current_fault_binary_sensor_, GLOBAL_FAULT2_OFFSET, CBC_FAULT_CH1_I};
+  }
+  #endif
 
   if (this->over_temperature_shutdown_fault_binary_sensor_ != nullptr) {
     this->over_temperature_shutdown_fault_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->over_temperature_shutdown_fault_binary_sensor_, TAS58XX_GLOBAL_FAULT2_OFFSET, OTSD_I};
+        {this->over_temperature_shutdown_fault_binary_sensor_, GLOBAL_FAULT2_OFFSET, OTSD_I};
   }
 
-  // offset of WARNING register from the first of the 4 fault registers
-  static constexpr uint8_t TAS58XX_WARNING_OFFSET = 3;
-  // use TAS5825 datasheet field labelling for GLOBAL_FAULT2 register bits
+  // offset of WARNING register from first of 4 consecutive fault registers
+  static constexpr uint8_t WARNING_OFFSET  = 3;
+
+  // use TAS5825 datasheet WARNING register field(bit) labels (except use OTW_LEVELx as label should not end in "_I")
   // but convert the bit position to a bit mask
-  static constexpr uint8_t OTW_LEVEL3_I = static_cast<uint8_t>(1u << 2);
-  if (this->over_temperature_warning_binary_sensor_ != nullptr) {
-    this->over_temperature_warning_binary_sensor_->publish_initial_state(false);
+  // bits 7 - 6 reserved
+   #ifdef USE_TAS5825M_DAC
+  static constexpr uint8_t CBCW_CH1_I = static_cast<uint8_t>(1u << 5);
+  static constexpr uint8_t CBCW_CH2_I = static_cast<uint8_t>(1u << 4);
+  static constexpr uint8_t OTW_LEVEL4 = static_cast<uint8_t>(1u << 3);
+  #endif
+
+  static constexpr uint8_t OTW_LEVEL3 = static_cast<uint8_t>(1u << 2);
+
+  #ifdef USE_TAS5825M_DAC
+  static constexpr uint8_t OTW_LEVEL2 = static_cast<uint8_t>(1u << 1);
+  static constexpr uint8_t OTW_LEVEL1 = static_cast<uint8_t>(1u << 0);
+  #endif
+
+  #ifdef USE_TAS5825M_DAC
+  if (this->left_channel_cbc_current_warning_binary_sensor_ != nullptr) {
+    this->left_channel_cbc_current_warning_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->over_temperature_warning_binary_sensor_, TAS58XX_WARNING_OFFSET, OTW_LEVEL3_I};
+        {this->left_channel_cbc_current_warning_binary_sensor_, WARNING_OFFSET, CBCW_CH1_I};
   }
+  if (this->right_channel_cbc_current_warning_binary_sensor_ != nullptr) {
+    this->right_channel_cbc_current_warning_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->right_channel_cbc_current_warning_binary_sensor_, WARNING_OFFSET, CBCW_CH2_I};
+  }
+  if (this->over_temperature_146c_warning_binary_sensor_ != nullptr) {
+    this->over_temperature_146c_warning_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->over_temperature_146c_warning_binary_sensor_, WARNING_OFFSET, OTW_LEVEL4};
+  }
+  #endif
+
+  if (this->over_temperature_134c_warning_binary_sensor_ != nullptr) {
+    this->over_temperature_134c_warning_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->over_temperature_134c_warning_binary_sensor_, WARNING_OFFSET, OTW_LEVEL3};
+  }
+
+  #ifdef USE_TAS5825M_DAC
+  if (this->over_temperature_122c_warning_binary_sensor_ != nullptr) {
+    this->this->over_temperature_122c_warning_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->this->over_temperature_122c_warning_binary_sensor_, WARNING_OFFSET, OTW_LEVEL2};
+  }
+
+  if (this->over_temperature_112c_warning_binary_sensor_ != nullptr) {
+    this->this->over_temperature_112c_warning_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->over_temperature_112c_warning_binary_sensor_, WARNING_OFFSET, OTW_LEVEL1};
+  }
+  #endif
 }
 #endif
 
-#ifdef USE_TAS58XX_BINARY_SENSOR
+
 void Tas58xxComponent::update() {
+#ifdef USE_TAS58XX_BINARY_SENSOR
+  static constexpr uint8_t MAX_FAULT_REGISTERS = 4;
+
+  uint8_t fault_registers_current_state_[MAX_FAULT_REGISTERS];
   bool trigger_clear_faults{false};
 
   // read all faults registers
-  if (!this->tas58xx_read_bytes_(TAS58XX_START_FAULT_REGISTERS, fault_registers_current_state_, sizeof(fault_registers_current_state_))) {
+  if (!this->tas58xx_read_bytes_(TAS58XX_START_FAULT_REGISTERS, fault_registers_current_state_, MAX_FAULT_REGISTERS)) {
     ESP_LOGW(TAG, "%s reading fault registers", ERROR);
     return;
   };
@@ -211,14 +296,17 @@ void Tas58xxComponent::update() {
     }
 
     if (trigger_clear_faults) {
-      ESP_LOGD(TAG, "Clearing fault/warning registers");
+      ESP_LOGD(TAG, "Clearing fault registers");
       if (!this->clear_fault_registers_()) {
-        ESP_LOGW(TAG, "%s clearing fault/warning registers", ERROR);
+        ESP_LOGW(TAG, "%s clearing fault registers", ERROR);
       }
     }
   }
-}
+#else
+  stop_poller();
 #endif
+}
+
 
 void Tas58xxComponent::dump_config() {
 #ifdef USE_TAS5805M_DAC
@@ -798,18 +886,29 @@ bool Tas58xxComponent::i2s_prime_open_channel_() {
   return true;
 }
 
-bool Tas58xxComponent::i2s_prime_write_(const uint8_t *data, size_t len, size_t *bytes_written) {
+bool Tas58xxComponent::i2s_prime_write_() {
   if (this->prime_tx_handle_ == nullptr) return false;
+
+  static constexpr uint8_t NUMBER_SOUND_BYTES = 16;
+
+  // 4 frames of silence at 16-bit stereo = 4 * 2 channels * 2 bytes = 16 bytes
+  // used for toggling BCLK/LRCLK
+  // so the DAC sees a valid clock before CTRL_STATE -> Play transition
+  static constexpr uint8_t I2S_BOOT_SOUND[NUMBER_SOUND_BYTES] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
 
   static constexpr int ATTEMPT_TIMEOUT_MS = 2;
   static constexpr int MAX_ATTEMPTS = 10;
   // 20ms worst case - speaker component uses 60ms but in dedicated FreeRTOS task
   // esp32 completes in 2 attempts => 4ms
 
+  uint8* bytes_written;
   for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    esp_err_t err = i2s_channel_write(this->prime_tx_handle_, data, len, bytes_written,
+    esp_err_t err = i2s_channel_write(this->prime_tx_handle_, I2S_BOOT_SOUND, NUMBER_SOUND_BYTES, bytes_written,
                                        pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
-    if (err == ESP_OK && *bytes_written == len) {
+    if (err == ESP_OK && *bytes_written == NUMBER_SOUND_BYTES) {
       ESP_LOGD(TAG, "I2S Prime Write completed for %u bytes (attempt %d)",
                 (unsigned) *bytes_written, attempt);
       return true;
@@ -818,7 +917,7 @@ bool Tas58xxComponent::i2s_prime_write_(const uint8_t *data, size_t len, size_t 
       continue;  // clock still settling — retry, not a real failure yet
     }
     ESP_LOGW(TAG, "I2S Prime Write incomplete: %u of %u bytes (err=%d, attempt %d)",
-              (unsigned) *bytes_written, (unsigned) len, (int) err, attempt);
+              *bytes_written, NUMBER_SOUND_BYTES, (int)err, attempt);
     return false;
   }
 
