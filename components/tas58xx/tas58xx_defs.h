@@ -26,6 +26,7 @@ struct FaultBinarySensorProperties {
   bool last_state{false};
 };
 
+static constexpr uint8_t MAX_FAULT_REGISTERS = 4;
 static constexpr uint8_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
 
 static constexpr float TAS58XX_MIN_ANALOG_GAIN         = -15.5;

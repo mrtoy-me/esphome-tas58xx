@@ -87,8 +87,9 @@ bool Tas58xxComponent::configure_registers_() {
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 void Tas58xxComponent::configure_active_fault_sensors_() {
-  // CHAN_FAULT register offset offset from first of 4 consecutive fault registers
+  // offset of CHAN_FAULT register from the first of the 4 fault registers
   static constexpr uint8_t CHAN_FAULT_OFFSET = 0;
+  static constexpr uint8_t TAS58XX_CHAN_FAULT_OFFSET = CHAN_FAULT_OFFSET;
 
   // use TAS58xx datasheet CHAN_FAULT register field(bit) labelling
   // but convert the bit position to a bit mask
@@ -122,8 +123,9 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
         {right_channel_over_current_fault_binary_sensor_, CHAN_FAULT_OFFSET, CH2_OC_I};
   }
 
-  // GLOBAL_FAULT1 register offset from first of 4 consecutive fault registers
+  // offset of GLOBAL_FAULT1 register from the first of the 4 fault registers
   static constexpr uint8_t GLOBAL_FAULT1_OFFSET  = 1;
+  static constexpr uint8_t TAS58XX_GLOBAL_FAULT1_OFFSET = GLOBAL_FAULT1_OFFSET;
 
   // use TAS58xx datasheet GLOBAL_FAULT1 register field(bit) labelling
   // but convert the bit position to a bit mask
@@ -169,8 +171,9 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
         {this->pvdd_under_voltage_fault_binary_sensor_, GLOBAL_FAULT1_OFFSET, PVDD_UV_I};
   }
 
-  // offset of GLOBAL_FAULT2 register from first of 4 consecutive fault registers
+  // offset of GLOBAL_FAULT2 register from the first of the 4 fault registers
   static constexpr uint8_t GLOBAL_FAULT2_OFFSET  = 2;
+  static constexpr uint8_t TAS58XX_GLOBAL_FAULT2_OFFSET = GLOBAL_FAULT2_OFFSET;
 
   // use TAS58xx datasheet GLOBAL_FAULT2 register field(bit) labelling
   // but convert the bit position to a bit mask
@@ -198,27 +201,38 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
   if (this->over_temperature_shutdown_fault_binary_sensor_ != nullptr) {
     this->over_temperature_shutdown_fault_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+  if (this->over_temperature_shutdown_fault_binary_sensor_ != nullptr) {
+    this->over_temperature_shutdown_fault_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
         {this->over_temperature_shutdown_fault_binary_sensor_, GLOBAL_FAULT2_OFFSET, OTSD_I};
   }
 
-  // offset of WARNING register from first of 4 consecutive fault registers
+  // offset of WARNING register from the first of the 4 fault registers
   static constexpr uint8_t WARNING_OFFSET  = 3;
+  static constexpr uint8_t TAS58XX_WARNING_OFFSET = WARNING_OFFSET;
 
   // use TAS5825 datasheet WARNING register field(bit) labels (except use OTW_LEVELx as label should not end in "_I")
   // but convert the bit position to a bit mask
   // bits 7 - 6 reserved
-   #ifdef USE_TAS5825M_DAC
+  #ifdef USE_TAS5825M_DAC
   static constexpr uint8_t CBCW_CH1_I = static_cast<uint8_t>(1u << 5);
   static constexpr uint8_t CBCW_CH2_I = static_cast<uint8_t>(1u << 4);
   static constexpr uint8_t OTW_LEVEL4 = static_cast<uint8_t>(1u << 3);
   #endif
 
   static constexpr uint8_t OTW_LEVEL3 = static_cast<uint8_t>(1u << 2);
+  static constexpr uint8_t OTW_LEVEL3_I = OTW_LEVEL3;
 
   #ifdef USE_TAS5825M_DAC
   static constexpr uint8_t OTW_LEVEL2 = static_cast<uint8_t>(1u << 1);
   static constexpr uint8_t OTW_LEVEL1 = static_cast<uint8_t>(1u << 0);
   #endif
+
+  if (this->over_temperature_warning_binary_sensor_ != nullptr) {
+    this->over_temperature_warning_binary_sensor_->publish_initial_state(false);
+    this->active_fault_sensors_[this->active_fault_sensor_count_++] =
+        {this->over_temperature_warning_binary_sensor_, WARNING_OFFSET, OTW_LEVEL3_I};
+  }
 
   #ifdef USE_TAS5825M_DAC
   if (this->left_channel_cbc_current_warning_binary_sensor_ != nullptr) {
@@ -260,9 +274,8 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
 }
 #endif
 
-
-void Tas58xxComponent::update() {
 #ifdef USE_TAS58XX_BINARY_SENSOR
+void Tas58xxComponent::update() {
   static constexpr uint8_t MAX_FAULT_REGISTERS = 4;
 
   uint8_t fault_registers_current_state_[MAX_FAULT_REGISTERS];
@@ -273,7 +286,6 @@ void Tas58xxComponent::update() {
     ESP_LOGW(TAG, "%s reading fault registers", ERROR);
     return;
   };
-
   for (uint8_t i = 0; i < this->active_fault_sensor_count_; i++) {
     auto &x = this->active_fault_sensors_[i];
     bool state = (this->fault_registers_current_state_[x.register_index] & x.bit_mask) != 0;
@@ -296,9 +308,9 @@ void Tas58xxComponent::update() {
     }
 
     if (trigger_clear_faults) {
-      ESP_LOGD(TAG, "Clearing fault registers");
+      ESP_LOGD(TAG, "Clearing fault/warning registers");
       if (!this->clear_fault_registers_()) {
-        ESP_LOGW(TAG, "%s clearing fault registers", ERROR);
+        ESP_LOGW(TAG, "%s clearing fault/warning registers", ERROR);
       }
     }
   }
@@ -306,6 +318,7 @@ void Tas58xxComponent::update() {
   stop_poller();
 #endif
 }
+#endif
 
 
 void Tas58xxComponent::dump_config() {
