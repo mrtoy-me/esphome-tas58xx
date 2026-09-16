@@ -8,14 +8,16 @@
 #include <driver/i2s_std.h>
 #include <driver/gpio.h>
 
-#include "tas58xx_defs.h"
-#include "tas58xx_eq_common.h"
-#include "tas58xx_eq_profiles.h"
-
 #ifdef USE_TAS58XX_BINARY_SENSOR
 #include <array>
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
+
+#include "tas58xx_defs.h"
+#include "tas58xx_eq_common.h"
+#include "tas58xx_eq_profiles.h"
+
+
 
 namespace esphome::tas58xx {
 
@@ -23,9 +25,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
  public:
   void setup() override;
 
-#ifdef USE_TAS58XX_BINARY_SENSOR
   void update() override;
-#endif
 
   void dump_config() override;
 
@@ -61,31 +61,32 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   // GLOBAL_FAULT1 register
   SUB_BINARY_SENSOR(otp_crc_check_error)
   SUB_BINARY_SENSOR(bq_write_failed)
-#ifdef USE_TAS5825M_DAC
+  #ifdef USE_TAS5825M_DAC
   SUB_BINARY_SENSOR(eeprom_load_error)
-#endif
+  #endif
   SUB_BINARY_SENSOR(pvdd_over_voltage_fault)
   SUB_BINARY_SENSOR(pvdd_under_voltage_fault)
 
   // GLOBAL_FAULT1 register
-#ifdef USE_TAS5825M_DAC
+  #ifdef USE_TAS5825M_DAC
   SUB_BINARY_SENSOR(right_channel_cbc_current_fault)
   SUB_BINARY_SENSOR(left_channel_cbc_current_fault)
-#endif
+  #endif
   SUB_BINARY_SENSOR(over_temperature_shutdown_fault)
 
   // WARNING register
-#ifdef USE_TAS5825M_DAC
-SUB_BINARY_SENSOR(left_channel_cbc_current_warning)
-SUB_BINARY_SENSOR(right_channel_cbc_current_warning)
-SUB_BINARY_SENSOR(over_temperature_146c_warning)
-#endif
+  #ifdef USE_TAS5825M_DAC
+  SUB_BINARY_SENSOR(left_channel_cbc_current_warning)
+  SUB_BINARY_SENSOR(right_channel_cbc_current_warning)
+  SUB_BINARY_SENSOR(over_temperature_146c_warning)
+  #endif
 
-SUB_BINARY_SENSOR(over_temperature_134c_warning)
+  SUB_BINARY_SENSOR(over_temperature_134c_warning)
 
-#ifdef USE_TAS5825M_DAC
-SUB_BINARY_SENSOR(over_temperature_122c_warning)
-SUB_BINARY_SENSOR(over_temperature_112c_warning)
+  #ifdef USE_TAS5825M_DAC
+  SUB_BINARY_SENSOR(over_temperature_122c_warning)
+  SUB_BINARY_SENSOR(over_temperature_112c_warning)
+  #endif
 #endif
 
   gpio_num_t dout_pin_;
@@ -96,9 +97,7 @@ SUB_BINARY_SENSOR(over_temperature_112c_warning)
 
   void enable_dac(bool enable);
 
-  bool i2s_prime_open_channel_();
-  bool i2s_prime_write_();
-  void i2s_prime_close_channel_();
+
 
   bool is_eq_configured();
 
@@ -128,8 +127,6 @@ SUB_BINARY_SENSOR(over_temperature_112c_warning)
  protected:
    GPIOPin* enable_pin_{nullptr};
 
-   uint32_t play_boot_sound_timeout_{0};
-
    void configure_active_fault_sensors_();
    bool configure_registers_();
 
@@ -157,6 +154,10 @@ SUB_BINARY_SENSOR(over_temperature_112c_warning)
    bool clear_fault_registers_();
 
    // low level functions
+   bool i2s_prime_();
+   bool i2s_open_channel_();
+   void i2s_close_channel_();
+
    bool set_book_and_page_(uint8_t book, uint8_t page);
    bool book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes);
    bool biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* biquad, uint8_t number_bytes);
@@ -165,6 +166,8 @@ SUB_BINARY_SENSOR(over_temperature_112c_warning)
    bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t number_bytes);
 
    //// variables
+   bool i2s_prime_successful_{false};
+
    EqMode configured_eq_mode_; // derived from YAML
 
    enum ErrorCode {
@@ -187,10 +190,10 @@ SUB_BINARY_SENSOR(over_temperature_112c_warning)
    bool eq_configured_{false};
 #endif
 
-   std::array<FaultBinarySensorEntry, MAX_FAULT_SENSORS> active_fault_sensors_{};
+#ifdef USE_TAS58XX_BINARY_SENSOR
+   std::array<FaultBinarySensorProperties, MAX_FAULT_SENSORS> active_fault_sensors_{};
+#endif
    uint8_t active_fault_sensor_count_{0};
-
-   uint8_t fault_registers_current_state_[MAX_FAULT_REGISTERS];
 
    int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
 
@@ -205,12 +208,6 @@ SUB_BINARY_SENSOR(over_temperature_112c_warning)
 
    int8_t tas58xx_volume_max_;  // YAML configured maximum volume dB
    int8_t tas58xx_volume_min_;  // YAML configured maximum volume dB
-
-   bool is_new_channel_fault_{true};  // conditionally publish binary sensors in groups - initially true so published on first update
-   bool is_new_common_fault_{true};
-   bool is_new_global_fault_{true};
-
-   Tas58xxFault tas58xx_faults_;  // current state of faults
 
    uint32_t times_faults_cleared_{0}; // counts number of times the faults register is cleared (used for publishing to sensor)
 

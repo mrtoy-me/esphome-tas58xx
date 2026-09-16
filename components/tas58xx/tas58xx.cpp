@@ -36,6 +36,9 @@ void Tas58xxComponent::setup() {
 
   #ifdef USE_TAS58XX_BINARY_SENSOR
   this->configure_active_fault_sensors_();
+  #else
+  ESP_LOGD(TAG, "stopping update polling");
+  stop_poller();
   #endif
 
   // rescale -103db to 24db digital volume range to register digital volume range 254 to 0
@@ -65,13 +68,11 @@ bool Tas58xxComponent::configure_registers_() {
   }
   this->number_registers_configured_ = counter;
 
-  if (!this->i2s_prime_open_channel_()) {
-    ESP_LOGW(TAG, "I2S priming unavailable, DAC will fault on Play transition");
-  } else {
-    size_t bytes_written = 0;
-    this->i2s_prime_write_(PRIME_BUFFER, sizeof(PRIME_BUFFER), &bytes_written);
-    this->i2s_prime_close_channel_();
-  }
+  // should execute and complete before any other component's loop() exists
+  // and therefore before any other component opens i2s channel
+  // failure does not mark_failed this component as it only should affect proper EQ operation
+  i2s_prime_successful_ = this->i2s_prime_();
+
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
 
@@ -83,6 +84,7 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_state_(CTRL_PLAY)) return false;
   if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
+  return true;
 }
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
@@ -251,13 +253,13 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
 
   #ifdef USE_TAS5825M_DAC
   if (this->over_temperature_122c_warning_binary_sensor_ != nullptr) {
-    this->this->over_temperature_122c_warning_binary_sensor_->publish_initial_state(false);
+    this->over_temperature_122c_warning_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
-        {this->this->over_temperature_122c_warning_binary_sensor_, WARNING_OFFSET, OTW_LEVEL2};
+        {this->over_temperature_122c_warning_binary_sensor_, WARNING_OFFSET, OTW_LEVEL2};
   }
 
   if (this->over_temperature_112c_warning_binary_sensor_ != nullptr) {
-    this->this->over_temperature_112c_warning_binary_sensor_->publish_initial_state(false);
+    this->over_temperature_112c_warning_binary_sensor_->publish_initial_state(false);
     this->active_fault_sensors_[this->active_fault_sensor_count_++] =
         {this->over_temperature_112c_warning_binary_sensor_, WARNING_OFFSET, OTW_LEVEL1};
   }
@@ -279,10 +281,12 @@ void Tas58xxComponent::update() {
     return;
   };
 
-  for (uint8_t i = 0; i < this->active_fault_sensor_count_; i++) {
-    auto &x = this->active_fault_sensors_[i];
-    bool state = (this->fault_registers_current_state_[x.register_index] & x.bit_mask) != 0;
+  ESP_LOGD(TAG, "fault registers read");
 
+  for (uint8_t i = 0; i < this->active_fault_sensor_count_; i++) {
+
+    auto &x = this->active_fault_sensors_[i];
+    bool state = (fault_registers_current_state_[x.register_index] & x.bit_mask) != 0;
     trigger_clear_faults |= state;
 
     // dedup is implemented in binary sensor component, but log messages are not shown at debug level
@@ -299,16 +303,15 @@ void Tas58xxComponent::update() {
       x.fault_sensor->publish_state(state);
       x.last_state = state;
     }
+    ESP_LOGI(TAG, "%s >> OFF", x.fault_sensor->get_name().c_str());
+  }
 
-    if (trigger_clear_faults) {
-      ESP_LOGD(TAG, "Clearing fault/warning registers");
-      if (!this->clear_fault_registers_()) {
-        ESP_LOGW(TAG, "%s clearing fault/warning registers", ERROR);
-      }
+  if (trigger_clear_faults) {
+    ESP_LOGD(TAG, "Clearing fault registers");
+    if (!this->clear_fault_registers_()) {
+      ESP_LOGW(TAG, "%s clearing fault registers", ERROR);
     }
   }
-#else
-  stop_poller();
 #endif
 }
 
@@ -330,14 +333,19 @@ void Tas58xxComponent::dump_config() {
       break;
     case NONE:
       ESP_LOGCONFIG(TAG,
+              "  I2S Priming: %s\n"
               "  Registers Configured: %i\n"
+              "  Fault Sensors Active: %i\n"
               "  Analog Gain: %3.1fdB\n"
               "  Modulation: %s\n"
               "  DAC Mode: %s\n"
               "  Mixer Mode: %s\n"
               "  Volume Maximum: %idB\n"
               "  Volume Minimum: %idB\n",
-              this->number_registers_configured_, this->tas58xx_analog_gain_,
+              this->i2s_prime_successful_ ? "Successful" : "Failed",
+              this->number_registers_configured_,
+              this->active_fault_sensor_count_,
+              this->tas58xx_analog_gain_,
               this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
               INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_],
@@ -349,17 +357,30 @@ void Tas58xxComponent::dump_config() {
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
   ESP_LOGCONFIG(TAG, "Tas58xx Binary Sensors:");
-  LOG_BINARY_SENSOR("  ", "Any Faults", this->have_fault_binary_sensor_);
-  LOG_BINARY_SENSOR("  ", "Right Channel Over Current", this->right_channel_over_current_fault_binary_sensor_);
-  LOG_BINARY_SENSOR("  ", "Left Channel Over Current", this->left_channel_over_current_fault_binary_sensor_);
-  LOG_BINARY_SENSOR("  ", "Right Channel DC Fault", this->right_channel_dc_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Left Channel DC Fault", this->left_channel_dc_fault_binary_sensor_);
-  LOG_BINARY_SENSOR("  ", "PVDD Under Voltage", this->pvdd_under_voltage_fault_binary_sensor_);
-  LOG_BINARY_SENSOR("  ", "PVDD Over Voltage", this->pvdd_over_voltage_fault_binary_sensor_);
-  LOG_BINARY_SENSOR("  ", "BQ Write Failed", this->bq_write_failed_fault_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "Right Channel DC Fault", this->right_channel_dc_fault_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "Left Channel Over Current Fault", this->left_channel_over_current_fault_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "Right Channel Over Current Fault", this->right_channel_over_current_fault_binary_sensor_);
+
   LOG_BINARY_SENSOR("  ", "OTP CRC Check Error", this->otp_crc_check_error_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "BQ Write Failed", this->bq_write_failed_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "EEPROM Load Error", this->eeprom_load_error_binary_sensor_);
+
+  LOG_BINARY_SENSOR("  ", "PVDD Under Voltage Fault", this->pvdd_under_voltage_fault_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "PVDD Over Voltage Fault", this->pvdd_over_voltage_fault_binary_sensor_);
+
+  LOG_BINARY_SENSOR("  ", "Right Channel CBC Current Fault", this->right_channel_cbc_current_fault_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "Left Channel CBC Current Fault", this->left_channel_cbc_current_fault_binary_sensor_);
+
   LOG_BINARY_SENSOR("  ", "Over Temperature Shutdown", this->over_temperature_shutdown_fault_binary_sensor_);
-  LOG_BINARY_SENSOR("  ", "Over Temperature Warning", this->over_temperature_warning_binary_sensor_);
+
+  LOG_BINARY_SENSOR("  ", "Left Channel CBC Current Warning", this->left_channel_cbc_current_warning_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "Right Channel CBC Current Warning", this->right_channel_cbc_current_warning_binary_sensor_);
+
+  LOG_BINARY_SENSOR("  ", "Over Temperature 146C Warning", this->over_temperature_146c_warning_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "Over Temperature 134C Warning", this->over_temperature_134c_warning_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "Over Temperature 122C Warning", this->over_temperature_122c_warning_binary_sensor_);
+  LOG_BINARY_SENSOR("  ", "Over Temperature 112C Warning", this->over_temperature_112c_warning_binary_sensor_);
 #endif
 
 }
@@ -840,11 +861,59 @@ bool Tas58xxComponent::clear_fault_registers_() {
 
 //// low level functions
 
-// i2s priming functions run in setup() at HARDWARE priority
+bool Tas58xxComponent::i2s_prime_() {
+// runs in setup() at HARDWARE priority
 // should execute and complete before any other component's loop() exists
+// and therefore before any other component open's i2s channel
+// calls i2s_open_channel() and i2s_close_channel()
 
-bool Tas58xxComponent::i2s_prime_open_channel_() {
-  // defensive check — not expected to actually fail
+  if (!this->i2s_open_channel_()) {
+    // i2s_open_channel_() has already cleaned up
+    return false;
+  }
+
+  static constexpr uint8_t NUMBER_SOUND_BYTES = 16;
+
+  // 4 frames of silence at 16-bit stereo = 4 * 2 channels * 2 bytes = 16 bytes
+  // used for toggling BCLK/LRCLK so the DAC sees a valid clock before
+  // CTRL_STATE -> Play transition
+  static constexpr uint8_t I2S_BOOT_SOUND[NUMBER_SOUND_BYTES] = {
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+
+  static constexpr int ATTEMPT_TIMEOUT_MS = 2;
+  static constexpr int MAX_ATTEMPTS = 10;
+  // 20ms worst case -- speaker component uses 60ms but in a dedicated FreeRTOS task
+  // esp32 completes in 2 attempts => 4ms
+
+  size_t bytes_written = 0;
+  for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    esp_err_t err = i2s_channel_write(this->prime_tx_handle_, I2S_BOOT_SOUND, NUMBER_SOUND_BYTES,
+                                       &bytes_written, pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
+
+    if (err == ESP_OK && bytes_written == NUMBER_SOUND_BYTES) {
+      ESP_LOGD(TAG, "I2S Prime completed for %u bytes (attempt %d)",
+                (unsigned) bytes_written, attempt);
+      this->i2s_close_channel_();
+      return true;
+    }
+    if (err == ESP_ERR_TIMEOUT && bytes_written == 0) {
+      continue;  // clock still settling -- retry, not a real failure yet
+    }
+    ESP_LOGW(TAG, "I2S Prime incomplete: %u of %u bytes (err=%d, attempt %d)",
+              (unsigned) bytes_written, NUMBER_SOUND_BYTES, (int) err, attempt);
+    this->i2s_close_channel_();
+    return false;
+  }
+
+  ESP_LOGE(TAG, "I2S Prime failed to succeed after %d attempts", MAX_ATTEMPTS);
+  this->i2s_close_channel_();
+  return false;
+}
+
+bool Tas58xxComponent::i2s_open_channel_() {
+  // check anyway though not expected to actually fail
   if (!this->parent_->try_lock()) {
     return false;
   }
@@ -892,52 +961,14 @@ bool Tas58xxComponent::i2s_prime_open_channel_() {
   return true;
 }
 
-bool Tas58xxComponent::i2s_prime_write_() {
-  if (this->prime_tx_handle_ == nullptr) return false;
-
-  static constexpr uint8_t NUMBER_SOUND_BYTES = 16;
-
-  // 4 frames of silence at 16-bit stereo = 4 * 2 channels * 2 bytes = 16 bytes
-  // used for toggling BCLK/LRCLK
-  // so the DAC sees a valid clock before CTRL_STATE -> Play transition
-  static constexpr uint8_t I2S_BOOT_SOUND[NUMBER_SOUND_BYTES] = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  };
-
-  static constexpr int ATTEMPT_TIMEOUT_MS = 2;
-  static constexpr int MAX_ATTEMPTS = 10;
-  // 20ms worst case - speaker component uses 60ms but in dedicated FreeRTOS task
-  // esp32 completes in 2 attempts => 4ms
-
-  uint8* bytes_written;
-  for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    esp_err_t err = i2s_channel_write(this->prime_tx_handle_, I2S_BOOT_SOUND, NUMBER_SOUND_BYTES, bytes_written,
-                                       pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
-    if (err == ESP_OK && *bytes_written == NUMBER_SOUND_BYTES) {
-      ESP_LOGD(TAG, "I2S Prime Write completed for %u bytes (attempt %d)",
-                (unsigned) *bytes_written, attempt);
-      return true;
-    }
-    if (err == ESP_ERR_TIMEOUT && *bytes_written == 0) {
-      continue;  // clock still settling — retry, not a real failure yet
-    }
-    ESP_LOGW(TAG, "I2S Prime Write incomplete: %u of %u bytes (err=%d, attempt %d)",
-              *bytes_written, NUMBER_SOUND_BYTES, (int)err, attempt);
-    return false;
-  }
-
-  ESP_LOGE(TAG, "I2S Prime Write failed to succeed after %d attempts", MAX_ATTEMPTS);
-  return false;
-}
-
-void Tas58xxComponent::i2s_prime_close_channel_() {
+void Tas58xxComponent::i2s_close_channel_() {
   if (this->prime_tx_handle_ != nullptr) {
     i2s_channel_disable(this->prime_tx_handle_);
     i2s_del_channel(this->prime_tx_handle_);
     this->prime_tx_handle_ = nullptr;
 
-    // detach dout from the GPIO matrix and drive it low — i2s_del_channel() does not undo esp_rom_gpio_connect_out_signal()
+    // detach dout from the GPIO matrix and drive it low
+    // since i2s_del_channel() does not undo esp_rom_gpio_connect_out_signal()
     // without the following calls the i2s channel's last output state keeps driving the pin
     gpio_reset_pin(this->dout_pin_);
     gpio_set_direction(this->dout_pin_, GPIO_MODE_OUTPUT);

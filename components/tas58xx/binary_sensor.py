@@ -42,7 +42,7 @@ def _final_validate(config):
     dac_confs = full_conf.get(CONF_AUDIO_DAC, [])
     for dac_conf in dac_confs:
         if dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-          if dac_conf.get(CONF_TAS58XX_ID) == binary_sensor_id:
+          if dac_conf.get(CONF_ID) == binary_sensor_id:
             if dac_conf.get(CONF_TAS58XX_DAC) == TAS5805M_DAC:
               tas5805_dac_has_tas5825_option = (
                 CONF_EEPROM_LOAD_ERROR in config or
@@ -54,10 +54,10 @@ def _final_validate(config):
                 CONF_OVER_TEMP_122C_WARNING in config or
                 CONF_OVER_TEMP_112C_WARNING in config
               )
-            if tas5805_dac_has_tas5825_option:
-                raise cv.Invalid(
-                  "TAS5805 DAC has one or more TAS5825 binary sensors - remove any TAS5825 only binary sensors from YAML "
-                )
+              if tas5805_dac_has_tas5825_option:
+                  raise cv.Invalid(
+                    "TAS5805 DAC has one or more TAS5825 binary sensors - remove any TAS5825 only binary sensors from YAML "
+                  )
             break
     return config
 

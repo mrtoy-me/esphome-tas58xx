@@ -19,6 +19,7 @@ enum ModulationScheme : uint8_t {
   MODE_1SPW = 1,
 };
 
+#ifdef USE_TAS58XX_BINARY_SENSOR
 struct FaultBinarySensorProperties {
   binary_sensor::BinarySensor *fault_sensor{nullptr};
   uint8_t register_index{0};
@@ -27,6 +28,8 @@ struct FaultBinarySensorProperties {
 };
 
 static constexpr uint8_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
+#endif
+
 
 static constexpr float TAS58XX_MIN_ANALOG_GAIN         = -15.5;
 static constexpr float TAS58XX_MAX_ANALOG_GAIN         = 0.0;
