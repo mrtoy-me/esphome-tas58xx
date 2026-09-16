@@ -52,19 +52,42 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = static_cast<int8_t>(volume_min); }
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
+  // CHAN_FAULT register
   SUB_BINARY_SENSOR(left_channel_dc_fault)
   SUB_BINARY_SENSOR(right_channel_dc_fault)
   SUB_BINARY_SENSOR(left_channel_over_current_fault)
   SUB_BINARY_SENSOR(right_channel_over_current_fault)
 
+  // GLOBAL_FAULT1 register
   SUB_BINARY_SENSOR(otp_crc_check_error)
-  SUB_BINARY_SENSOR(bq_write_failed_fault)
+  SUB_BINARY_SENSOR(bq_write_failed)
+#ifdef USE_TAS5825M_DAC
+  SUB_BINARY_SENSOR(eeprom_load_error)
+#endif
   SUB_BINARY_SENSOR(pvdd_over_voltage_fault)
   SUB_BINARY_SENSOR(pvdd_under_voltage_fault)
 
-  SUB_BINARY_SENSOR(over_temperature_shutdown_fault)
-  SUB_BINARY_SENSOR(over_temperature_warning)
+  // GLOBAL_FAULT1 register
+#ifdef USE_TAS5825M_DAC
+  SUB_BINARY_SENSOR(right_channel_cbc_current_fault)
+  SUB_BINARY_SENSOR(left_channel_cbc_current_fault)
 #endif
+  SUB_BINARY_SENSOR(over_temperature_shutdown_fault)
+
+  // WARNING register
+#ifdef USE_TAS5825M_DAC
+SUB_BINARY_SENSOR(left_channel_cbc_current_warning)
+SUB_BINARY_SENSOR(right_channel_cbc_current_warning)
+SUB_BINARY_SENSOR(over_temperature_146c_warning)
+#endif
+
+SUB_BINARY_SENSOR(over_temperature_134c_warning)
+
+#ifdef USE_TAS5825M_DAC
+SUB_BINARY_SENSOR(over_temperature_122c_warning)
+SUB_BINARY_SENSOR(over_temperature_112c_warning)
+#endif
+
   gpio_num_t dout_pin_;
 
   i2s_chan_handle_t prime_tx_handle_{}; // channel open if NOT null
