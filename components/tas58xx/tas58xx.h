@@ -97,8 +97,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
   void enable_dac(bool enable);
 
-
-
   bool is_eq_configured();
 
   uint8_t get_configured_dac_mode();
@@ -154,7 +152,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    bool clear_fault_registers_();
 
    // low level functions
-   bool i2s_prime_();
+   size_t i2s_prime_();
    bool i2s_open_channel_();
    void i2s_close_channel_();
 
@@ -166,7 +164,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t number_bytes);
 
    //// variables
-   bool i2s_prime_successful_{false};
+   size_t i2s_prime_success_count_{0};
 
    EqMode configured_eq_mode_; // derived from YAML
 
