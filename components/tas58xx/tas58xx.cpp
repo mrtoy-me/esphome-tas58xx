@@ -270,7 +270,7 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
 
 void Tas58xxComponent::update() {
 #ifdef USE_TAS58XX_BINARY_SENSOR
-  static constexpr uint8_t MAX_FAULT_REGISTERS = 4;
+  static constexpr size_t MAX_FAULT_REGISTERS = 4;
 
   uint8_t fault_registers_current_state_[MAX_FAULT_REGISTERS];
   bool trigger_clear_faults{false};
@@ -324,7 +324,7 @@ void Tas58xxComponent::dump_config() {
 
   switch (this->error_code_) {
     case CONFIGURATION_FAILED:
-      ESP_LOGE(TAG, "  %s setup failed: %i", ERROR, this->i2c_error_);
+      ESP_LOGE(TAG, "  Setup Failed: %zu",this->i2c_error_);
       break;
     case NONE:
       ESP_LOGCONFIG(TAG,
