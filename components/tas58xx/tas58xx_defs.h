@@ -27,7 +27,7 @@ struct FaultBinarySensorProperties {
   bool last_state{false};
 };
 
-static constexpr uint8_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
+static constexpr size_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
 #endif
 
 

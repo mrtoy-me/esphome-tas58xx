@@ -71,7 +71,7 @@ bool Tas58xxComponent::configure_registers_() {
   // should execute and complete before any other component's loop() exists
   // and therefore before any other component opens i2s channel
   // failure does not mark_failed this component as it only should affect proper EQ operation
-  i2s_prime_successful_ = this->i2s_prime_();
+  i2s_prime_success_count_ = this->i2s_prime_();
 
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
@@ -315,8 +315,6 @@ void Tas58xxComponent::update() {
 #endif
 }
 
-
-
 void Tas58xxComponent::dump_config() {
 #ifdef USE_TAS5805M_DAC
   ESP_LOGCONFIG(TAG, "Tas5805m Audio Dac:");
@@ -324,27 +322,32 @@ void Tas58xxComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "Tas5825m Audio Dac:");
 #endif
 
-  LOG_I2C_DEVICE(this);
-  LOG_PIN("  Enable Pin: ", this->enable_pin_);
-
   switch (this->error_code_) {
     case CONFIGURATION_FAILED:
       ESP_LOGE(TAG, "  %s setup failed: %i", ERROR, this->i2c_error_);
       break;
     case NONE:
       ESP_LOGCONFIG(TAG,
-              "  I2S Priming: %s\n"
-              "  Registers Configured: %i\n"
-              "  Fault Sensors Active: %i\n"
+              "  Setup Complete:\n"
+              "    I2S Priming: %s(%zu)\n"
+              "    Registers Configured: %i\n"
+              "    Fault Sensors Active: %i\n\n",
+              this->i2s_prime_success_count_ != 0 ? "Successful" : "Failed",
+              this->i2s_prime_success_count_,
+              this->number_registers_configured_,
+              this->active_fault_sensor_count_);
+
+      LOG_I2C_DEVICE(this);
+      ESP_LOGCONFIG(TAG, "  I2S Dout Pin: GPIO%d", this->dout_pin_);
+      LOG_PIN("  Enable Pin: ", this->enable_pin_);
+
+      ESP_LOGCONFIG(TAG,
               "  Analog Gain: %3.1fdB\n"
               "  Modulation: %s\n"
               "  DAC Mode: %s\n"
               "  Mixer Mode: %s\n"
               "  Volume Maximum: %idB\n"
               "  Volume Minimum: %idB\n",
-              this->i2s_prime_successful_ ? "Successful" : "Failed",
-              this->number_registers_configured_,
-              this->active_fault_sensor_count_,
               this->tas58xx_analog_gain_,
               this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
