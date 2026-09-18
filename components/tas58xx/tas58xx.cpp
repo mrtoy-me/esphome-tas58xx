@@ -49,9 +49,9 @@ void Tas58xxComponent::setup() {
 bool Tas58xxComponent::configure_registers_() {
   static constexpr uint8_t ESPHOME_MAXIMUM_DELAY = 5; // milliseconds
 
-  uint16_t i = 0;
-  uint16_t counter = 0;
-  uint16_t number_configurations = sizeof(TAS58XX_CONFIG) / sizeof(TAS58XX_CONFIG[0]);
+  size_t i = 0;
+  size_t counter = 0;
+  size_t number_configurations = sizeof(TAS58XX_CONFIG) / sizeof(TAS58XX_CONFIG[0]);
 
   while (i < number_configurations) {
     switch (TAS58XX_CONFIG[i].addr) {
@@ -283,7 +283,7 @@ void Tas58xxComponent::update() {
 
   ESP_LOGD(TAG, "fault registers read");
 
-  for (uint8_t i = 0; i < this->active_fault_sensor_count_; i++) {
+  for (size_t i = 0; i < this->active_fault_sensor_count_; i++) {
 
     auto &x = this->active_fault_sensors_[i];
     bool state = (fault_registers_current_state_[x.register_index] & x.bit_mask) != 0;
@@ -861,55 +861,64 @@ bool Tas58xxComponent::clear_fault_registers_() {
 
 //// low level functions
 
-bool Tas58xxComponent::i2s_prime_() {
+size_t Tas58xxComponent::i2s_prime_() {
 // runs in setup() at HARDWARE priority
 // should execute and complete before any other component's loop() exists
 // and therefore before any other component open's i2s channel
 // calls i2s_open_channel() and i2s_close_channel()
 
+  size_t bytes_written = 0;
+
   if (!this->i2s_open_channel_()) {
     // i2s_open_channel_() has already cleaned up
-    return false;
+    return bytes_written;
   }
 
-  static constexpr uint8_t NUMBER_SOUND_BYTES = 16;
+  static constexpr size_t NUMBER_PRIME_BYTES = 16;
 
   // 4 frames of silence at 16-bit stereo = 4 * 2 channels * 2 bytes = 16 bytes
   // used for toggling BCLK/LRCLK so the DAC sees a valid clock before
   // CTRL_STATE -> Play transition
-  static constexpr uint8_t I2S_BOOT_SOUND[NUMBER_SOUND_BYTES] = {
+  static constexpr uint8_t I2S_PRIME_SILENCE[NUMBER_PRIME_BYTES] = {
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
 
-  static constexpr int ATTEMPT_TIMEOUT_MS = 2;
-  static constexpr int MAX_ATTEMPTS = 10;
+  static constexpr size_t ATTEMPT_TIMEOUT_MS = 2;
+  static constexpr size_t MAX_ATTEMPTS = 10;
   // 20ms worst case -- speaker component uses 60ms but in a dedicated FreeRTOS task
   // esp32 completes in 2 attempts => 4ms
 
-  size_t bytes_written = 0;
-  for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    esp_err_t err = i2s_channel_write(this->prime_tx_handle_, I2S_BOOT_SOUND, NUMBER_SOUND_BYTES,
-                                       &bytes_written, pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
+  esp_err_t err = ESP_FAIL;
+  size_t attempt = 1;
 
-    if (err == ESP_OK && bytes_written == NUMBER_SOUND_BYTES) {
-      ESP_LOGD(TAG, "I2S Prime completed for %u bytes (attempt %d)",
-                (unsigned) bytes_written, attempt);
-      this->i2s_close_channel_();
-      return true;
-    }
+  for (; attempt <= MAX_ATTEMPTS; attempt++) {
+    err = i2s_channel_write(this->prime_tx_handle_, I2S_PRIME_SILENCE, NUMBER_PRIME_BYTES,
+                             &bytes_written, pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
+
     if (err == ESP_ERR_TIMEOUT && bytes_written == 0) {
       continue;  // clock still settling -- retry, not a real failure yet
     }
-    ESP_LOGW(TAG, "I2S Prime incomplete: %u of %u bytes (err=%d, attempt %d)",
-              (unsigned) bytes_written, NUMBER_SOUND_BYTES, (int) err, attempt);
-    this->i2s_close_channel_();
-    return false;
+    break;
   }
 
-  ESP_LOGE(TAG, "I2S Prime failed to succeed after %d attempts", MAX_ATTEMPTS);
+  if (attempt > MAX_ATTEMPTS) {
+    ESP_LOGE(TAG, "I2S Prime failed to succeed after %zu attempts", MAX_ATTEMPTS);
+  } else if (err == ESP_OK) {
+    if (bytes_written == NUMBER_PRIME_BYTES) {
+      ESP_LOGD(TAG, "I2S Prime completed for %zu bytes (attempt %zu)", bytes_written, attempt);
+    } else {
+      ESP_LOGW(TAG, "I2S Prime incomplete: %zu of %zu bytes (error:%s, attempt:%zu)",
+                bytes_written, NUMBER_PRIME_BYTES, esp_err_to_name(err), attempt);
+    }
+  } else {
+    ESP_LOGE(TAG, "I2S Prime wrote %zu bytes but with error:%s (attempt:%zu)",
+            bytes_written, esp_err_to_name(err), attempt);
+    bytes_written = 0; // assume error therefore return 0 bytes_written
+  }
+
   this->i2s_close_channel_();
-  return false;
+  return bytes_written;
 }
 
 bool Tas58xxComponent::i2s_open_channel_() {
@@ -1045,13 +1054,13 @@ bool Tas58xxComponent::tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, ui
   error_code = this->write(&a_register, 1);
   if (error_code != i2c::ERROR_OK) {
     ESP_LOGE(TAG, "%s code:%d writing address:0x%02X to start read", ERROR, error_code, a_register);
-    this->i2c_error_ = (uint8_t)error_code;
+    this->i2c_error_ = static_cast<int>(error_code);
     return false;
   }
   error_code = this->read_register(a_register, data, number_bytes);
   if (error_code != i2c::ERROR_OK) {
     ESP_LOGE(TAG, "%s code:%d reading %d bytes from address:0x%02X", ERROR, error_code, number_bytes, a_register);
-    this->i2c_error_ = (uint8_t)error_code;
+    this->i2c_error_ = static_cast<int>(error_code);
     return false;
   }
   return true;
@@ -1061,7 +1070,7 @@ bool Tas58xxComponent::tas58xx_write_byte_(uint8_t a_register, uint8_t data) {
   i2c::ErrorCode error_code = this->write_register(a_register, &data, 1);
   if (error_code != i2c::ERROR_OK) {
     ESP_LOGE(TAG, "%s code:%d writing to address:0x%02X", ERROR, error_code, a_register);
-    this->i2c_error_ = (uint8_t)error_code;
+    this->i2c_error_ = static_cast<int>(error_code);
     return false;
   }
   return true;
@@ -1070,8 +1079,8 @@ bool Tas58xxComponent::tas58xx_write_byte_(uint8_t a_register, uint8_t data) {
 bool Tas58xxComponent::tas58xx_write_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes) {
   i2c::ErrorCode error_code = this->write_register(a_register, data, number_bytes);
   if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d writing address:0x%02X bytes:%d ", ERROR, error_code, a_register, number_bytes);
-    this->i2c_error_ = (uint8_t)error_code;
+    ESP_LOGE(TAG, "%s code:%d writing address:0x%02X bytes:%d", ERROR, error_code, a_register, number_bytes);
+    this->i2c_error_ = static_cast<int>(error_code);
     return false;
   }
   return true;

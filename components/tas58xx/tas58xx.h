@@ -211,9 +211,9 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
    uint32_t times_faults_cleared_{0}; // counts number of times the faults register is cleared (used for publishing to sensor)
 
-   uint8_t i2c_error_{0}; // last i2c error
+   int i2c_error_{0}; // last i2c error
 
-   uint16_t number_registers_configured_{0}; // number tas58xx registers configured during 'setup'
+   size_t number_registers_configured_{0}; // number tas58xx registers configured during 'setup'
 
 };
 
