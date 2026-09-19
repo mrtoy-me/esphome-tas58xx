@@ -907,7 +907,7 @@ bool Tas58xxComponent::i2s_prime_(size_t* bytes_written) {
 
   if (prime_successful) {
     if (*bytes_written == NUMBER_PRIME_BYTES) {
-      ESP_LOGD(TAG, "I2S Prime successful: wrote %zu bytes (attempt %zu)", *bytes_written, attempt);
+      ESP_LOGD(TAG, "I2S Prime successful: wrote %zu bytes (attempt:%zu)", *bytes_written, attempt);
     } else {
       ESP_LOGW(TAG, "I2S Prime successful but incomplete: wrote %zu of %zu bytes (attempt:%zu)",
                 *bytes_written, NUMBER_PRIME_BYTES, attempt);
@@ -916,7 +916,7 @@ bool Tas58xxComponent::i2s_prime_(size_t* bytes_written) {
     if (attempt > MAX_ATTEMPTS) {
       ESP_LOGE(TAG, "I2S Prime failed after maximum %zu attempts", MAX_ATTEMPTS);
     } else {
-    ESP_LOGE(TAG, "I2S Prime failed: error:%s but wrote %zu bytes (attempt:%zu)",
+    ESP_LOGE(TAG, "I2S Prime failed with error:%s but wrote %zu bytes (attempt:%zu)",
               esp_err_to_name(err), *bytes_written, attempt);
     }
   }
@@ -932,10 +932,10 @@ bool Tas58xxComponent::i2s_open_channel_() {
   }
 
   i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(
-      static_cast<i2s_port_t>(this->parent_->get_port()), I2S_ROLE_MASTER);
+      this->parent_->get_port(), I2S_ROLE_MASTER);
   esp_err_t err = i2s_new_channel(&chan_cfg, &this->prime_tx_handle_, nullptr);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "I2S New Channel failed: %s", esp_err_to_name(err));
+    ESP_LOGE(TAG, "I2S New Channel failed error: %s", esp_err_to_name(err));
     this->prime_tx_handle_ = nullptr;
     this->parent_->unlock();
     return false;
@@ -955,7 +955,7 @@ bool Tas58xxComponent::i2s_open_channel_() {
 
   err = i2s_channel_init_std_mode(this->prime_tx_handle_, &std_cfg);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "I2S Channel Init Std Mode failed: %s", esp_err_to_name(err));
+    ESP_LOGE(TAG, "I2S Channel Init Std Mode failed error: %s", esp_err_to_name(err));
     i2s_del_channel(this->prime_tx_handle_);
     this->prime_tx_handle_ = nullptr;
     this->parent_->unlock();
@@ -964,7 +964,7 @@ bool Tas58xxComponent::i2s_open_channel_() {
 
   err = i2s_channel_enable(this->prime_tx_handle_);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "I2S Channel Enable failed: %s", esp_err_to_name(err));
+    ESP_LOGE(TAG, "I2S Channel Enable failed error: %s", esp_err_to_name(err));
     i2s_del_channel(this->prime_tx_handle_);
     this->prime_tx_handle_ = nullptr;
     this->parent_->unlock();
