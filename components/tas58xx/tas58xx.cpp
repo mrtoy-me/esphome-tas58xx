@@ -71,7 +71,7 @@ bool Tas58xxComponent::configure_registers_() {
   // should execute and complete before any other component's loop() exists
   // and therefore before any other component opens i2s channel
   // failure does not mark_failed this component as it only should affect proper EQ operation
-  i2s_prime_success_count_ = this->i2s_prime_();
+  this->i2s_prime_sucessful_ = this->i2s_prime_(&this->i2s_prime_byte_count_);
 
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
@@ -329,11 +329,11 @@ void Tas58xxComponent::dump_config() {
     case NONE:
       ESP_LOGCONFIG(TAG,
               "  Setup Complete:\n"
-              "    I2S Priming: %s(%zu)\n"
+              "    I2S Priming: %s(%zu bytes)\n"
               "    Registers Configured: %i\n"
               "    Fault Sensors Active: %i\n\n",
-              this->i2s_prime_success_count_ != 0 ? "Successful" : "Failed",
-              this->i2s_prime_success_count_,
+              this->i2s_prime_successful_ ? "Successful" : "Failed",
+              i2s_prime_byte_count_,
               this->number_registers_configured_,
               this->active_fault_sensor_count_);
 
@@ -864,17 +864,15 @@ bool Tas58xxComponent::clear_fault_registers_() {
 
 //// low level functions
 
-size_t Tas58xxComponent::i2s_prime_() {
+bool Tas58xxComponent::i2s_prime_(size_t* bytes_written) {
 // runs in setup() at HARDWARE priority
 // should execute and complete before any other component's loop() exists
 // and therefore before any other component open's i2s channel
 // calls i2s_open_channel() and i2s_close_channel()
 
-  size_t bytes_written = 0;
-
   if (!this->i2s_open_channel_()) {
     // i2s_open_channel_() has already cleaned up
-    return bytes_written;
+    return false;
   }
 
   static constexpr size_t NUMBER_PRIME_BYTES = 16;
@@ -897,31 +895,34 @@ size_t Tas58xxComponent::i2s_prime_() {
 
   for (; attempt <= MAX_ATTEMPTS; attempt++) {
     err = i2s_channel_write(this->prime_tx_handle_, I2S_PRIME_SILENCE, NUMBER_PRIME_BYTES,
-                             &bytes_written, pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
+                             bytes_written, pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
 
-    if (err == ESP_ERR_TIMEOUT && bytes_written == 0) {
+    if (err == ESP_ERR_TIMEOUT && *bytes_written == 0) {
       continue;  // clock still settling -- retry, not a real failure yet
     }
     break;
   }
 
-  if (attempt > MAX_ATTEMPTS) {
-    ESP_LOGE(TAG, "I2S Prime failed to succeed after %zu attempts", MAX_ATTEMPTS);
-  } else if (err == ESP_OK) {
-    if (bytes_written == NUMBER_PRIME_BYTES) {
-      ESP_LOGD(TAG, "I2S Prime completed for %zu bytes (attempt %zu)", bytes_written, attempt);
+  bool prime_successful = (err == ESP_OK);
+
+  if (prime_successful) {
+    if (*bytes_written == NUMBER_PRIME_BYTES) {
+      ESP_LOGD(TAG, "I2S Prime successful: wrote %zu bytes (attempt %zu)", *bytes_written, attempt);
     } else {
-      ESP_LOGW(TAG, "I2S Prime incomplete: %zu of %zu bytes (error:%s, attempt:%zu)",
-                bytes_written, NUMBER_PRIME_BYTES, esp_err_to_name(err), attempt);
+      ESP_LOGW(TAG, "I2S Prime successful but incomplete: wrote %zu of %zu bytes (attempt:%zu)",
+                *bytes_written, NUMBER_PRIME_BYTES, attempt);
     }
   } else {
-    ESP_LOGE(TAG, "I2S Prime wrote %zu bytes but with error:%s (attempt:%zu)",
-            bytes_written, esp_err_to_name(err), attempt);
-    bytes_written = 0; // assume error therefore return 0 bytes_written
+    if (attempt > MAX_ATTEMPTS) {
+      ESP_LOGE(TAG, "I2S Prime failed after maximum %zu attempts", MAX_ATTEMPTS);
+    } else {
+    ESP_LOGE(TAG, "I2S Prime failed: error:%s but wrote %zu bytes (attempt:%zu)",
+              esp_err_to_name(err), *bytes_written, attempt);
+    }
   }
 
   this->i2s_close_channel_();
-  return bytes_written;
+  return prime_successful;
 }
 
 bool Tas58xxComponent::i2s_open_channel_() {
