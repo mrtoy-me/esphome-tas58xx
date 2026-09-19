@@ -71,7 +71,7 @@ bool Tas58xxComponent::configure_registers_() {
   // should execute and complete before any other component's loop() exists
   // and therefore before any other component opens i2s channel
   // failure does not mark_failed this component as it only should affect proper EQ operation
-  this->i2s_prime_sucessful_ = this->i2s_prime_(&this->i2s_prime_byte_count_);
+  this->i2s_prime_successful_ = this->i2s_prime_(&this->i2s_prime_byte_count_);
 
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
