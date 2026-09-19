@@ -281,8 +281,6 @@ void Tas58xxComponent::update() {
     return;
   };
 
-  ESP_LOGD(TAG, "fault registers read");
-
   for (size_t i = 0; i < this->active_fault_sensor_count_; i++) {
 
     auto &x = this->active_fault_sensors_[i];
@@ -303,7 +301,6 @@ void Tas58xxComponent::update() {
       x.fault_sensor->publish_state(state);
       x.last_state = state;
     }
-    ESP_LOGI(TAG, "%s >> OFF", x.fault_sensor->get_name().c_str());
   }
 
   if (trigger_clear_faults) {
@@ -329,7 +326,7 @@ void Tas58xxComponent::dump_config() {
     case NONE:
       ESP_LOGCONFIG(TAG,
               "  Setup Complete:\n"
-              "    I2S Priming: %s (%zu bytes, %zu attempts)\n"
+              "    I2S Priming: %s %zu bytes after %zums\n"
               "    Registers Configured: %i\n"
               "    Fault Sensors Active: %i\n\n",
               this->i2s_prime_successful_ ? "Ok" : "Failed",
@@ -886,15 +883,15 @@ bool Tas58xxComponent::i2s_prime_(size_t* bytes_written, size_t* prime_attempts)
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
 
-  static constexpr size_t ATTEMPT_TIMEOUT_MS = 2;
+  static constexpr size_t ATTEMPT_TIMEOUT_MS = 1;
   static constexpr size_t MAX_ATTEMPTS = 10;
   // 20ms worst case -- speaker component uses 60ms but in a dedicated FreeRTOS task
-  // esp32 completes in 2 attempts => 4ms
+  // esp32 completes in 5 attempts => 5ms
 
   esp_err_t err = ESP_FAIL;
   size_t attempt_counter = 1;
 
-  for (; attempt_counter <= MAX_ATTEMPTS; attempt++) {
+  for (; attempt_counter <= MAX_ATTEMPTS; attempt_counter++) {
     err = i2s_channel_write(this->prime_tx_handle_, I2S_PRIME_SILENCE, NUMBER_PRIME_BYTES,
                              bytes_written, pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
 
@@ -908,17 +905,17 @@ bool Tas58xxComponent::i2s_prime_(size_t* bytes_written, size_t* prime_attempts)
 
   if (prime_successful) {
     if (*bytes_written == NUMBER_PRIME_BYTES) {
-      ESP_LOGD(TAG, "I2S Prime successful: wrote %zu bytes (attempt:%zu)", *bytes_written,  attempt_counter);
+      ESP_LOGD(TAG, "I2S Prime successful: wrote %zu bytes (attempt:%zu)", *bytes_written, attempt_counter);
     } else {
       ESP_LOGW(TAG, "I2S Prime successful but incomplete: wrote %zu of %zu bytes (attempt:%zu)",
-                *bytes_written, NUMBER_PRIME_BYTES,  attempt_counter);
+                *bytes_written, NUMBER_PRIME_BYTES, attempt_counter);
     }
   } else {
-    if (attempt > MAX_ATTEMPTS) {
+    if (attempt_counter > MAX_ATTEMPTS) {
       ESP_LOGE(TAG, "I2S Prime failed after maximum %zu attempts", MAX_ATTEMPTS);
     } else {
     ESP_LOGE(TAG, "I2S Prime failed with error:%s but wrote %zu bytes (attempt:%zu)",
-              esp_err_to_name(err), *bytes_written,  attempt_counter);
+              esp_err_to_name(err), *bytes_written, attempt_counter);
     }
   }
 

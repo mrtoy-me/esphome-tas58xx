@@ -166,7 +166,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    //// variables
    bool i2s_prime_successful_{false};
    size_t i2s_prime_byte_count_{0};
-   size_t i2s_prime_attempts_{0}
+   size_t i2s_prime_attempts_{0};
 
    EqMode configured_eq_mode_; // derived from YAML
 
