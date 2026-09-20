@@ -326,7 +326,7 @@ void Tas58xxComponent::dump_config() {
     case NONE:
       ESP_LOGCONFIG(TAG,
               "  Setup Complete:\n"
-              "    I2S Priming: %s %zu bytes after %zums\n"
+              "    I2S Priming: %s %zu bytes @ %zums\n"
               "    Registers Configured: %i\n"
               "    Fault Sensors Active: %i\n\n",
               this->i2s_prime_successful_ ? "Ok" : "Failed",
@@ -365,23 +365,28 @@ void Tas58xxComponent::dump_config() {
 
   LOG_BINARY_SENSOR("  ", "OTP CRC Check Error", this->otp_crc_check_error_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "BQ Write Failed", this->bq_write_failed_binary_sensor_);
+  #ifdef USE_TAS5825M_DAC
   LOG_BINARY_SENSOR("  ", "EEPROM Load Error", this->eeprom_load_error_binary_sensor_);
-
+  #endif
   LOG_BINARY_SENSOR("  ", "PVDD Under Voltage Fault", this->pvdd_under_voltage_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "PVDD Over Voltage Fault", this->pvdd_over_voltage_fault_binary_sensor_);
 
+  #ifdef USE_TAS5825M_DAC
   LOG_BINARY_SENSOR("  ", "Right Channel CBC Current Fault", this->right_channel_cbc_current_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Left Channel CBC Current Fault", this->left_channel_cbc_current_fault_binary_sensor_);
-
+  #endif
   LOG_BINARY_SENSOR("  ", "Over Temperature Shutdown", this->over_temperature_shutdown_fault_binary_sensor_);
 
+  #ifdef USE_TAS5825M_DAC
   LOG_BINARY_SENSOR("  ", "Left Channel CBC Current Warning", this->left_channel_cbc_current_warning_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Right Channel CBC Current Warning", this->right_channel_cbc_current_warning_binary_sensor_);
-
   LOG_BINARY_SENSOR("  ", "Over Temperature 146C Warning", this->over_temperature_146c_warning_binary_sensor_);
+  #endif
   LOG_BINARY_SENSOR("  ", "Over Temperature 134C Warning", this->over_temperature_134c_warning_binary_sensor_);
+  #ifdef USE_TAS5825M_DAC
   LOG_BINARY_SENSOR("  ", "Over Temperature 122C Warning", this->over_temperature_122c_warning_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Over Temperature 112C Warning", this->over_temperature_112c_warning_binary_sensor_);
+  #endif
 #endif
 
 }

@@ -187,8 +187,9 @@ async def to_code(config):
     # CONF_ADDRESS == PLACEHOLDER_I2C_ADDR
     # and it needs to be correctly assigned based on the defined tas58xx_dac
     # this allows the user to use a custom dac i2c address
+    tas58xx_dac = config.get(CONF_TAS58XX_DAC)
+
     if config[CONF_ADDRESS] == PLACEHOLDER_I2C_ADDR:
-        tas58xx_dac = config.get(CONF_TAS58XX_DAC)
         if tas58xx_dac == TAS5805M_DAC:
             config[CONF_ADDRESS] = TAS5805M_I2C_ADDR
         else:

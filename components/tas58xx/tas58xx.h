@@ -80,9 +80,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   SUB_BINARY_SENSOR(right_channel_cbc_current_warning)
   SUB_BINARY_SENSOR(over_temperature_146c_warning)
   #endif
-
   SUB_BINARY_SENSOR(over_temperature_134c_warning)
-
   #ifdef USE_TAS5825M_DAC
   SUB_BINARY_SENSOR(over_temperature_122c_warning)
   SUB_BINARY_SENSOR(over_temperature_112c_warning)

@@ -30,7 +30,6 @@ CONF_OVER_TEMP_122C_WARNING = "over_temp_122c_warning"
 CONF_OVER_TEMP_112C_WARNING = "over_temp_112c_warning"
 
 PLATFORM_TAS58XX = "tas58xx"
-AUDIO_DAC_COMPONENT = "audio_dac"
 CONF_TAS58XX_DAC = "tas58xx_dac"
 TAS5805M_DAC = "TAS5805M"
 
