@@ -89,7 +89,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
   gpio_num_t dout_pin_;
 
-  i2s_chan_handle_t prime_tx_handle_{}; // channel open if NOT null
+  i2s_chan_handle_t sync_tx_handle_{}; // channel open if NOT null
 
   uint32_t times_faults_cleared();
 
@@ -150,7 +150,7 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    bool clear_fault_registers_();
 
    // low level functions
-   bool i2s_prime_(size_t* bytes_written, size_t* prime_attempts);
+   bool i2s_sync_(size_t* bytes_written, size_t* sync_attempts);
    bool i2s_open_channel_();
    void i2s_close_channel_();
 
@@ -162,9 +162,9 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t number_bytes);
 
    //// variables
-   bool i2s_prime_successful_{false};
-   size_t i2s_prime_byte_count_{0};
-   size_t i2s_prime_attempts_{0};
+   bool i2s_sync_successful_{false};
+   size_t i2s_sync_byte_count_{0};
+   size_t i2s_sync_attempts_{0};
 
    EqMode configured_eq_mode_; // derived from YAML
 

@@ -71,7 +71,7 @@ bool Tas58xxComponent::configure_registers_() {
   // should execute and complete before any other component's loop() exists
   // and therefore before any other component opens i2s channel
   // failure does not mark_failed this component as it only should affect proper EQ operation
-  this->i2s_prime_successful_ = this->i2s_prime_(&this->i2s_prime_byte_count_, &i2s_prime_attempts_);
+  this->i2s_sync_successful_ = this->i2s_sync_(&this->i2s_sync_byte_count_, &i2s_sync_attempts_);
 
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
@@ -326,12 +326,12 @@ void Tas58xxComponent::dump_config() {
     case NONE:
       ESP_LOGCONFIG(TAG,
               "  Setup Complete:\n"
-              "    I2S Priming: %s %zu bytes @ %zums\n"
+              "    I2S Sync: %s -> %zu bytes @ %zums\n"
               "    Registers Configured: %i\n"
               "    Fault Sensors Active: %i\n\n",
-              this->i2s_prime_successful_ ? "Ok" : "Failed",
-              this->i2s_prime_byte_count_,
-              this->i2s_prime_attempts_,
+              this->i2s_sync_successful_ ? "Success" : "Failure",
+              this->i2s_sync_byte_count_,
+              this->i2s_sync_attempts_,
               this->number_registers_configured_,
               this->active_fault_sensor_count_);
 
@@ -867,7 +867,7 @@ bool Tas58xxComponent::clear_fault_registers_() {
 
 //// low level functions
 
-bool Tas58xxComponent::i2s_prime_(size_t* bytes_written, size_t* prime_attempts) {
+bool Tas58xxComponent::i2s_sync_(size_t* bytes_written, size_t* sync_attempts) {
 // runs in setup() at HARDWARE priority
 // should execute and complete before any other component's loop() exists
 // and therefore before any other component open's i2s channel
@@ -878,12 +878,12 @@ bool Tas58xxComponent::i2s_prime_(size_t* bytes_written, size_t* prime_attempts)
     return false;
   }
 
-  static constexpr size_t NUMBER_PRIME_BYTES = 16;
+  static constexpr size_t NUMBER_SYNC_BYTES = 16;
 
   // 4 frames of silence at 16-bit stereo = 4 * 2 channels * 2 bytes = 16 bytes
   // used for toggling BCLK/LRCLK so the DAC sees a valid clock before
   // CTRL_STATE -> Play transition
-  static constexpr uint8_t I2S_PRIME_SILENCE[NUMBER_PRIME_BYTES] = {
+  static constexpr uint8_t I2S_SYNC_SILENCE[NUMBER_SYNC_BYTES] = {
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
@@ -897,7 +897,7 @@ bool Tas58xxComponent::i2s_prime_(size_t* bytes_written, size_t* prime_attempts)
   size_t attempt_counter = 1;
 
   for (; attempt_counter <= MAX_ATTEMPTS; attempt_counter++) {
-    err = i2s_channel_write(this->prime_tx_handle_, I2S_PRIME_SILENCE, NUMBER_PRIME_BYTES,
+    err = i2s_channel_write(this->sync_tx_handle_, I2S_SYNC_SILENCE, NUMBER_SYNC_BYTES,
                              bytes_written, pdMS_TO_TICKS(ATTEMPT_TIMEOUT_MS));
 
     if (err == ESP_ERR_TIMEOUT && *bytes_written == 0) {
@@ -906,27 +906,27 @@ bool Tas58xxComponent::i2s_prime_(size_t* bytes_written, size_t* prime_attempts)
     break;
   }
 
-  bool prime_successful = (err == ESP_OK);
+  bool sync_successful = (err == ESP_OK);
 
-  if (prime_successful) {
-    if (*bytes_written == NUMBER_PRIME_BYTES) {
-      ESP_LOGD(TAG, "I2S Prime successful: wrote %zu bytes (attempt:%zu)", *bytes_written, attempt_counter);
+  if (sync_successful) {
+    if (*bytes_written == NUMBER_SYNC_BYTES) {
+      ESP_LOGD(TAG, "I2S Sync successful: wrote %zu bytes (attempt:%zu)", *bytes_written, attempt_counter);
     } else {
-      ESP_LOGW(TAG, "I2S Prime successful but incomplete: wrote %zu of %zu bytes (attempt:%zu)",
-                *bytes_written, NUMBER_PRIME_BYTES, attempt_counter);
+      ESP_LOGW(TAG, "I2S Sync successful but incomplete: wrote %zu of %zu bytes (attempt:%zu)",
+                *bytes_written, NUMBER_SYNC_BYTES, attempt_counter);
     }
   } else {
     if (attempt_counter > MAX_ATTEMPTS) {
-      ESP_LOGE(TAG, "I2S Prime failed after maximum %zu attempts", MAX_ATTEMPTS);
+      ESP_LOGE(TAG, "I2S Sync failed after maximum %zu attempts", MAX_ATTEMPTS);
     } else {
-    ESP_LOGE(TAG, "I2S Prime failed with error:%s but wrote %zu bytes (attempt:%zu)",
+    ESP_LOGE(TAG, "I2S Sync failed with error:%s but wrote %zu bytes (attempt:%zu)",
               esp_err_to_name(err), *bytes_written, attempt_counter);
     }
   }
 
-  *prime_attempts = attempt_counter;
+  *sync_attempts = attempt_counter;
   this->i2s_close_channel_();
-  return prime_successful;
+  return sync_successful;
 }
 
 bool Tas58xxComponent::i2s_open_channel_() {
@@ -937,10 +937,10 @@ bool Tas58xxComponent::i2s_open_channel_() {
 
   i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(
       this->parent_->get_port(), I2S_ROLE_MASTER);
-  esp_err_t err = i2s_new_channel(&chan_cfg, &this->prime_tx_handle_, nullptr);
+  esp_err_t err = i2s_new_channel(&chan_cfg, &this->sync_tx_handle_, nullptr);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "I2S New Channel failed error: %s", esp_err_to_name(err));
-    this->prime_tx_handle_ = nullptr;
+    this->sync_tx_handle_ = nullptr;
     this->parent_->unlock();
     return false;
   }
@@ -949,7 +949,7 @@ bool Tas58xxComponent::i2s_open_channel_() {
   pin_cfg.dout = this->dout_pin_;  // use YAML configured dout
 
   i2s_std_clk_config_t clk_cfg = {
-      .sample_rate_hz = 48000,
+      .sample_rate_hz = 96000,
       .clk_src = I2S_CLK_SRC_DEFAULT,
       .mclk_multiple = I2S_MCLK_MULTIPLE_256,
   };
@@ -957,20 +957,20 @@ bool Tas58xxComponent::i2s_open_channel_() {
       I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
   i2s_std_config_t std_cfg = {.clk_cfg = clk_cfg, .slot_cfg = slot_cfg, .gpio_cfg = pin_cfg};
 
-  err = i2s_channel_init_std_mode(this->prime_tx_handle_, &std_cfg);
+  err = i2s_channel_init_std_mode(this->sync_tx_handle_, &std_cfg);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "I2S Channel Init Std Mode failed error: %s", esp_err_to_name(err));
-    i2s_del_channel(this->prime_tx_handle_);
-    this->prime_tx_handle_ = nullptr;
+    i2s_del_channel(this->sync_tx_handle_);
+    this->sync_tx_handle_ = nullptr;
     this->parent_->unlock();
     return false;
   }
 
-  err = i2s_channel_enable(this->prime_tx_handle_);
+  err = i2s_channel_enable(this->sync_tx_handle_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "I2S Channel Enable failed error: %s", esp_err_to_name(err));
-    i2s_del_channel(this->prime_tx_handle_);
-    this->prime_tx_handle_ = nullptr;
+    i2s_del_channel(this->sync_tx_handle_);
+    this->sync_tx_handle_ = nullptr;
     this->parent_->unlock();
     return false;
   }
@@ -979,10 +979,10 @@ bool Tas58xxComponent::i2s_open_channel_() {
 }
 
 void Tas58xxComponent::i2s_close_channel_() {
-  if (this->prime_tx_handle_ != nullptr) {
-    i2s_channel_disable(this->prime_tx_handle_);
-    i2s_del_channel(this->prime_tx_handle_);
-    this->prime_tx_handle_ = nullptr;
+  if (this->sync_tx_handle_ != nullptr) {
+    i2s_channel_disable(this->sync_tx_handle_);
+    i2s_del_channel(this->sync_tx_handle_);
+    this->sync_tx_handle_ = nullptr;
 
     // detach dout from the GPIO matrix and drive it low
     // since i2s_del_channel() does not undo esp_rom_gpio_connect_out_signal()
