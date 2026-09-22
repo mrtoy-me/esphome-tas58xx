@@ -1,4 +1,5 @@
 import esphome.codegen as cg
+from esphome.core import CORE
 from esphome.components import number
 import esphome.config_validation as cv
 import esphome.final_validate as fv
@@ -18,6 +19,7 @@ DAC_MODE = "dac_mode"
 DAC_MODE_BTL = "BTL"
 EQ_MODE = "eq_mode"
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
+EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
 
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
 CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
@@ -92,6 +94,26 @@ RightEqGain5000hz = tas58xx_ns.class_("RightEqGain5000hz", number.Number, cg.Com
 RightEqGain8000hz = tas58xx_ns.class_("RightEqGain8000hz", number.Number, cg.Component)
 RightEqGain16000hz = tas58xx_ns.class_("RightEqGain16000hz", number.Number, cg.Component)
 
+def have_left_eq_gains(config):
+    return (CONF_LEFT_EQ_GAIN_20HZ in config or
+            CONF_LEFT_EQ_GAIN_31P5HZ in config or CONF_LEFT_EQ_GAIN_50HZ in config or
+            CONF_LEFT_EQ_GAIN_80HZ in config or CONF_LEFT_EQ_GAIN_125HZ in config or
+            CONF_LEFT_EQ_GAIN_200HZ in config or CONF_LEFT_EQ_GAIN_315HZ in config or
+            CONF_LEFT_EQ_GAIN_500HZ in config or CONF_LEFT_EQ_GAIN_800HZ in config or
+            CONF_LEFT_EQ_GAIN_1250HZ in config or CONF_LEFT_EQ_GAIN_2000HZ in config or
+            CONF_LEFT_EQ_GAIN_3150HZ in config or CONF_LEFT_EQ_GAIN_5000HZ in config or
+            CONF_LEFT_EQ_GAIN_8000HZ in config or CONF_LEFT_EQ_GAIN_16000HZ in config)
+
+def have_right_eq_gains(config):
+    return (CONF_RIGHT_EQ_GAIN_20HZ in config or
+            CONF_RIGHT_EQ_GAIN_31P5HZ in config or CONF_RIGHT_EQ_GAIN_50HZ in config or
+            CONF_RIGHT_EQ_GAIN_80HZ in config or CONF_RIGHT_EQ_GAIN_125HZ in config or
+            CONF_RIGHT_EQ_GAIN_200HZ in config or CONF_RIGHT_EQ_GAIN_315HZ in config or
+            CONF_RIGHT_EQ_GAIN_500HZ in config or CONF_RIGHT_EQ_GAIN_800HZ in config or
+            CONF_RIGHT_EQ_GAIN_1250HZ in config or CONF_RIGHT_EQ_GAIN_2000HZ in config or
+            CONF_RIGHT_EQ_GAIN_3150HZ in config or CONF_RIGHT_EQ_GAIN_5000HZ in config or
+            CONF_RIGHT_EQ_GAIN_8000HZ in config or CONF_RIGHT_EQ_GAIN_16000HZ in config)
+
 def validate_eq_gain_numbers(config):
     have_at_least_one_left_gain = (CONF_LEFT_EQ_GAIN_20HZ in config or
                                     CONF_LEFT_EQ_GAIN_31P5HZ in config or CONF_LEFT_EQ_GAIN_50HZ in config or
@@ -129,6 +151,7 @@ def validate_eq_gain_numbers(config):
                             CONF_RIGHT_EQ_GAIN_1250HZ in config and CONF_RIGHT_EQ_GAIN_2000HZ in config and
                             CONF_RIGHT_EQ_GAIN_3150HZ in config and CONF_RIGHT_EQ_GAIN_5000HZ in config and
                             CONF_RIGHT_EQ_GAIN_8000HZ in config and CONF_RIGHT_EQ_GAIN_16000HZ in config)
+
     if (have_at_least_one_left_gain):
        if (not have_all_left_gains):
             raise cv.Invalid("All 15 Left EQ Gain numbers must be configured")
@@ -142,33 +165,16 @@ def validate_eq_gain_numbers(config):
 
     return config
 
+
+KEY_NUMBER_EQ = "tas58xx_number_eq"
+KEY_LEFT_EQ_GAINS = "left_eq_gains"
+KEY_RIGHT_EQ_GAINS = "right_eq_gains"
+DICT_NO_EQ = {KEY_LEFT_EQ_GAINS: False, KEY_RIGHT_EQ_GAINS: False}
+
 def _final_validate(config):
     full_conf = fv.full_config.get()
 
     this_number_id = config[CONF_TAS58XX_ID]
-    have_this_number_eq_gains = CONF_LEFT_EQ_GAIN_20HZ in config or CONF_RIGHT_EQ_GAIN_20HZ in config
-
-    if have_this_number_eq_gains:
-        have_select_eq_mode = False
-        have_select_eq_preset = False
-        # find the select ID with EQ Mode that matches this number ID and the audio_dac ID
-        select_confs = full_conf.get(SELECT_COMPONENT, [])
-        for select_conf in select_confs:
-            if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-                if select_conf.get(CONF_TAS58XX_ID) == this_number_id:
-                    have_select_eq_mode = EQ_MODE in select_conf
-                    have_select_eq_preset = EQ_PRESET_LEFT_CHANNEL in select_conf
-                    break
-
-        # have_this_number_eq_gains and
-        if (not have_select_eq_mode):
-            raise cv.Invalid("Select eq_mode is required with Left EQ Gain numbers - add Select eq_mode to YAML configuration")
-
-        # have_this_number_eq_gains and
-        if (have_select_eq_preset):
-            raise cv.Invalid("EQ Gain numbers are not allowed with Select eq_presets - remove one set of those configurations")
-
-
     audio_dac_id_matches_number_id = False
     matching_audio_dac = None
     # find the audic dac ID that matches the number ID
@@ -195,6 +201,36 @@ def _final_validate(config):
         else:
             if (have_this_number_channel_volume_right):
                 raise cv.Invalid("channel_volume_right is not required when dac_mode is PBTL - remove channel_volume_right from YAML configuration")
+
+
+    select_eq_mode_configured = False
+    select_left_eq_preset_configured = False
+    select_right_eq_preset_configured = False
+    select_confs = full_conf.get(SELECT_COMPONENT, [])
+    for select_conf in select_confs:
+        if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+            if select_conf.get(CONF_TAS58XX_ID) == this_number_id:
+                select_eq_mode_configured = EQ_MODE in select_conf
+                select_left_eq_preset_configured = EQ_PRESET_LEFT_CHANNEL in select_conf
+                select_right_eq_preset_configured = EQ_PRESET_RIGHT_CHANNEL in select_conf
+                break
+
+    eq_configured = (have_left_eq_gains(config) or have_right_eq_gains(config) or select_left_eq_preset_configured or select_right_eq_preset_configured)
+
+    if eq_configured and not select_eq_mode_configured:
+        raise cv.Invalid("Select eq_mode is required with EQ Gain numbers and/or EQ Preset Select - add Select eq_mode to YAML configuration")
+
+    if have_left_eq_gains(config) and select_left_eq_preset_configured:
+        raise cv.Invalid("Left EQ Gain numbers are not allowed with Left Select eq_presets - remove one set of those configurations")
+
+    if have_right_eq_gains(config) and select_right_eq_preset_configured:
+            raise cv.Invalid("Left EQ Gain numbers are not allowed with Left Select eq_presets - remove one set of those configurations")
+
+    entry = CORE.data.setdefault(KEY_NUMBER_EQ, {}).setdefault(this_number_id, dict(DICT_NO_EQ))
+    if have_left_eq_gains(config):
+        entry[KEY_LEFT_EQ_GAINS] = True
+    if have_right_eq_gains(config):
+        entry[KEY_RIGHT_EQ_GAINS] = True
 
     return config
 
