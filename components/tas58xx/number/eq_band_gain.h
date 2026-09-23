@@ -9,7 +9,7 @@ namespace esphome::tas58xx {
 
 class EqBandGain : public number::Number, public Component, public Parented<Tas58xxComponent> {
  public:
-  void set_channel(Channels channel) { this->channel_ = channel; }
+  void set_channel(uint8_t channel) { this->channel_ = static_cast<Channels>(channel); }
   void set_band(uint8_t band) { this->band_ = band; }
   // void set_filter_type(EqBandFilterType type) { this->filter_type_ = type; }
   // void set_frequency(uint16_t freq) { this->frequency_ = freq; }

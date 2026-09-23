@@ -10,7 +10,7 @@ void EqBandGain::setup() {
   this->pref_ = this->make_entity_preference<float>();
   if (!this->pref_.load(&value)) value= 0.0;
   this->publish_state(value);
-  this->parent_->set_eq_gain(this-channel_, this->band_, static_cast<int>(value));
+  this->parent_->set_eq_gain(this->channel_, this->band_, static_cast<int>(value));
 }
 
 void EqBandGain::dump_config() {
@@ -23,7 +23,7 @@ void EqBandGain::dump_config() {
 
 void EqBandGain::control(float value) {
   this->publish_state(value);
-  this->parent_->set_eq_gain(this-channel_, this->band_, static_cast<int>(value));
+  this->parent_->set_eq_gain(this->channel_, this->band_, static_cast<int>(value));
   this->pref_.save(&value);
 }
 
