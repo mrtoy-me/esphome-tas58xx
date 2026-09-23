@@ -27,7 +27,7 @@ CONF_EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
 PLATFORM_TAS58XX = "tas58xx"
 DAC_MODE = "dac_mode"
 DAC_MODE_BTL = "BTL"
-LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
+LEFT_EQ_GAIN_20HZ = "left_eq_band_1"
 
 def validate_eq_presets(config):
     have_select_eq_mode = CONF_EQ_MODE in config
