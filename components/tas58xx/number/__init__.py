@@ -5,26 +5,40 @@ import esphome.config_validation as cv
 import esphome.final_validate as fv
 
 from esphome.const import (
-    CONF_AUDIO_DAC,
-    CONF_ID,
-    CONF_PLATFORM,
+    # CONF_AUDIO_DAC,
+    # CONF_ID,
+    # CONF_PLATFORM,
     DEVICE_CLASS_SOUND_PRESSURE,
     ENTITY_CATEGORY_CONFIG,
     UNIT_DECIBEL,
 )
+from ..audio_dac import (
+  SELECT_COMPONENT,
+  DAC_MODE_BTL,
+  CONF_DAC_MODE,
+  CONF_EQ_MODE,
+  CONF_EQ_PRESET_LEFT_CHANNEL,
+  CONF_EQ_PRESET_RIGHT_CHANNEL,
+  CONF_CHANNEL_VOLUME_LEFT,
+  CONF_CHANNEL_VOLUME_RIGHT,
+  CONF_LEFT_EQ_BANDS,
+  CONF_RIGHT_EQ_BANDS,
+  KEY_NUMBER_EQ,
+  KEY_LEFT_EQ_GAINS,
+  KEY_RIGHT_EQ_GAINS,
+)
 
-SELECT_COMPONENT = "select"
-PLATFORM_TAS58XX = "tas58xx"
-DAC_MODE = "dac_mode"
-DAC_MODE_BTL = "BTL"
-EQ_MODE = "eq_mode"
-EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
-EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
+from ..audio_dac import find_matching_config
 
-CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
-CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
-CONF_LEFT_EQ_BANDS = tuple(f"left_eq_band_{i}" for i in range(1, 16))
-CONF_RIGHT_EQ_BANDS = tuple(f"right_eq_band_{i}" for i in range(1, 16))
+# DAC_MODE_BTL = "BTL"
+# EQ_MODE = "eq_mode"
+# EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
+# EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
+
+# CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
+# CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
+# CONF_LEFT_EQ_BANDS = tuple(f"left_eq_band_{i}" for i in range(1, 16))
+# CONF_RIGHT_EQ_BANDS = tuple(f"right_eq_band_{i}" for i in range(1, 16))
 
 CONF_GAIN = "gain"
 
@@ -56,18 +70,18 @@ ChannelVolumeRight = tas58xx_ns.class_("ChannelVolumeRight", number.Number, cg.C
 EqBandGain = tas58xx_ns.class_("EqBandGain", number.Number, cg.Component)
 
 
-KEY_NUMBER_EQ = "tas58xx_number_eq"
-KEY_LEFT_EQ_GAINS = "left_eq_gains"
-KEY_RIGHT_EQ_GAINS = "right_eq_gains"
-DICT_NO_EQ = {KEY_LEFT_EQ_GAINS: False, KEY_RIGHT_EQ_GAINS: False}
+# KEY_NUMBER_EQ = "tas58xx_number_eq"
+# KEY_LEFT_EQ_GAINS = "left_eq_gains"
+# KEY_RIGHT_EQ_GAINS = "right_eq_gains"
 
-def find_matching_select(full_conf, dac_id):
-    for select_conf in full_conf.get(SELECT_COMPONENT, []):
-        if select_conf.get(CONF_PLATFORM) != PLATFORM_TAS58XX:
-            continue
-        if select_conf.get(CONF_TAS58XX_ID) == dac_id:
-            return select_conf
-    return None
+
+# def find_matching_select(full_conf, dac_id):
+#     for select_conf in full_conf.get(SELECT_COMPONENT, []):
+#         if select_conf.get(CONF_PLATFORM) != PLATFORM_TAS58XX:
+#             continue
+#         if select_conf.get(CONF_TAS58XX_ID) == dac_id:
+#             return select_conf
+#     return None
 
 def _final_validate(config):
     full_conf = fv.full_config.get()
@@ -93,7 +107,7 @@ def _final_validate(config):
     # is_dac_mode_btl = matching_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
     # if audio_dac_id_matches_number_id:
 
-    is_dac_mode_btl = matching_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
+    is_dac_mode_btl = matching_audio_dac.get(CONF_DAC_MODE) == DAC_MODE_BTL
 
     have_this_number_channel_volume_left = CONF_CHANNEL_VOLUME_LEFT in config
     have_this_number_channel_volume_right = CONF_CHANNEL_VOLUME_RIGHT in config
@@ -121,10 +135,10 @@ def _final_validate(config):
     #             select_right_eq_preset_configured = EQ_PRESET_RIGHT_CHANNEL in select_conf
     #             break
 
-    matching_select = find_matching_select(full_conf, this_number_id)
-    select_eq_mode_configured = matching_select is not None and EQ_MODE in matching_select
-    select_left_eq_preset_configured = matching_select is not None and EQ_PRESET_LEFT_CHANNEL in matching_select
-    select_right_eq_preset_configured = matching_select is not None and EQ_PRESET_RIGHT_CHANNEL in matching_select
+    matching_select = find_matching_config(full_conf, this_number_id, SELECT_COMPONENT)
+    select_eq_mode_configured = matching_select is not None and CONF_EQ_MODE in matching_select
+    select_left_eq_preset_configured = matching_select is not None and CONF_EQ_PRESET_LEFT_CHANNEL in matching_select
+    select_right_eq_preset_configured = matching_select is not None and CONF_EQ_PRESET_RIGHT_CHANNEL in matching_select
 
     have_left_eq_gains = any(k in config for k in CONF_LEFT_EQ_BANDS)
     have_right_eq_gains = any(k in config for k in CONF_RIGHT_EQ_BANDS)
@@ -140,11 +154,10 @@ def _final_validate(config):
     if have_right_eq_gains and select_right_eq_preset_configured:
             raise cv.Invalid("Right EQ Gain numbers are not allowed with Right Select eq_presets - remove one set of those configurations")
 
-    entry = CORE.data.setdefault(KEY_NUMBER_EQ, {}).setdefault(this_number_id, dict(DICT_NO_EQ))
-    if have_left_eq_gains:
-        entry[KEY_LEFT_EQ_GAINS] = True
-    if have_right_eq_gains:
-        entry[KEY_RIGHT_EQ_GAINS] = True
+    CORE.data.setdefault(KEY_NUMBER_EQ, {})[config[CONF_TAS58XX_ID]] = {
+        KEY_LEFT_EQ_GAINS: have_left_eq_gains,
+        KEY_RIGHT_EQ_GAINS: have_right_eq_gains,
+    }
 
     return config
 
@@ -247,7 +260,7 @@ async def to_code(config):
 
     for channel_txt, channel_enum in CHANNELS.items():
     # for channel_txt in ("left", "right"):
-        for band_num in range(1, 15):
+        for band_num in range(1, 16):
             eq_band_config = config.get(f"{channel_txt}_eq_band_{band_num}")
             if eq_band_config is None:
                 continue

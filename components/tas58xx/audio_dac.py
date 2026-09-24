@@ -10,7 +10,7 @@ from esphome.const import (
     CONF_ADDRESS,
     CONF_ENABLE_PIN,
     CONF_ID,
-    CONF_NUMBER,
+    # CONF_NUMBER,
     CONF_PLATFORM,
 )
 
@@ -19,28 +19,52 @@ CODEOWNERS = ["@mrtoy-me"]
 #DEPENDENCIES = ["i2c", "speaker"]
 DEPENDENCIES = ["i2c", "i2s_audio"]
 
-# yaml configuration constants
-CONF_ANALOG_GAIN = "analog_gain"
+# constants used across component keep here and imported as required
+
+# constants common across component
+PLATFORM_TAS58XX = "tas58xx"
+SELECT_COMPONENT = "select"
+DAC_MODE_BTL = "BTL"
+
+# constants used by audio_dac schema
 CONF_DAC_MODE = "dac_mode"
+CONF_MIXER_MODE = "mixer_mode"
+
+# constants used by select schema
+CONF_EQ_MODE = "eq_mode"
+CONF_EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
+CONF_EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
+
+# constants used by number schema
+CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
+CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
+CONF_LEFT_EQ_BANDS = tuple(f"left_eq_band_{i}" for i in range(1, 16))
+CONF_RIGHT_EQ_BANDS = tuple(f"right_eq_band_{i}" for i in range(1, 16))
+
+# keys used for saving to CORE.data
+KEY_NUMBER_EQ = "tas58xx_number_eq"
+KEY_LEFT_EQ_GAINS = "left_eq_gains"
+KEY_RIGHT_EQ_GAINS = "right_eq_gains"
+KEY_SELECT_EQ = "tas58xx_select_eq"
+KEY_LEFT_EQ_PRESET = "left_eq_preset"
+KEY_RIGHT_EQ_PRESET = "right_eq_preset"
+
+# constant exclusively used in audio_dac schema
+CONF_ANALOG_GAIN = "analog_gain"
 CONF_MODULATION = "modulation"
 CONF_TAS58XX_DAC = "tas58xx_dac"
-CONF_MIXER_MODE = "mixer_mode"
 CONF_VOLUME_MIN = "volume_min"
 CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 CONF_I2S_AUDIO_ID = "i2s_audio_id"
 CONF_I2S_DOUT_PIN = "i2s_dout_pin"
 
-# used for looking through CORE.config to derive eq configuration
-PLATFORM_TAS58XX = "tas58xx"
-SELECT_COMPONENT = "select"
-
-EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
-LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
-RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
+# EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
+# LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
+# RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
 
 # EQ Bands
-NUMBER_EQ_BANDS = 15
+# NUMBER_EQ_BANDS = 15
 
 # eq mode enum and select index values
 EQ_OFF = 0
@@ -102,6 +126,16 @@ INPUT_MIXER_MODES = {
 ANALOG_GAINS = [-15.5, -15, -14.5, -14, -13.5, -13, -12.5, -12, -11.5, -11, -10.5, -10, -9.5, -9, -8.5, -8,
                  -7.5,  -7,  -6.5,  -6,  -5.5,  -5,  -4.5,  -4,  -3.5,  -3,  -2.5,  -2, -1.5, -1, -0.5,  0]
 
+# function used across component and imported when required
+def find_matching_config(full_conf, dac_id, component):
+    for conf in full_conf.get(component, []):
+        if conf.get(CONF_PLATFORM) != PLATFORM_TAS58XX:
+            continue
+        if conf.get(CONF_TAS58XX_ID) == dac_id:
+            return conf
+    return None
+
+# validated audio_dac config
 def validate_config(config):
     if config[CONF_DAC_MODE] == "PBTL" and (config[CONF_MIXER_MODE] == "STEREO" or config[CONF_MIXER_MODE] == "STEREO_INVERSE"):
         raise cv.Invalid("dac_mode: PBTL must have mixer_mode: MONO or RIGHT or LEFT")
@@ -109,13 +143,13 @@ def validate_config(config):
         raise cv.Invalid("volume_max must at least 9db greater than volume_min")
     return config
 
-def validate_eq_frequencies(value):
-    processed = cv.ensure_list(cv.uint16_t, cv.int_range(0, 16000))(value)
-    if not processed:
-        raise cv.Invalid("One or more EQ Band frequencies are not in correct range")
-    if len(value) != 15:
-        raise cv.Invalid("You must specify 15 EQ Band frequencies")
-    return processed
+# def validate_eq_frequencies(value):
+#     processed = cv.ensure_list(cv.uint16_t, cv.int_range(0, 16000))(value)
+#     if not processed:
+#         raise cv.Invalid("One or more EQ Band frequencies are not in correct range")
+#     if len(value) != 15:
+#         raise cv.Invalid("You must specify 15 EQ Band frequencies")
+#     return processed
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
@@ -153,35 +187,35 @@ CONFIG_SCHEMA = cv.All(
     cv.only_on_esp32,
 )
 
-def get_configured_number_eq_gains(config):
-    audio_dac_id = config.get(CONF_ID)
-    all_numbers = CORE.config.get(CONF_NUMBER, [])
-    for num in all_numbers:
-        if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            if num.get(CONF_TAS58XX_ID) == audio_dac_id:
-                return LEFT_EQ_GAIN_20HZ in num, RIGHT_EQ_GAIN_20HZ in num
-    return False, False
+# def get_configured_number_eq_gains(config):
+#     audio_dac_id = config.get(CONF_ID)
+#     all_numbers = CORE.config.get(CONF_NUMBER, [])
+#     for num in all_numbers:
+#         if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+#             if num.get(CONF_TAS58XX_ID) == audio_dac_id:
+#                 return LEFT_EQ_GAIN_20HZ in num, RIGHT_EQ_GAIN_20HZ in num
+#     return False, False
 
-def select_eq_presets_configured(config):
-    audio_dac_id = config.get(CONF_ID)
-    all_select = CORE.config.get(SELECT_COMPONENT, [])
-    for select in all_select:
-        if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            if select.get(CONF_TAS58XX_ID) == audio_dac_id:
-                return EQ_PRESET_LEFT_CHANNEL in select
-    return False
+# def select_eq_presets_configured(config):
+#     audio_dac_id = config.get(CONF_ID)
+#     all_select = CORE.config.get(SELECT_COMPONENT, [])
+#     for select in all_select:
+#         if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
+#             if select.get(CONF_TAS58XX_ID) == audio_dac_id:
+#                 return EQ_PRESET_LEFT_CHANNEL in select
+#     return False
 
 async def to_code(config):
     derived_eq_mode_configuration = EQ_OFF
-    number_left_eq_gain_configured, number_right_eq_gain_configured = get_configured_number_eq_gains(config)
-    if number_right_eq_gain_configured:
-        derived_eq_mode_configuration  = EQ_BIAMP
-    else:
-        if number_left_eq_gain_configured:
-            derived_eq_mode_configuration = EQ_15BAND
-        else:
-            if select_eq_presets_configured(config):
-                derived_eq_mode_configuration = EQ_PRESETS
+    # number_left_eq_gain_configured, number_right_eq_gain_configured = get_configured_number_eq_gains(config)
+    # if number_right_eq_gain_configured:
+    #     derived_eq_mode_configuration  = EQ_BIAMP
+    # else:
+    #     if number_left_eq_gain_configured:
+    #         derived_eq_mode_configuration = EQ_15BAND
+    #     else:
+    #         if select_eq_presets_configured(config):
+    #             derived_eq_mode_configuration = EQ_PRESETS
 
     # when the user has not defined an audio dac i2c address
     # the CONF_ADDRESS == PLACEHOLDER_I2C_ADDR
