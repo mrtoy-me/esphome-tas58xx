@@ -184,9 +184,9 @@ async def to_code(config):
                 derived_eq_mode_configuration = EQ_PRESETS
 
     # when the user has not defined an audio dac i2c address
-    # CONF_ADDRESS == PLACEHOLDER_I2C_ADDR
+    # the CONF_ADDRESS == PLACEHOLDER_I2C_ADDR
     # and it needs to be correctly assigned based on the defined tas58xx_dac
-    # this allows the user to use a custom dac i2c address
+    # this allows the user to use a custom dac i2c address if required
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
 
     if config[CONF_ADDRESS] == PLACEHOLDER_I2C_ADDR:
