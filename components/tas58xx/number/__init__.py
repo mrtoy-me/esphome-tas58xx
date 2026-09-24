@@ -63,12 +63,12 @@ ICON_VOLUME_SOURCE = "mdi:volume-source"
 
 from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
 
-# Channel = tas58xx_ns.enum("Channel")
-# CHANNELS = {
-#     "left": Channel.LEFT_CHANNEL,
-#     "right": Channel.RIGHT_CHANNEL,
-# }
-CHANNELS = {"left": 0, "right": 1}
+Channel = tas58xx_ns.enum("Channel")
+CHANNELS = {
+    "left": Channel.LEFT_CHANNEL,
+    "right": Channel.RIGHT_CHANNEL,
+}
+# CHANNELS = {"left": 0, "right": 1}
 # EqFilter = tas58xx_ns.enum("EqFilter")
 # EQ_FILTERS = {
 #     "Equalizer": EqFilter.EQUALIZER,
@@ -624,8 +624,8 @@ async def to_code(config):
         await cg.register_component(n, channel_volume_right_config)
         await cg.register_parented(n, tas58xx_component)
 
-    # for channel_txt, channel_enum in CHANNELS.items():
-    for channel_txt in ("left", "right"):
+    for channel_txt, channel_enum in CHANNELS.items():
+    # for channel_txt in ("left", "right"):
         for band_num in range(1, 15):
             eq_band_config = config.get(f"{channel_txt}_eq_band_{band_num}")
             if eq_band_config is None:
@@ -646,7 +646,8 @@ async def to_code(config):
                 )
                 await cg.register_component(n, gain_config)
                 await cg.register_parented(n, tas58xx_component)
-                cg.add(n.set_channel(CHANNELS[channel_txt]))
+                cg.add(n.set_channel(channel_enum))
+                # cg.add(n.set_channel(CHANNELS[channel_txt]))
                 cg.add(n.set_band(band_num - 1))
                 # cg.add(n.set_filter_type(filter_type))
                 # cg.add(n.set_frequency(frequency))
