@@ -30,16 +30,6 @@ from ..audio_dac import (
 
 from ..audio_dac import find_matching_config
 
-# DAC_MODE_BTL = "BTL"
-# EQ_MODE = "eq_mode"
-# EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
-# EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
-
-# CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
-# CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
-# CONF_LEFT_EQ_BANDS = tuple(f"left_eq_band_{i}" for i in range(1, 16))
-# CONF_RIGHT_EQ_BANDS = tuple(f"right_eq_band_{i}" for i in range(1, 16))
-
 CONF_GAIN = "gain"
 
 MAX_GAIN = 24
@@ -69,43 +59,17 @@ ChannelVolumeLeft = tas58xx_ns.class_("ChannelVolumeLeft", number.Number, cg.Com
 ChannelVolumeRight = tas58xx_ns.class_("ChannelVolumeRight", number.Number, cg.Component)
 EqBandGain = tas58xx_ns.class_("EqBandGain", number.Number, cg.Component)
 
-
-# KEY_NUMBER_EQ = "tas58xx_number_eq"
-# KEY_LEFT_EQ_GAINS = "left_eq_gains"
-# KEY_RIGHT_EQ_GAINS = "right_eq_gains"
-
-
-# def find_matching_select(full_conf, dac_id):
-#     for select_conf in full_conf.get(SELECT_COMPONENT, []):
-#         if select_conf.get(CONF_PLATFORM) != PLATFORM_TAS58XX:
-#             continue
-#         if select_conf.get(CONF_TAS58XX_ID) == dac_id:
-#             return select_conf
-#     return None
-
 def _final_validate(config):
     full_conf = fv.full_config.get()
 
     this_number_id = config[CONF_TAS58XX_ID]
-    # audio_dac_id_matches_number_id = False
     matching_audio_dac = None
 
-    # # find the audic dac ID that matches the number ID
-    # all_audio_dac = full_conf.get(CONF_AUDIO_DAC, [])
-    # for audio_dac_conf in all_audio_dac:
-    #    if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-    #        if audio_dac_conf.get(CONF_ID) == this_number_id:
-    #             audio_dac_id_matches_number_id = True
-    #             matching_audio_dac = audio_dac_conf
-    #             break
     try:
         dac_path = full_conf.get_path_for_id(this_number_id)[:-1]
         matching_audio_dac = full_conf.get_config_for_path(dac_path)
     except KeyError:
         raise cv.Invalid("YAML validation error - no audio_dac with same id as number")
-
-    # is_dac_mode_btl = matching_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
-    # if audio_dac_id_matches_number_id:
 
     is_dac_mode_btl = matching_audio_dac.get(CONF_DAC_MODE) == DAC_MODE_BTL
 
@@ -121,19 +85,6 @@ def _final_validate(config):
     else:
         if (have_this_number_channel_volume_right):
             raise cv.Invalid("channel_volume_right is not required when dac_mode is PBTL - remove channel_volume_right from YAML configuration")
-
-    # # find the select ID that matches the number ID
-    # select_eq_mode_configured = False
-    # select_left_eq_preset_configured = False
-    # select_right_eq_preset_configured = False
-    # select_confs = full_conf.get(SELECT_COMPONENT, [])
-    # for select_conf in select_confs:
-    #     if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-    #         if select_conf.get(CONF_TAS58XX_ID) == this_number_id:
-    #             select_eq_mode_configured = EQ_MODE in select_conf
-    #             select_left_eq_preset_configured = EQ_PRESET_LEFT_CHANNEL in select_conf
-    #             select_right_eq_preset_configured = EQ_PRESET_RIGHT_CHANNEL in select_conf
-    #             break
 
     matching_select = find_matching_config(full_conf, this_number_id, SELECT_COMPONENT)
     select_eq_mode_configured = matching_select is not None and CONF_EQ_MODE in matching_select
@@ -163,7 +114,6 @@ def _final_validate(config):
 
 def _band_schema():
     # schema for each band's EQ configuration
-
     return cv.All(
         cv.Schema(
             {

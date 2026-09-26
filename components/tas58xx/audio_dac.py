@@ -59,9 +59,6 @@ CONF_TAS58XX_ID = "tas58xx_id"
 CONF_I2S_AUDIO_ID = "i2s_audio_id"
 CONF_I2S_DOUT_PIN = "i2s_dout_pin"
 
-# EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
-# LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
-# RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
 
 # EQ Bands
 # NUMBER_EQ_BANDS = 15
@@ -143,13 +140,6 @@ def validate_config(config):
         raise cv.Invalid("volume_max must at least 9db greater than volume_min")
     return config
 
-# def validate_eq_frequencies(value):
-#     processed = cv.ensure_list(cv.uint16_t, cv.int_range(0, 16000))(value)
-#     if not processed:
-#         raise cv.Invalid("One or more EQ Band frequencies are not in correct range")
-#     if len(value) != 15:
-#         raise cv.Invalid("You must specify 15 EQ Band frequencies")
-#     return processed
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
@@ -186,24 +176,6 @@ CONFIG_SCHEMA = cv.All(
     .add_extra(validate_config),
     cv.only_on_esp32,
 )
-
-# def get_configured_number_eq_gains(config):
-#     audio_dac_id = config.get(CONF_ID)
-#     all_numbers = CORE.config.get(CONF_NUMBER, [])
-#     for num in all_numbers:
-#         if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-#             if num.get(CONF_TAS58XX_ID) == audio_dac_id:
-#                 return LEFT_EQ_GAIN_20HZ in num, RIGHT_EQ_GAIN_20HZ in num
-#     return False, False
-
-# def select_eq_presets_configured(config):
-#     audio_dac_id = config.get(CONF_ID)
-#     all_select = CORE.config.get(SELECT_COMPONENT, [])
-#     for select in all_select:
-#         if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-#             if select.get(CONF_TAS58XX_ID) == audio_dac_id:
-#                 return EQ_PRESET_LEFT_CHANNEL in select
-#     return False
 
 async def to_code(config):
     derived_eq_mode_configuration = EQ_OFF
