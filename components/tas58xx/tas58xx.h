@@ -135,20 +135,13 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    void configure_active_fault_sensors_();
    bool configure_registers_();
 
-   bool get_analog_gain_(uint8_t* raw_gain);
    bool set_analog_gain_(float gain_db);
-
-   bool get_dac_mode_(DacMode* mode);
    bool set_dac_mode_(DacMode mode);
-
    bool set_deep_sleep_off_();
    bool set_deep_sleep_on_();
-
    bool set_input_mixer_mode_(InputMixerMode mode);
-
    bool set_state_(ControlState state);
 
-   // low level functions
    bool i2s_sync_(size_t* bytes_written, size_t* sync_attempts);
    bool i2s_open_channel_();
    void i2s_close_channel_();
@@ -156,7 +149,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    bool set_book_and_page_(uint8_t book, uint8_t page);
    bool book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes);
 
-   //// variables
    bool i2s_sync_successful_{false};
    size_t i2s_sync_byte_count_{0};
    size_t i2s_sync_attempts_{0};
