@@ -23,13 +23,10 @@ static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERS
 static constexpr float TAS58XX_MIN_ANALOG_GAIN         = -15.5;
 static constexpr float TAS58XX_MAX_ANALOG_GAIN         = 0.0;
 
-// set book and page registers
 static constexpr uint8_t TAS58XX_PAGE_SET              = 0x00;
 static constexpr uint8_t TAS58XX_BOOK_SET              = 0x7F;
 static constexpr uint8_t TAS58XX_BOOK_ZERO             = 0x00;
 static constexpr uint8_t TAS58XX_PAGE_ZERO             = 0x00;
-
-// tas58x5m registers
 static constexpr uint8_t TAS58XX_DEVICE_CTRL_1         = 0x02;
 static constexpr uint8_t TAS58XX_DEVICE_CTRL_2         = 0x03;
 static constexpr uint8_t TAS58XX_FS_MON                = 0x37;
@@ -38,10 +35,9 @@ static constexpr uint8_t TAS58XX_DIG_VOL_CTRL          = 0x4C;
 static constexpr uint8_t TAS58XX_ANA_CTRL              = 0x53;
 static constexpr uint8_t TAS58XX_AGAIN                 = 0x54;
 static constexpr uint8_t TAS58XX_POWER_STATE           = 0x68;
-
-// TAS58XX FAULT constants
 static constexpr uint8_t TAS58XX_START_FAULT_REGISTERS = 0x70;
 static constexpr uint8_t TAS58XX_FAULT_CLEAR           = 0x78;
+
 static constexpr uint8_t TAS58XX_ANALOG_FAULT_CLEAR    = 0x80;
 
 static constexpr uint8_t TAS58XX_AUDIO_CTRL_BOOK = 0x8C;
@@ -87,7 +83,7 @@ bool Tas58xxComponent::configure_registers_() {
         delay(TAS58XX_CONFIG[i].value);
         break;
       default:
-        if (!this->tas58xx_write_byte_(TAS58XX_CONFIG[i].addr, TAS58XX_CONFIG[i].value)) return false;
+        if (!this->write_byte(TAS58XX_CONFIG[i].addr, TAS58XX_CONFIG[i].value)) return false;
         counter++;
         break;
     }
@@ -110,14 +106,13 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
-  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
+  if (!this->write_byte(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
   return true;
 }
 
 void Tas58xxComponent::update() {
 #ifdef USE_TAS58XX_BINARY_SENSOR
   static constexpr size_t MAX_FAULT_REGISTERS = 4;
-
   uint8_t fault_registers_current_state_[MAX_FAULT_REGISTERS];
   bool trigger_clear_faults{false};
 
@@ -128,7 +123,6 @@ void Tas58xxComponent::update() {
   };
 
   for (size_t i = 0; i < this->active_fault_sensor_count_; i++) {
-
     auto &x = this->active_fault_sensors_[i];
     bool state = (fault_registers_current_state_[x.register_index] & x.bit_mask) != 0;
     trigger_clear_faults |= state;
@@ -152,9 +146,10 @@ void Tas58xxComponent::update() {
   if (trigger_clear_faults) {
     if (!this->write_byte(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
       ESP_LOGW(TAG, "%s clearing fault registers", ERROR);
-      return false;
+      return;
     }
     ESP_LOGD(TAG, "Fault registers cleared");
+    return;
   }
 #endif
 }
@@ -233,89 +228,58 @@ void Tas58xxComponent::dump_config() {
   LOG_BINARY_SENSOR("  ", "Over Temperature 112C Warning", this->over_temperature_112c_warning_binary_sensor_);
   #endif
 #endif
-
 }
 
-// public //
 
-// used by 'enable_dac_switch'
 void Tas58xxComponent::enable_dac(bool enable) {
   enable ? this->set_deep_sleep_off_() : this->set_deep_sleep_on_();
 }
 
 bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
   #ifdef USE_TAS5805M_DAC
-  // TAS5805M
   static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x29;
   static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x18; // Left to Left = 0x18, Right to Left = 0x1c, Left to Right = 0x20, Right to Right = 0x24
   #else
-  // TAS5825M
   static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x0B;
   static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x14; // Left to Left = 0x14, Right to Left = 0x18, Left to Right = 0x1c, Right to Right = 0x20
   #endif
 
-  // mixer gain coefficients converted to little endian
-  static constexpr uint32_t TAS58XX_MIXER_COEFF_MUTE = 0x00000000;
-  static constexpr uint32_t TAS58XX_MIXER_COEFF_0DB = 0x00008000;
-  static constexpr uint32_t TAS58XX_MIXER_COEFF_MINUS6DB = 0x00004000;
+  static constexpr uint8_t TAS5805M_MIXER_COEFFICIENT_SIZE = 4;
+  static constexpr uint8_t TAS5805M_MIXER_MUTE = 0x00;
+  static constexpr uint8_t TAS5805M_MIXER_MINUS_6DB = 0x40;
+  static constexpr uint8_t TAS5805M_MIXER_0DB = 0x80;
 
-  // follows order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
-  struct MixerCoefficients {
-    uint32_t l_to_l;
-    uint32_t r_to_l;
-    uint32_t l_to_r;
-    uint32_t r_to_r;
-  }__attribute__((packed));
+  // initiall set to STEREO
+  uint8_t left_to_left = TAS5805M_MIXER_0DB;
+  uint8_t right_to_left = TAS5805M_MIXER_MUTE;
+  uint8_t left_to_right = TAS5805M_MIXER_MUTE;
+  uint8_t right_to_right = TAS5805M_MIXER_0DB;
 
-  MixerCoefficients mixer_coefficients;
-
-  switch (mode) {
-    case STEREO:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_0DB;
-      break;
-
-    case STEREO_INVERSE:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MUTE;
-      break;
-
-    case MONO:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MINUS6DB;
-      break;
-
-    case LEFT:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MUTE;
-      break;
-
-    case RIGHT:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_0DB;
-      break;
-
-    default:
-      ESP_LOGE(TAG, "Invalid %s", MIXER_MODE);
-      return false;
+  if (this->mixer_mode_ == STEREO_INVERSE) {
+    left_to_left = TAS5805M_MIXER_MUTE;
+    right_to_left = TAS5805M_MIXER_0DB;
+    left_to_right = TAS5805M_MIXER_0DB;
+    right_to_right = TAS5805M_MIXER_MUTE;
+  } else if (this->mixer_mode_ == MONO) {
+    left_to_left = TAS5805M_MIXER_MINUS_6DB;
+    right_to_left = TAS5805M_MIXER_MINUS_6DB;
+    left_to_right = TAS5805M_MIXER_MINUS_6DB;
+    right_to_right = TAS5805M_MIXER_MINUS_6DB;
+  } else if (this->mixer_mode_ == LEFT) {
+    left_to_right = TAS5805M_MIXER_0DB;
+    right_to_right = TAS5805M_MIXER_MUTE;
+  } else if (this->mixer_mode_ == RIGHT) {
+    left_to_left = TAS5805M_MIXER_MUTE;
+    right_to_left = TAS5805M_MIXER_0DB;
   }
 
+  const uint8_t coefficients[4 * TAS5805M_MIXER_COEFFICIENT_SIZE] = {0, left_to_left,  0, 0, 0, right_to_left,  0, 0,
+                                                                     0, left_to_right, 0, 0, 0, right_to_right, 0, 0};
   if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_SUBADDR,
-                                  reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
+                                      coefficients, sizeof(coefficients))) {
     ESP_LOGW(TAG, "%s writing Input %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
     return false;
   }
-
   ESP_LOGD(TAG, "Input %s >> %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
   this->tas58xx_input_mixer_mode_ = mode;
   return true;
@@ -339,43 +303,21 @@ bool Tas58xxComponent::set_mute_on() {
   return true;
 }
 
-// override for audio_dac component volume, so mediaplayer can determine current volume of tas58xx dac
 float Tas58xxComponent::volume() {
   uint8_t raw_volume = 254; // default to lowest raw volume if i2c read error
   this->read_byte(TAS58XX_DIG_VOL_CTRL, &raw_volume);
   return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
 }
 
-// controls both left and right channel digital volume
-// digital volume is 24 dB to -103 dB in -0.5 dB step
-// 00000000: +24.0 dB
-// 00000001: +23.5 dB
-// 00101111: +0.5 dB
-// 00110000: 0.0 dB
-// 00110001: -0.5 dB
-// 11111110: -103 dB
-// 11111111: Mute
-// override for audio_dac component set_volume, so mediaplayer can adjust volume of tas58xx dac
 bool Tas58xxComponent::set_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
   uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
   if (!this->write_byte(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
-  #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-    int8_t dB = -(raw_volume / 2) + 24;
-    ESP_LOGV(TAG, "Volume >> %ddB", dB);
-  #endif
   return true;
 }
 
-// protected //
-
-// Analog Gain Control , with 0.5dB one step
-// lower 5 bits controls the analog gain.
-// 00000: 0 dB (29.5V peak voltage)
-// 00001: -0.5db
-// 11111: -15.5 dB
-// set analog gain in dB
 bool Tas58xxComponent::set_analog_gain_(float gain_db) {
+  // lower 5 bits controls the analog gain
   static constexpr uint8_t TOP_3BITS_MASK = 0xE0;
 
   if ((gain_db < TAS58XX_MIN_ANALOG_GAIN) || (gain_db > TAS58XX_MAX_ANALOG_GAIN)) return false;
@@ -393,7 +335,6 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
   return true;
 }
 
-// only runs once from 'setup'
 bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
   uint8_t current_value;
   if (!this->read_byte(TAS58XX_DEVICE_CTRL_1, &current_value)) return false;
@@ -406,7 +347,6 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
   }
   if (!this->write_byte(TAS58XX_DEVICE_CTRL_1, current_value)) return false;
 
-  // save so 'set_dac_mode_' could be used more generally
   this->tas58xx_dac_mode_ = mode;
   ESP_LOGD(TAG, "DAC mode >> %s", this->tas58xx_dac_mode_ ? "PBTL" : "BTL");
   return true;
@@ -417,27 +357,18 @@ bool Tas58xxComponent::set_deep_sleep_off_() {
   // preserve mute state
   uint8_t new_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
   if (!this->write_byte(TAS58XX_DEVICE_CTRL_2, new_value)) return false;
-
-  this->tas58xx_control_state_ = CTRL_PLAY;                        // set Control State to play
-  ESP_LOGV(TAG, "Deep Sleep >> Off");
-  #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-  if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
-  #endif
+  this->tas58xx_control_state_ = CTRL_PLAY;
+  ESP_LOGD(TAG, "Deep Sleep >> Off");
   return true;
 }
 
 bool Tas58xxComponent::set_deep_sleep_on_() {
   if (this->tas58xx_control_state_ == CTRL_DEEP_SLEEP) return true; // already in deep sleep
-
   // preserve mute state
   uint8_t new_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
   if (!this->write_byte(TAS58XX_DEVICE_CTRL_2, new_value)) return false;
-
   this->tas58xx_control_state_ = CTRL_DEEP_SLEEP;                   // set Control State to deep sleep
   ESP_LOGV(TAG, "Deep Sleep >> On");
-  #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-  if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
-  #endif
   return true;
 }
 
@@ -447,8 +378,6 @@ bool Tas58xxComponent::set_state_(ControlState state) {
   this->tas58xx_control_state_ = state;
   return true;
 }
-
-//// fault binary sensor processing
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 void Tas58xxComponent::configure_active_fault_sensors_() {
@@ -629,8 +558,6 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
   #endif
 }
 #endif
-
-//// low level functions
 
 bool Tas58xxComponent::i2s_sync_(size_t* bytes_written, size_t* sync_attempts) {
 // runs in setup() at HARDWARE priority
