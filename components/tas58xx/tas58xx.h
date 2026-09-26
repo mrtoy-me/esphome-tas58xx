@@ -15,29 +15,29 @@
 
 namespace esphome::tas58xx {
 
-class Tas58xxComponent final : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice, public i2s_audio::I2SAudioOut {
-
- public:
-  enum ControlState : uint8_t {
+enum ControlState : uint8_t {
       CTRL_DEEP_SLEEP = 0x00, // Deep Sleep
       CTRL_SLEEP      = 0x01, // Sleep
       CTRL_HI_Z       = 0x02, // Hi-Z
       CTRL_PLAY       = 0x03, // Play
   };
 
-  enum DacMode : uint8_t {
-    BTL  = 0, // Bridge tied load
-    PBTL = 1, // Parallel load
-  };
+enum DacMode : uint8_t {
+  BTL  = 0, // Bridge tied load
+  PBTL = 1, // Parallel load
+};
 
-  enum InputMixerMode : uint8_t {
-    STEREO = 0,
-    STEREO_INVERSE,
-    MONO,
-    RIGHT,
-    LEFT,
-  };
+enum InputMixerMode : uint8_t {
+  STEREO = 0,
+  STEREO_INVERSE,
+  MONO,
+  RIGHT,
+  LEFT,
+};
 
+class Tas58xxComponent final : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice, public i2s_audio::I2SAudioOut {
+
+ public:
   void setup() override;
 
   void update() override;
