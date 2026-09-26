@@ -255,20 +255,20 @@ bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
   uint8_t left_to_right = TAS5805M_MIXER_MUTE;
   uint8_t right_to_right = TAS5805M_MIXER_0DB;
 
-  if (this->mixer_mode_ == STEREO_INVERSE) {
+  if (mode == STEREO_INVERSE) {
     left_to_left = TAS5805M_MIXER_MUTE;
     right_to_left = TAS5805M_MIXER_0DB;
     left_to_right = TAS5805M_MIXER_0DB;
     right_to_right = TAS5805M_MIXER_MUTE;
-  } else if (this->mixer_mode_ == MONO) {
+  } else if (mode_ == MONO) {
     left_to_left = TAS5805M_MIXER_MINUS_6DB;
     right_to_left = TAS5805M_MIXER_MINUS_6DB;
     left_to_right = TAS5805M_MIXER_MINUS_6DB;
     right_to_right = TAS5805M_MIXER_MINUS_6DB;
-  } else if (this->mixer_mode_ == LEFT) {
+  } else if (mode == LEFT) {
     left_to_right = TAS5805M_MIXER_0DB;
     right_to_right = TAS5805M_MIXER_MUTE;
-  } else if (this->mixer_mode_ == RIGHT) {
+  } else if (mode == RIGHT) {
     left_to_left = TAS5805M_MIXER_MUTE;
     right_to_left = TAS5805M_MIXER_0DB;
   }
@@ -282,7 +282,9 @@ bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
     ESP_LOGW(TAG, "%s writing Input %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
   }
   ok = this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO) && ok;
-  if (ok) ESP_LOGD(TAG, "Input %s >> %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
+  if (ok) {
+    this->tas58xx_input_mixer_mode_ = mode;
+    ESP_LOGD(TAG, "Input %s >> %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
   return ok;
 }
 
