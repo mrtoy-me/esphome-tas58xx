@@ -144,8 +144,9 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    bool set_deep_sleep_on_();
 
    bool set_input_mixer_mode_(InputMixerMode mode);
+   
+   bool set_state_(ControlState state);
 
-   bool get_state_(ControlState* state);
 
    // manage faults
    bool clear_fault_registers_();
