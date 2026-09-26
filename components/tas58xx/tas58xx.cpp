@@ -122,7 +122,7 @@ void Tas58xxComponent::update() {
   bool trigger_clear_faults{false};
 
   // read all faults registers
-  if (!this->tas58xx_read_bytes_(TAS58XX_START_FAULT_REGISTERS, fault_registers_current_state_, MAX_FAULT_REGISTERS)) {
+  if (!this->read_bytes(TAS58XX_START_FAULT_REGISTERS, fault_registers_current_state_, MAX_FAULT_REGISTERS)) {
     ESP_LOGW(TAG, "%s reading fault registers", ERROR);
     return;
   };
@@ -150,10 +150,11 @@ void Tas58xxComponent::update() {
   }
 
   if (trigger_clear_faults) {
-    ESP_LOGD(TAG, "Clearing fault registers");
-    if (!this->clear_fault_registers_()) {
+    if (!this->write_byte(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
       ESP_LOGW(TAG, "%s clearing fault registers", ERROR);
+      return false;
     }
+    ESP_LOGD(TAG, "Fault registers cleared");
   }
 #endif
 }
@@ -323,7 +324,7 @@ bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
 
 bool Tas58xxComponent::set_mute_off() {
   if (!this->is_muted_) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_)) return false;
   this->is_muted_ = false;
   ESP_LOGV(TAG, "Mute Off");
   return true;
@@ -332,7 +333,7 @@ bool Tas58xxComponent::set_mute_off() {
 // set bit 3 MUTE in TAS58XX_DEVICE_CTRL_2 and retain current Control State
 bool Tas58xxComponent::set_mute_on() {
   if (this->is_muted_) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_ + TAS58XX_MUTE_CONTROL)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_ + TAS58XX_MUTE_CONTROL)) return false;
   this->is_muted_ = true;
   ESP_LOGV(TAG, "Mute On");
   return true;
@@ -341,7 +342,7 @@ bool Tas58xxComponent::set_mute_on() {
 // override for audio_dac component volume, so mediaplayer can determine current volume of tas58xx dac
 float Tas58xxComponent::volume() {
   uint8_t raw_volume = 254; // default to lowest raw volume if i2c read error
-  this->tas58xx_read_bytes_(TAS58XX_DIG_VOL_CTRL, &raw_volume, 1);
+  this->read_byte(TAS58XX_DIG_VOL_CTRL, &raw_volume);
   return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
 }
 
@@ -358,7 +359,7 @@ float Tas58xxComponent::volume() {
 bool Tas58xxComponent::set_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
   uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
-  if (!this->tas58xx_write_byte_(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
+  if (!this->write_byte(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
     int8_t dB = -(raw_volume / 2) + 24;
     ESP_LOGV(TAG, "Volume >> %ddB", dB);
@@ -382,11 +383,11 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
   uint8_t new_again = static_cast<uint8_t>(-gain_db * 2.0);
 
   uint8_t current_again;
-  if (!this->tas58xx_read_bytes_(TAS58XX_AGAIN, &current_again, 1)) return false;
+  if (!this->read_byte(TAS58XX_AGAIN, &current_again)) return false;
 
   // keep top 3 reserved bits combine with bottom 5 analog gain bits
   new_again = (current_again & TOP_3BITS_MASK) | new_again;
-  if (!this->tas58xx_write_byte_(TAS58XX_AGAIN, new_again)) return false;
+  if (!this->write_byte(TAS58XX_AGAIN, new_again)) return false;
 
   ESP_LOGD(TAG, "Analog Gain >> %fdB", gain_db);
   return true;
@@ -395,7 +396,7 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
 // only runs once from 'setup'
 bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
   uint8_t current_value;
-  if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &current_value, 1)) return false;
+  if (!this->read_byte(TAS58XX_DEVICE_CTRL_1, &current_value)) return false;
 
   // Update bit 2 based on the mode
   if (mode == PBTL) {
@@ -403,7 +404,7 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
   } else {
       current_value &= ~(1 << 2); // Clear bit 2 to 0 (BTL mode)
   }
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, current_value)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_1, current_value)) return false;
 
   // save so 'set_dac_mode_' could be used more generally
   this->tas58xx_dac_mode_ = mode;
@@ -415,7 +416,7 @@ bool Tas58xxComponent::set_deep_sleep_off_() {
   if (this->tas58xx_control_state_ != CTRL_DEEP_SLEEP) return true; // already not in deep sleep
   // preserve mute state
   uint8_t new_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, new_value)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_2, new_value)) return false;
 
   this->tas58xx_control_state_ = CTRL_PLAY;                        // set Control State to play
   ESP_LOGV(TAG, "Deep Sleep >> Off");
@@ -430,7 +431,7 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
 
   // preserve mute state
   uint8_t new_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, new_value)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_2, new_value)) return false;
 
   this->tas58xx_control_state_ = CTRL_DEEP_SLEEP;                   // set Control State to deep sleep
   ESP_LOGV(TAG, "Deep Sleep >> On");
@@ -442,7 +443,7 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
 
 bool Tas58xxComponent::set_state_(ControlState state) {
   if (this->tas58xx_control_state_ == state) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, state)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_2, state)) return false;
   this->tas58xx_control_state_ = state;
   return true;
 }
@@ -627,13 +628,6 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
   }
   #endif
 }
-
-// if no binary sensors are defined faults registers are never cleared
-bool Tas58xxComponent::clear_fault_registers_() {
-  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
-  ESP_LOGD(TAG, "Fault registers cleared");
-  return true;
-}
 #endif
 
 //// low level functions
@@ -768,59 +762,22 @@ void Tas58xxComponent::i2s_close_channel_() {
 // use only when writing bytes to contiguous addresses
 bool Tas58xxComponent:: book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes) {
   if (!this->set_book_and_page_(book, page)) return false;
-  if (!this->tas58xx_write_bytes_(sub_addr, data, number_bytes)) return false;
+  if (!this->write_bytes(sub_addr, data, number_bytes)) return false;
 
   // reset book and page to zero
   return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
 }
 
 bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
-  if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
-    if (this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
-      if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
+  if (this->write_byte(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
+    if (this->write_byte(TAS58XX_BOOK_SET, book)) {
+      if (this->write_byte(TAS58XX_PAGE_SET, page)) {
         return true;
       }
     }
   }
   ESP_LOGD(TAG, "%s setting book:0x%02X page:0x%02X", ERROR, book, page);
   return false;
-}
-
-bool Tas58xxComponent::tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes) {
-  i2c::ErrorCode error_code;
-  error_code = this->write(&a_register, 1);
-  if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d writing address:0x%02X to start read", ERROR, error_code, a_register);
-    this->i2c_error_ = static_cast<int>(error_code);
-    return false;
-  }
-  error_code = this->read_register(a_register, data, number_bytes);
-  if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d reading %d bytes from address:0x%02X", ERROR, error_code, number_bytes, a_register);
-    this->i2c_error_ = static_cast<int>(error_code);
-    return false;
-  }
-  return true;
-}
-
-bool Tas58xxComponent::tas58xx_write_byte_(uint8_t a_register, uint8_t data) {
-  i2c::ErrorCode error_code = this->write_register(a_register, &data, 1);
-  if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d writing to address:0x%02X", ERROR, error_code, a_register);
-    this->i2c_error_ = static_cast<int>(error_code);
-    return false;
-  }
-  return true;
-}
-
-bool Tas58xxComponent::tas58xx_write_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes) {
-  i2c::ErrorCode error_code = this->write_register(a_register, data, number_bytes);
-  if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d writing address:0x%02X bytes:%d", ERROR, error_code, a_register, number_bytes);
-    this->i2c_error_ = static_cast<int>(error_code);
-    return false;
-  }
-  return true;
 }
 
 }  // namespace esphome::tas58xx

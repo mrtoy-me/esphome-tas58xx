@@ -148,10 +148,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
    bool set_state_(ControlState state);
 
-
-   // manage faults
-   bool clear_fault_registers_();
-
    // low level functions
    bool i2s_sync_(size_t* bytes_written, size_t* sync_attempts);
    bool i2s_open_channel_();
@@ -159,10 +155,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
 
    bool set_book_and_page_(uint8_t book, uint8_t page);
    bool book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes);
-
-   bool tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes);
-   bool tas58xx_write_byte_(uint8_t a_register, uint8_t data);
-   bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t number_bytes);
 
    //// variables
    bool i2s_sync_successful_{false};
