@@ -13,7 +13,39 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
 
-#include "tas58xx_defs.h"
+num ControlState : uint8_t {
+    CTRL_DEEP_SLEEP = 0x00, // Deep Sleep
+    CTRL_SLEEP      = 0x01, // Sleep
+    CTRL_HI_Z       = 0x02, // Hi-Z
+    CTRL_PLAY       = 0x03, // Play
+   };
+
+enum DacMode : uint8_t {
+  BTL  = 0, // Bridge tied load
+  PBTL = 1, // Parallel load
+};
+
+enum ErrorCode {
+     NONE = 0,
+     CONFIGURATION_FAILED,
+   } error_code_{NONE};
+
+enum InputMixerMode : uint8_t {
+  STEREO = 0,
+  STEREO_INVERSE,
+  MONO,
+  RIGHT,
+  LEFT,
+};
+
+#ifdef USE_TAS58XX_BINARY_SENSOR
+struct FaultBinarySensorProperties {
+  binary_sensor::BinarySensor *fault_sensor{nullptr};
+  uint8_t register_index{0};
+  uint8_t bit_mask{0};
+  bool last_state{false};
+};
+#endif
 
 namespace esphome::tas58xx {
 
@@ -134,11 +166,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    bool i2s_sync_successful_{false};
    size_t i2s_sync_byte_count_{0};
    size_t i2s_sync_attempts_{0};
-
-   enum ErrorCode {
-     NONE = 0,
-     CONFIGURATION_FAILED,
-   } error_code_{NONE};
 
    float tas58xx_analog_gain_; // configured in YAML
 
