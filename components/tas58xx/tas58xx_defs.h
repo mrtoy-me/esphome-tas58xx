@@ -14,10 +14,15 @@ enum DacMode : uint8_t {
   PBTL = 1, // Parallel load
 };
 
-enum ModulationScheme : uint8_t {
-  MODE_BD = 0,
-  MODE_1SPW = 1,
+enum InputMixerMode : uint8_t {
+  STEREO = 0,
+  STEREO_INVERSE,
+  MONO,
+  RIGHT,
+  LEFT,
 };
+
+static constexpr const char* MIXER_MODE_TEXT[] = {"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"};
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 struct FaultBinarySensorProperties {
@@ -30,6 +35,17 @@ struct FaultBinarySensorProperties {
 static constexpr size_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
 #endif
 
+static constexpr uint8_t TAS58XX_AUDIO_CTRL_BOOK = 0x8C;
+
+#ifdef USE_TAS5805M_DAC
+// TAS5805M
+static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x29;
+static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x18; // Left to Left = 0x18, Right to Left = 0x1c, Left to Right = 0x20, Right to Right = 0x24
+#else
+// TAS5825M
+static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x0B;
+static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x14; // Left to Left = 0x14, Right to Left = 0x18, Left to Right = 0x1c, Right to Right = 0x20
+#endif
 
 static constexpr float TAS58XX_MIN_ANALOG_GAIN         = -15.5;
 static constexpr float TAS58XX_MAX_ANALOG_GAIN         = 0.0;
