@@ -298,16 +298,25 @@ bool Tas58xxComponent::set_mute_on() {
 
 // override for audio_dac component volume, so mediaplayer can determine current volume of tas58xx dac
 float Tas58xxComponent::volume() {
-  uint8_t raw_volume;
-  this->get_digital_volume_(&raw_volume);
+  uint8_t raw_volume = 254; // default to lowest raw volume if i2c read error
+  this->tas58xx_read_bytes_(TAS58XX_DIG_VOL_CTRL, &raw_volume, 1);
   return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
 }
 
+// controls both left and right channel digital volume
+// digital volume is 24 dB to -103 dB in -0.5 dB step
+// 00000000: +24.0 dB
+// 00000001: +23.5 dB
+// 00101111: +0.5 dB
+// 00110000: 0.0 dB
+// 00110001: -0.5 dB
+// 11111110: -103 dB
+// 11111111: Mute
 // override for audio_dac component set_volume, so mediaplayer can adjust volume of tas58xx dac
 bool Tas58xxComponent::set_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
   uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
-  if (!this->set_digital_volume_(raw_volume)) return false;
+  if (!this->tas58xx_write_byte_(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
     int8_t dB = -(raw_volume / 2) + 24;
     ESP_LOGV(TAG, "Volume >> %ddB", dB);
@@ -386,27 +395,6 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
   #endif
-  return true;
-}
-
-bool Tas58xxComponent::get_digital_volume_(uint8_t* raw_volume) {
-  uint8_t current = 254; // lowest raw volume
-  if (!this->tas58xx_read_bytes_(TAS58XX_DIG_VOL_CTRL, &current, 1)) return false;
-  *raw_volume = current;
-  return true;
-}
-
-// controls both left and right channel digital volume
-// digital volume is 24 dB to -103 dB in -0.5 dB step
-// 00000000: +24.0 dB
-// 00000001: +23.5 dB
-// 00101111: +0.5 dB
-// 00110000: 0.0 dB
-// 00110001: -0.5 dB
-// 11111110: -103 dB
-// 11111111: Mute
-bool Tas58xxComponent::set_digital_volume_(uint8_t raw_volume) {
-  if (!this->tas58xx_write_byte_(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
   return true;
 }
 

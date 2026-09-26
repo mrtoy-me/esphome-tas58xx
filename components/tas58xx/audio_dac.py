@@ -10,7 +10,6 @@ from esphome.const import (
     CONF_ADDRESS,
     CONF_ENABLE_PIN,
     CONF_ID,
-    CONF_PLATFORM,
 )
 
 CODEOWNERS = ["@mrtoy-me"]
