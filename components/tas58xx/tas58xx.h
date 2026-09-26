@@ -17,6 +17,7 @@ namespace esphome::tas58xx {
 
 class Tas58xxComponent final : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice, public i2s_audio::I2SAudioOut {
 
+ public:
   enum ControlState : uint8_t {
       CTRL_DEEP_SLEEP = 0x00, // Deep Sleep
       CTRL_SLEEP      = 0x01, // Sleep
@@ -37,7 +38,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
     LEFT,
   };
 
- public:
   void setup() override;
 
   void update() override;
