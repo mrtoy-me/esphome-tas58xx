@@ -18,7 +18,7 @@ enum ControlState : uint8_t {
     CTRL_SLEEP      = 0x01, // Sleep
     CTRL_HI_Z       = 0x02, // Hi-Z
     CTRL_PLAY       = 0x03, // Play
-   };
+};
 
 enum DacMode : uint8_t {
   BTL  = 0, // Bridge tied load
