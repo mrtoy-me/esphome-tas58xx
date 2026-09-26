@@ -87,7 +87,7 @@ bool Tas58xxComponent::configure_registers_() {
         delay(TAS58XX_CONFIG[i].value);
         break;
       default:
-        if (!this->tas58xx_write_byte_(TAS58XX_CONFIG[i].addr, TAS58XX_CONFIG[i].value)) return false;
+        if (!this->write_byte(TAS58XX_CONFIG[i].addr, TAS58XX_CONFIG[i].value)) return false;
         counter++;
         break;
     }
@@ -110,7 +110,7 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
   if (!this->set_state_(CTRL_PLAY)) return false;
-  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
+  if (!this->write_byte(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
   return true;
 }
 
@@ -155,6 +155,7 @@ void Tas58xxComponent::update() {
       return false;
     }
     ESP_LOGD(TAG, "Fault registers cleared");
+    return true;
   }
 #endif
 }
