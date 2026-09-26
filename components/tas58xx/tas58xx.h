@@ -13,7 +13,7 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
 
-num ControlState : uint8_t {
+enum ControlState : uint8_t {
     CTRL_DEEP_SLEEP = 0x00, // Deep Sleep
     CTRL_SLEEP      = 0x01, // Sleep
     CTRL_HI_Z       = 0x02, // Hi-Z
@@ -45,6 +45,8 @@ struct FaultBinarySensorProperties {
   uint8_t bit_mask{0};
   bool last_state{false};
 };
+
+static constexpr size_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
 #endif
 
 namespace esphome::tas58xx {

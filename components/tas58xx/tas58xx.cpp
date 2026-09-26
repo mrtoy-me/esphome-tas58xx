@@ -18,10 +18,6 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-#ifdef USE_TAS58XX_BINARY_SENSOR
-static constexpr size_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
-#endif
-
 static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
 
 static constexpr float TAS58XX_MIN_ANALOG_GAIN         = -15.5;
