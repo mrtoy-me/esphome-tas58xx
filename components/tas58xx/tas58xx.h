@@ -13,41 +13,7 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
 
-enum ControlState : uint8_t {
-    CTRL_DEEP_SLEEP = 0x00, // Deep Sleep
-    CTRL_SLEEP      = 0x01, // Sleep
-    CTRL_HI_Z       = 0x02, // Hi-Z
-    CTRL_PLAY       = 0x03, // Play
-   };
 
-enum DacMode : uint8_t {
-  BTL  = 0, // Bridge tied load
-  PBTL = 1, // Parallel load
-};
-
-enum ErrorCode {
-     NONE = 0,
-     CONFIGURATION_FAILED,
-   } error_code_{NONE};
-
-enum InputMixerMode : uint8_t {
-  STEREO = 0,
-  STEREO_INVERSE,
-  MONO,
-  RIGHT,
-  LEFT,
-};
-
-#ifdef USE_TAS58XX_BINARY_SENSOR
-struct FaultBinarySensorProperties {
-  binary_sensor::BinarySensor *fault_sensor{nullptr};
-  uint8_t register_index{0};
-  uint8_t bit_mask{0};
-  bool last_state{false};
-};
-
-static constexpr size_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
-#endif
 
 namespace esphome::tas58xx {
 
@@ -127,6 +93,43 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
   bool set_volume(float value) override;
 
  protected:
+
+  enum ControlState : uint8_t {
+    CTRL_DEEP_SLEEP = 0x00, // Deep Sleep
+    CTRL_SLEEP      = 0x01, // Sleep
+    CTRL_HI_Z       = 0x02, // Hi-Z
+    CTRL_PLAY       = 0x03, // Play
+   };
+
+  enum DacMode : uint8_t {
+    BTL  = 0, // Bridge tied load
+    PBTL = 1, // Parallel load
+  };
+
+  enum ErrorCode {
+      NONE = 0,
+      CONFIGURATION_FAILED,
+    } error_code_{NONE};
+
+  enum InputMixerMode : uint8_t {
+    STEREO = 0,
+    STEREO_INVERSE,
+    MONO,
+    RIGHT,
+    LEFT,
+  };
+
+  #ifdef USE_TAS58XX_BINARY_SENSOR
+  struct FaultBinarySensorProperties {
+    binary_sensor::BinarySensor *fault_sensor{nullptr};
+    uint8_t register_index{0};
+    uint8_t bit_mask{0};
+    bool last_state{false};
+  };
+
+  static constexpr size_t MAX_FAULT_SENSORS = 18; // maximum possible on TAS5825
+
+#endif
    GPIOPin* enable_pin_{nullptr};
 
    void configure_active_fault_sensors_();
