@@ -244,64 +244,39 @@ bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
   static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x14; // Left to Left = 0x14, Right to Left = 0x18, Left to Right = 0x1c, Right to Right = 0x20
   #endif
 
-  // mixer gain coefficients converted to little endian
-  static constexpr uint32_t TAS58XX_MIXER_COEFF_MUTE = 0x00000000;
-  static constexpr uint32_t TAS58XX_MIXER_COEFF_0DB = 0x00008000;
-  static constexpr uint32_t TAS58XX_MIXER_COEFF_MINUS6DB = 0x00004000;
+  static constexpr uint8_t TAS5805M_MIXER_COEFFICIENT_SIZE = 4;
+  static constexpr uint8_t TAS5805M_MIXER_MUTE = 0x00;
+  static constexpr uint8_t TAS5805M_MIXER_MINUS_6DB = 0x40;
+  static constexpr uint8_t TAS5805M_MIXER_0DB = 0x80;
 
-  // follows order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
-  struct MixerCoefficients {
-    uint32_t l_to_l;
-    uint32_t r_to_l;
-    uint32_t l_to_r;
-    uint32_t r_to_r;
-  }__attribute__((packed));
+  // initiall set to STEREO
+  uint8_t left_to_left = TAS5805M_MIXER_0DB;
+  uint8_t right_to_left = TAS5805M_MIXER_MUTE;
+  uint8_t left_to_right = TAS5805M_MIXER_MUTE;
+  uint8_t right_to_right = TAS5805M_MIXER_0DB;
 
-  MixerCoefficients mixer_coefficients;
-
-  switch (mode) {
-    case STEREO:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_0DB;
-      break;
-
-    case STEREO_INVERSE:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MUTE;
-      break;
-
-    case MONO:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MINUS6DB;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MINUS6DB;
-      break;
-
-    case LEFT:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_MUTE;
-      break;
-
-    case RIGHT:
-      mixer_coefficients.l_to_l = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_l = TAS58XX_MIXER_COEFF_0DB;
-      mixer_coefficients.l_to_r = TAS58XX_MIXER_COEFF_MUTE;
-      mixer_coefficients.r_to_r = TAS58XX_MIXER_COEFF_0DB;
-      break;
-
-    default:
-      ESP_LOGE(TAG, "Invalid %s", MIXER_MODE);
-      return false;
+  if (this->mixer_mode_ == STEREO_INVERSE) {
+    left_to_left = TAS5805M_MIXER_MUTE;
+    right_to_left = TAS5805M_MIXER_0DB;
+    left_to_right = TAS5805M_MIXER_0DB;
+    right_to_right = TAS5805M_MIXER_MUTE;
+  } else if (this->mixer_mode_ == MONO) {
+    left_to_left = TAS5805M_MIXER_MINUS_6DB;
+    right_to_left = TAS5805M_MIXER_MINUS_6DB;
+    left_to_right = TAS5805M_MIXER_MINUS_6DB;
+    right_to_right = TAS5805M_MIXER_MINUS_6DB;
+  } else if (this->mixer_mode_ == LEFT) {
+    left_to_right = TAS5805M_MIXER_0DB;
+    right_to_right = TAS5805M_MIXER_MUTE;
+  } else if (this->mixer_mode_ == RIGHT) {
+    left_to_left = TAS5805M_MIXER_MUTE;
+    right_to_left = TAS5805M_MIXER_0DB;
   }
 
+  const uint8_t coefficients[4 * TAS5805M_MIXER_COEFFICIENT_SIZE] = {0, left_to_left,  0, 0, 0, right_to_left,  0, 0,
+                                                                     0, left_to_right, 0, 0, 0, right_to_right, 0, 0};
   if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_SUBADDR,
-                                  reinterpret_cast<uint8_t*>(&mixer_coefficients), sizeof(MixerCoefficients))) {
+                                      coefficients, sizeof(coefficients))) {
     ESP_LOGW(TAG, "%s writing Input %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
     return false;
   }
