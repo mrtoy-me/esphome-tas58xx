@@ -330,7 +330,6 @@ bool Tas58xxComponent::set_mute_off() {
 }
 
 // set bit 3 MUTE in TAS58XX_DEVICE_CTRL_2 and retain current Control State
-// ensures get_state = get_power_state
 bool Tas58xxComponent::set_mute_on() {
   if (this->is_muted_) return true;
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_ + TAS58XX_MUTE_CONTROL)) return false;
