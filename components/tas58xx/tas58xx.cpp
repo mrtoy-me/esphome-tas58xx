@@ -1,6 +1,5 @@
 #include "tas58xx.h"
 #include "tas58xx_minimal.h"
-#include "tas58xx_helpers.h"
 
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
@@ -18,6 +17,34 @@ static constexpr const char* MIXER_MODE = "Mixer Mode";
 static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
+
+static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
+
+static constexpr float TAS58XX_MIN_ANALOG_GAIN         = -15.5;
+static constexpr float TAS58XX_MAX_ANALOG_GAIN         = 0.0;
+
+// set book and page registers
+static constexpr uint8_t TAS58XX_PAGE_SET              = 0x00;
+static constexpr uint8_t TAS58XX_BOOK_SET              = 0x7F;
+static constexpr uint8_t TAS58XX_BOOK_ZERO             = 0x00;
+static constexpr uint8_t TAS58XX_PAGE_ZERO             = 0x00;
+
+// tas58x5m registers
+static constexpr uint8_t TAS58XX_DEVICE_CTRL_1         = 0x02;
+static constexpr uint8_t TAS58XX_DEVICE_CTRL_2         = 0x03;
+static constexpr uint8_t TAS58XX_FS_MON                = 0x37;
+static constexpr uint8_t TAS58XX_BCK_MON               = 0x38;
+static constexpr uint8_t TAS58XX_DIG_VOL_CTRL          = 0x4C;
+static constexpr uint8_t TAS58XX_ANA_CTRL              = 0x53;
+static constexpr uint8_t TAS58XX_AGAIN                 = 0x54;
+static constexpr uint8_t TAS58XX_POWER_STATE           = 0x68;
+
+// TAS58XX FAULT constants
+static constexpr uint8_t TAS58XX_START_FAULT_REGISTERS = 0x70;
+static constexpr uint8_t TAS58XX_FAULT_CLEAR           = 0x78;
+static constexpr uint8_t TAS58XX_ANALOG_FAULT_CLEAR    = 0x80;
+
+static constexpr uint8_t TAS58XX_AUDIO_CTRL_BOOK = 0x8C;
 
 void Tas58xxComponent::setup() {
   ESP_LOGCONFIG(TAG, "Running setup");
@@ -76,9 +103,9 @@ bool Tas58xxComponent::configure_registers_() {
   // enable Tas58xx
   if (!this->set_deep_sleep_off_()) return false;
 
-  if (!this->set_modulation_scheme_(this->tas58xx_modulation_scheme_)) return false;
-
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
+
+  if (!this->set_input_mixer_mode_(this->tas58xx_input_mixer_mode_)) return false;
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
@@ -160,13 +187,11 @@ void Tas58xxComponent::dump_config() {
 
       ESP_LOGCONFIG(TAG,
               "  Analog Gain: %3.1fdB\n"
-              "  Modulation: %s\n"
               "  DAC Mode: %s\n"
               "  Mixer Mode: %s\n"
               "  Volume Maximum: %idB\n"
               "  Volume Minimum: %idB\n",
               this->tas58xx_analog_gain_,
-              this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
               this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
               INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_],
               this->tas58xx_volume_max_, this->tas58xx_volume_min_
@@ -217,23 +242,21 @@ void Tas58xxComponent::enable_dac(bool enable) {
   enable ? this->set_deep_sleep_off_() : this->set_deep_sleep_on_();
 }
 
-// used by select mixer mode
-uint8_t Tas58xxComponent::get_configured_dac_mode() {
-   return static_cast<uint8_t>(this->tas58xx_dac_mode_); // BTL = 0 , PBTL = 1
-}
+bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
+  #ifdef USE_TAS5805M_DAC
+  // TAS5805M
+  static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x29;
+  static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x18; // Left to Left = 0x18, Right to Left = 0x1c, Left to Right = 0x20, Right to Right = 0x24
+  #else
+  // TAS5825M
+  static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x0B;
+  static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x14; // Left to Left = 0x14, Right to Left = 0x18, Left to Right = 0x1c, Right to Right = 0x20
+  #endif
 
-// used by select eq mode
-uint8_t Tas58xxComponent::get_configured_eq_mode() {
-  return static_cast<uint8_t>(this->configured_eq_mode_);
-}
-
-uint8_t Tas58xxComponent::get_mixer_mode() {
-  return static_cast<uint8_t>(this->tas58xx_input_mixer_mode_);
-}
-
-bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
-
-  this->tas58xx_input_mixer_mode_ = mode;
+  // mixer gain coefficients converted to little endian
+  static constexpr uint32_t TAS58XX_MIXER_COEFF_MUTE = 0x00000000;
+  static constexpr uint32_t TAS58XX_MIXER_COEFF_0DB = 0x00008000;
+  static constexpr uint32_t TAS58XX_MIXER_COEFF_MINUS6DB = 0x00004000;
 
   // follows order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
   struct MixerCoefficients {
@@ -293,170 +316,10 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
   }
 
   ESP_LOGD(TAG, "Input %s >> %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
+  this->tas58xx_input_mixer_mode_ = mode;
   return true;
 }
 
-// used by 'select eq mode' to determine initially selected EQ mode
-bool Tas58xxComponent::is_eq_configured() {
-  return this->eq_configured_;
-}
-
-bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
-#ifdef USE_TAS58XX_CHANNEL_VOLUMES
-  if (volume_dB < TAS58XX_CHANNEL_VOLUME_MIN_DB || volume_dB > TAS58XX_CHANNEL_VOLUME_MAX_DB) {
-    ESP_LOGE(TAG, "Invalid %s Channel Volume: %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
-    return false;
-  }
-
-  this->tas58xx_channel_volume_[channel] = volume_dB;
-
-  int32_t little_endian_9_23 = tas58xx_helpers::gain_to_f9_23_(volume_dB);
-
-  if (!this-> book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_CHANNEL_VOLUME_PAGE, TAS58XX_CHANNEL_VOLUME_SUBADDR[channel],
-                                      reinterpret_cast<uint8_t*>(&little_endian_9_23), sizeof(little_endian_9_23))) {
-    ESP_LOGW(TAG, "%s writing %s Channel Volume: %ddb", ERROR, LR_CHANNEL_TEXT[channel], volume_dB);
-    return false;
-  }
-
-  ESP_LOGD(TAG, "%s Channel Volume >> %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
-#endif
-  return true;
-}
-
-// used by select eq mode
-void Tas58xxComponent::select_eq_mode(uint8_t select_index) {
-  if ( select_index == static_cast<uint8_t>(EqMode::EQ_OFF) ) {
-    this->set_eq_mode_(EqMode::EQ_OFF);
-  } else {
-    this->set_eq_mode_(this->configured_eq_mode_);
-  }
-}
-
-// used by eq gain numbers
-bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t gain) {
-#ifdef USE_TAS58XX_EQ_GAINS
-
-  if (band_index >= NUMBER_EQ_BANDS) {
-    ESP_LOGE(TAG, "Invalid Band index: %d", band_index);
-    return false;
-  }
-
-  const uint8_t band = band_index + 1;
-
-  if (gain < TAS58XX_EQ_MIN_DB || gain > TAS58XX_EQ_MAX_DB) {
-    ESP_LOGE(TAG, "Invalid %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
-    return false;
-  }
-
-  this->tas58xx_eq_gain_[channel][band_index] = gain;
-
-#ifdef USE_TAS5805M_DAC
-  #ifdef USE_TAS58XX_EQ_BIAMP
-  const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[band_index] : &TAS5805M_RIGHT_EQ_ADDRESS[band_index];
-  #else
-  const AddressSequence* eq_address = &TAS5805M_LEFT_EQ_ADDRESS[band_index];
-  #endif
-#else
-  #ifdef USE_TAS58XX_EQ_BIAMP
-  const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[band_index] : &TAS5825M_RIGHT_EQ_ADDRESS[band_index];
-  #else
-  const AddressSequence* eq_address = &TAS5825M_LEFT_EQ_ADDRESS[band_index];
-  #endif
-#endif
-
-  if (eq_address == NULL) {
-    ESP_LOGE(TAG, "NULL discovered %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
-    return false;
-  }
-
-  static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
-  ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
-
-  tas58xx_helpers::BiquadCoefficients biquad =
-      tas58xx_helpers::equalizer_qfactor_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
-
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
-                                  reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
-    ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
-    return false;
-  }
-
-#endif
-  return true;
-}
-
-bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
-#ifdef USE_TAS58XX_EQ_PRESETS
-  if (select_preset > EQ_PROFILE_MAXIMUM_INDEX) {
-    ESP_LOGE(TAG, "Invalid %s Channel Preset index: %d", LR_CHANNEL_TEXT[channel], select_preset);
-    return false;
-  }
-
-  this->tas58xx_channel_preset_[channel] = select_preset;
-
-  // only save until ready to setup in 'loop'
-  if (this->loop_setup_stage_ < EQ_PRESETS_SETUP) {
-    ESP_LOGD(TAG, "Save %s Channel EQ Preset index: %d", LR_CHANNEL_TEXT[channel], select_preset);
-    return true;
-  }
-
-#ifdef USE_TAS5805M_DAC
-  const AddressSequence* biquad1_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[0] : &TAS5805M_RIGHT_EQ_ADDRESS[0];
-  const AddressSequence* biquad2_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[1] : &TAS5805M_RIGHT_EQ_ADDRESS[1];
-  const AddressSequence* biquad3_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[2] : &TAS5805M_RIGHT_EQ_ADDRESS[2];
-#else
-  const AddressSequence* biquad1_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[0] : &TAS5825M_RIGHT_EQ_ADDRESS[0];
-  const AddressSequence* biquad2_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[1] : &TAS5825M_RIGHT_EQ_ADDRESS[1];
-  const AddressSequence* biquad3_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[2] : &TAS5825M_RIGHT_EQ_ADDRESS[2];
-#endif
-
-  if ((biquad1_address == NULL) || (biquad2_address == NULL) || (biquad3_address == NULL)) {
-    ESP_LOGE(TAG, "NULL EQ Preset Address pointer");
-    return false;
-  }
-
-  static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
-
-  // calculate biquads
-  if (select_preset == 0) {
-    tas58xx_helpers::BiquadCoefficients biquad1 = tas58xx_helpers::all_pass_();
-    tas58xx_helpers::BiquadCoefficients biquad3 = biquad1;
-  } else if (select_preset <= LF_PROFILE_MAXIMUM_INDEX) {
-    uint8_t profile_index = select_preset - 1;
-    tas58xx_helpers::BiquadCoefficients biquad1 =
-       tas58xx_helpers::low_pass_filter_(EQ_SAMPLE_RATE, PROFILES[profile_index].biquad_1_and_2_frequency, 0);
-    tas58xx_helpers::BiquadCoefficients biquad3 = tas58xx_helpers::all_pass_();
-  } else {
-    uint8_t profile_index = select_preset - LF_PROFILE_MAXIMUM_INDEX - 1;
-    tas58xx_helpers::BiquadCoefficients biquad1 =
-       tas58xx_helpers::low_pass_filter_(EQ_SAMPLE_RATE, PROFILES[profile_index].biquad_1_and_2_frequency, 0);
-    tas58xx_helpers::BiquadCoefficients biquad3 =
-       tas58xx_helpers::high_shelf_filter_(EQ_SAMPLE_RATE, PROFILES[profile_index].biquad_3_frequency,
-                                            PROFILES[profile_index].biquid_3_gain, PROFILES[profile_index].biquid_3_qfactor);
-  }
-
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad1_address->page, biquad1_address->sub_addr,
-                                  reinterpret_cast<uint8_t*>(&biquad1), sizeof(biquad))) {
-    ESP_LOGW(TAG, "%s writing Biquad 1 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-    return false;
-  }
-
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad2_address->page, biquad2_address->sub_addr,
-                                  reinterpret_cast<uint8_t*>(&biquad1), sizeof(biquad))) {
-    ESP_LOGW(TAG, "%s writing Biquad 2 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-    return false;
-  }
-
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad3_address->page, biquad3_address->sub_addr,
-                                  reinterpret_cast<uint8_t*>(&biquad3), sizeof(biquad))) {
-    ESP_LOGW(TAG, "%s writing Biquad 3 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-    return false;
-  }
-
-  ESP_LOGD(TAG, "%s Channel EQ Preset index >> %d", LR_CHANNEL_TEXT[channel], select_preset);
-#endif
-  return true;
-}
 
 bool Tas58xxComponent::set_mute_off() {
   if (!this->is_muted_) return true;
@@ -467,7 +330,6 @@ bool Tas58xxComponent::set_mute_off() {
 }
 
 // set bit 3 MUTE in TAS58XX_DEVICE_CTRL_2 and retain current Control State
-// ensures get_state = get_power_state
 bool Tas58xxComponent::set_mute_on() {
   if (this->is_muted_) return true;
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_ + TAS58XX_MUTE_CONTROL)) return false;
@@ -476,23 +338,27 @@ bool Tas58xxComponent::set_mute_on() {
   return true;
 }
 
-// used by fault sensor
-uint32_t Tas58xxComponent::times_faults_cleared() {
-  return this->times_faults_cleared_;
-}
-
 // override for audio_dac component volume, so mediaplayer can determine current volume of tas58xx dac
 float Tas58xxComponent::volume() {
-  uint8_t raw_volume;
-  this->get_digital_volume_(&raw_volume);
+  uint8_t raw_volume = 254; // default to lowest raw volume if i2c read error
+  this->tas58xx_read_bytes_(TAS58XX_DIG_VOL_CTRL, &raw_volume, 1);
   return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
 }
 
+// controls both left and right channel digital volume
+// digital volume is 24 dB to -103 dB in -0.5 dB step
+// 00000000: +24.0 dB
+// 00000001: +23.5 dB
+// 00101111: +0.5 dB
+// 00110000: 0.0 dB
+// 00110001: -0.5 dB
+// 11111110: -103 dB
+// 11111111: Mute
 // override for audio_dac component set_volume, so mediaplayer can adjust volume of tas58xx dac
 bool Tas58xxComponent::set_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
   uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
-  if (!this->set_digital_volume_(raw_volume)) return false;
+  if (!this->tas58xx_write_byte_(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
     int8_t dB = -(raw_volume / 2) + 24;
     ESP_LOGV(TAG, "Volume >> %ddB", dB);
@@ -501,14 +367,6 @@ bool Tas58xxComponent::set_volume(float volume) {
 }
 
 // protected //
-
-bool Tas58xxComponent::get_analog_gain_(uint8_t* raw_gain) {
-  uint8_t current;
-  if (!this->tas58xx_read_bytes_(TAS58XX_AGAIN, &current, 1)) return false;
-  // remove top 3 reserved bits
-  *raw_gain = current & 0x1F;
-  return true;
-}
 
 // Analog Gain Control , with 0.5dB one step
 // lower 5 bits controls the analog gain.
@@ -532,18 +390,6 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
 
   ESP_LOGD(TAG, "Analog Gain >> %fdB", gain_db);
   return true;
-}
-
-bool Tas58xxComponent::get_dac_mode_(DacMode* mode) {
-    uint8_t current_value;
-    if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &current_value, 1)) return false;
-    if (current_value & (1 << 2)) {
-        *mode = PBTL;
-    } else {
-        *mode = BTL;
-    }
-    this->tas58xx_dac_mode_ = *mode;
-    return true;
 }
 
 // only runs once from 'setup'
@@ -591,77 +437,6 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
   #endif
-  return true;
-}
-
-bool Tas58xxComponent::get_digital_volume_(uint8_t* raw_volume) {
-  uint8_t current = 254; // lowest raw volume
-  if (!this->tas58xx_read_bytes_(TAS58XX_DIG_VOL_CTRL, &current, 1)) return false;
-  *raw_volume = current;
-  return true;
-}
-
-// controls both left and right channel digital volume
-// digital volume is 24 dB to -103 dB in -0.5 dB step
-// 00000000: +24.0 dB
-// 00000001: +23.5 dB
-// 00101111: +0.5 dB
-// 00110000: 0.0 dB
-// 00110001: -0.5 dB
-// 11111110: -103 dB
-// 11111111: Mute
-bool Tas58xxComponent::set_digital_volume_(uint8_t raw_volume) {
-  if (!this->tas58xx_write_byte_(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
-  return true;
-}
-
-bool Tas58xxComponent::get_eq_mode_(EqMode* current_mode) {
-  *current_mode = this->tas58xx_eq_mode_;
-  return true;
-}
-
-bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
-#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
-  this->tas58xx_eq_mode_ = new_mode;
-
-#ifdef USE_TAS5805M_DAC
-  if (!this->tas58xx_write_byte_(TAS5805M_DSP_MISC, TAS5805M_CTRL_EQ[new_mode])) {
-    ESP_LOGW(TAG, "%s writing Eq Mode: %s", ERROR, EQ_MODE_TEXT[new_mode]);
-    return false;
-  }
-#else
-  const EqModeCoefficients* eq_mode_coefficients = &TAS5825M_CTRL_EQ[new_mode];
-  if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS5825M_EQ_MODE_CTRL_PAGE, TAS5825M_GANG_EQ,
-                                  reinterpret_cast<uint8_t*>(const_cast<EqModeCoefficients*>(eq_mode_coefficients)), sizeof(EqModeCoefficients))) {
-    ESP_LOGW(TAG, "%s writing Eq Mode: %s", ERROR, EQ_MODE_TEXT[new_mode]);
-    return false;
-  }
-#endif
-
-  ESP_LOGD(TAG, "EQ Mode >> %s", EQ_MODE_TEXT[new_mode]);
-#endif
-  return true;
-}
-
-// only runs once from 'setup'
-bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
-  static constexpr uint8_t MODULATION_MASK = 0b11111100; // bits 0 and 1 are modulation
-
-  uint8_t value;
-  if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &value, 1)) return false;
-
-  value = value & (MODULATION_MASK + static_cast<uint8_t>(modulation));
-
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, value)) return false;
-
-  // save so 'set_modulation_scheme_' could be used more generally
-  this->tas58xx_modulation_scheme_ = modulation;
-  ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode");
-  return true;
-}
-
-bool Tas58xxComponent::get_state_(ControlState* state) {
-  *state = this->tas58xx_control_state_;
   return true;
 }
 
@@ -856,7 +631,6 @@ void Tas58xxComponent::configure_active_fault_sensors_() {
 // if no binary sensors are defined faults registers are never cleared
 bool Tas58xxComponent::clear_fault_registers_() {
   if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
-  this->times_faults_cleared_++; // if a faults cleared sensor is defined, it is populated from this->times_faults_cleared_
   ESP_LOGD(TAG, "Fault registers cleared");
   return true;
 }
@@ -995,48 +769,6 @@ void Tas58xxComponent::i2s_close_channel_() {
 bool Tas58xxComponent:: book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes) {
   if (!this->set_book_and_page_(book, page)) return false;
   if (!this->tas58xx_write_bytes_(sub_addr, data, number_bytes)) return false;
-
-  // reset book and page to zero
-  return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
-}
-
-// write up to 20 bytes (BIQUAD_SIZE) to a book and page starting at subaddress
-// limited to writing across one page boundary as is required for tas5805m while tas5825m has biquads aligned to page boundaries
-bool Tas58xxComponent::biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* biquad, uint8_t number_bytes) {
-  // Biquad addressing constants
-  static constexpr uint8_t PAGE_SIZE = 0x80;           		// 0x7F + 1 = 0x80
-  static constexpr uint8_t MINIMUM_PAGE_SUBADDR = 0x08;   // start subaddr for pages = 0x08
-
-  // check for usage error on number bytes to write
-  if (number_bytes != BIQUAD_SIZE) {
-    ESP_LOGE(TAG, "Incorrect biquad size");
-    return false;
-  }
-
-  uint8_t bytes_in_block1{BIQUAD_SIZE};
-  uint8_t bytes_in_block2{0};
-
-  if ((sub_addr + BIQUAD_SIZE) > PAGE_SIZE) {
-    bytes_in_block1 = PAGE_SIZE - sub_addr;
-    bytes_in_block2 = BIQUAD_SIZE - bytes_in_block1;
-  }
-
-  if (!this->set_book_and_page_(book, page)) return false;
-  if (!this->tas58xx_write_bytes_(sub_addr, biquad, bytes_in_block1)) return false;
-
-  if (bytes_in_block2 != 0) {
-    uint8_t next_page = page + 1;
-
-    //ESP_LOGD(TAG, "Writing new page:0x%02X", next_page);
-
-    // book already set so just change to next page
-    if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, next_page)) {
-      ESP_LOGW(TAG, "%s setting next page", ERROR);
-      return false;
-    }
-
-    if (!this->tas58xx_write_bytes_(MINIMUM_PAGE_SUBADDR, biquad + bytes_in_block1, bytes_in_block2)) return false;
-  }
 
   // reset book and page to zero
   return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
