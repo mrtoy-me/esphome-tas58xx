@@ -152,10 +152,10 @@ void Tas58xxComponent::update() {
   if (trigger_clear_faults) {
     if (!this->write_byte(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
       ESP_LOGW(TAG, "%s clearing fault registers", ERROR);
-      return false;
+      return;
     }
     ESP_LOGD(TAG, "Fault registers cleared");
-    return true;
+    return;
   }
 #endif
 }
