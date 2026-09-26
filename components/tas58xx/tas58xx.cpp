@@ -260,7 +260,7 @@ bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
     right_to_left = TAS5805M_MIXER_0DB;
     left_to_right = TAS5805M_MIXER_0DB;
     right_to_right = TAS5805M_MIXER_MUTE;
-  } else if (mode_ == MONO) {
+  } else if (mode == MONO) {
     left_to_left = TAS5805M_MIXER_MINUS_6DB;
     right_to_left = TAS5805M_MIXER_MINUS_6DB;
     left_to_right = TAS5805M_MIXER_MINUS_6DB;
@@ -285,6 +285,7 @@ bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
   if (ok) {
     this->tas58xx_input_mixer_mode_ = mode;
     ESP_LOGD(TAG, "Input %s >> %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
+  }
   return ok;
 }
 
