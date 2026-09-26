@@ -255,36 +255,38 @@ bool Tas58xxComponent::set_input_mixer_mode_(InputMixerMode mode) {
   uint8_t left_to_right = TAS5805M_MIXER_MUTE;
   uint8_t right_to_right = TAS5805M_MIXER_0DB;
 
-  if (this->mixer_mode_ == STEREO_INVERSE) {
+  if (mode == STEREO_INVERSE) {
     left_to_left = TAS5805M_MIXER_MUTE;
     right_to_left = TAS5805M_MIXER_0DB;
     left_to_right = TAS5805M_MIXER_0DB;
     right_to_right = TAS5805M_MIXER_MUTE;
-  } else if (this->mixer_mode_ == MONO) {
+  } else if (mode_ == MONO) {
     left_to_left = TAS5805M_MIXER_MINUS_6DB;
     right_to_left = TAS5805M_MIXER_MINUS_6DB;
     left_to_right = TAS5805M_MIXER_MINUS_6DB;
     right_to_right = TAS5805M_MIXER_MINUS_6DB;
-  } else if (this->mixer_mode_ == LEFT) {
+  } else if (mode == LEFT) {
     left_to_right = TAS5805M_MIXER_0DB;
     right_to_right = TAS5805M_MIXER_MUTE;
-  } else if (this->mixer_mode_ == RIGHT) {
+  } else if (mode == RIGHT) {
     left_to_left = TAS5805M_MIXER_MUTE;
     right_to_left = TAS5805M_MIXER_0DB;
   }
 
   const uint8_t coefficients[4 * TAS5805M_MIXER_COEFFICIENT_SIZE] = {0, left_to_left,  0, 0, 0, right_to_left,  0, 0,
                                                                      0, left_to_right, 0, 0, 0, right_to_right, 0, 0};
-  if (!this->book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE, TAS58XX_MIXER_GAIN_SUBADDR,
-                                      coefficients, sizeof(coefficients))) {
-    ESP_LOGW(TAG, "%s writing Input %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
-    return false;
-  }
-  ESP_LOGD(TAG, "Input %s >> %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
-  this->tas58xx_input_mixer_mode_ = mode;
-  return true;
-}
 
+  bool ok = this->set_book_and_page_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_MIXER_GAIN_PAGE) &&
+            this->write_bytes(TAS58XX_MIXER_GAIN_SUBADDR, coefficients, sizeof(coefficients));
+  if (!ok) {
+    ESP_LOGW(TAG, "%s writing Input %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
+  }
+  ok = this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO) && ok;
+  if (ok) {
+    this->tas58xx_input_mixer_mode_ = mode;
+    ESP_LOGD(TAG, "Input %s >> %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
+  return ok;
+}
 
 bool Tas58xxComponent::set_mute_off() {
   if (!this->is_muted_) return true;
@@ -684,15 +686,6 @@ void Tas58xxComponent::i2s_close_channel_() {
     gpio_set_level(this->dout_pin_, 0);
   }
   this->parent_->unlock();  // unconditional — always attempts release, matches built-in speaker component
-}
-
-// use only when writing bytes to contiguous addresses
-bool Tas58xxComponent:: book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes) {
-  if (!this->set_book_and_page_(book, page)) return false;
-  if (!this->write_bytes(sub_addr, data, number_bytes)) return false;
-
-  // reset book and page to zero
-  return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
 }
 
 bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {

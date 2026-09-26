@@ -147,7 +147,6 @@ class Tas58xxComponent final : public audio_dac::AudioDac, public PollingCompone
    void i2s_close_channel_();
 
    bool set_book_and_page_(uint8_t book, uint8_t page);
-   bool book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes);
 
    bool i2s_sync_successful_{false};
    size_t i2s_sync_byte_count_{0};
