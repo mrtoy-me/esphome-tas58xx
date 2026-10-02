@@ -172,7 +172,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    uint8_t tas58xx_channel_preset_[NUMBER_CHANNELS]{0};
    int8_t tas58xx_channel_volume_[NUMBER_CHANNELS]{0};
 
-   ControlState tas58xx_control_state_; // initialised in setup
+   ControlState tas58xx_control_state_{CTRL_HI_Z}; // matches the Hi-Z state the register table leaves
 
    DacMode tas58xx_dac_mode_; // configured in YAML
 
