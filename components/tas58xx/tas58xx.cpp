@@ -66,8 +66,6 @@ bool Tas58xxComponent::configure_registers_() {
   this->number_registers_configured_ = counter;
 
   // enable Tas58xx
-  if (!this->set_deep_sleep_off_()) return false;
-
   if (!this->set_modulation_scheme_(this->tas58xx_modulation_scheme_)) return false;
 
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
@@ -666,12 +664,30 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
 }
 
 bool Tas58xxComponent::set_deep_sleep_off_() {
+  if (this->is_failed()) return false;
   if (this->tas58xx_control_state_ != CTRL_DEEP_SLEEP) return true; // already not in deep sleep
-  // preserve mute state
-  uint8_t new_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, new_value)) return false;
+  if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) {
+    ESP_LOGE(TAG, "Select Book-Page failed");
+    return false;
+  }
 
-  this->tas58xx_control_state_ = CTRL_PLAY;                        // set Control State to play
+  // deep sleep off needs this sequence - tas5805 datasheet 7.4.5
+  // write Hi-Z and preserve mute state
+  uint8_t hiz_value = (this->is_muted_) ? (CTRL_HI_Z + TAS58XX_MUTE_CONTROL) : CTRL_HI_Z;
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, hiz_value)) return false;
+
+  // write Deep Sleep and preserve mute state
+  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value )) return false;
+
+  // write Hi-Z and preserve mute state
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, hiz_value)) return false;
+
+  // write play and preserve mute state
+  ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
+
+  this->tas58xx_control_state_ = CTRL_PLAY;                        // save Control State as play
   ESP_LOGV(TAG, "Deep Sleep >> Off");
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
@@ -680,11 +696,15 @@ bool Tas58xxComponent::set_deep_sleep_off_() {
 }
 
 bool Tas58xxComponent::set_deep_sleep_on_() {
+  if (this->is_failed()) return false;
   if (this->tas58xx_control_state_ == CTRL_DEEP_SLEEP) return true; // already in deep sleep
-
+  if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) {
+    ESP_LOGE(TAG, "Select Book-Page failed");
+    return false;
+  }
   // preserve mute state
-  uint8_t new_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, new_value)) return false;
+  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
 
   this->tas58xx_control_state_ = CTRL_DEEP_SLEEP;                   // set Control State to deep sleep
   ESP_LOGV(TAG, "Deep Sleep >> On");
@@ -965,30 +985,6 @@ bool Tas58xxComponent::biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t s
   // reset book and page to zero
   return this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO);
 }
-
-// void Tas58xxComponent::log_biquad_(uint8_t* biquad) {
-//   for (uint8_t i = 0; i < BIQUAD_SIZE; i++) {
-//     ESP_LOGD(TAG, "Biquad byte:%d value: %02x", i+1, *(biquad + i));
-//   }
-// }
-
-// bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
-//   ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
-
-//   if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
-//     ESP_LOGE(TAG, "%s setting page: 0x00", ERROR);
-//     return false;
-//   }
-//   if (!this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
-//     ESP_LOGE(TAG, "%s setting book: 0x%02X", ERROR, book);
-//     return false;
-//   }
-//   if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
-//     ESP_LOGE(TAG, "%s setting page: 0x%02X", ERROR, page);
-//     return false;
-//   }
-//   return true;
-// }
 
 bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
   //ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
