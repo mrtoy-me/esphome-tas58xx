@@ -72,7 +72,8 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
-  if (!this->set_state_(CTRL_PLAY)) return false;
+  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
 
   this->start_time_ = App.get_loop_component_start_time();
   return true;
@@ -681,6 +682,7 @@ bool Tas58xxComponent::set_deep_sleep_off_() {
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value )) return false;
 
   // write Hi-Z and preserve mute state
+  hiz_value = (this->is_muted_) ? (CTRL_HI_Z + TAS58XX_MUTE_CONTROL) : CTRL_HI_Z;
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, hiz_value)) return false;
 
   // write play and preserve mute state
