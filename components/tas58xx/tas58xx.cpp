@@ -778,11 +778,10 @@ bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
   uint8_t value;
   if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &value, 1)) return false;
 
-  value = value & (MODULATION_MASK + static_cast<uint8_t>(modulation));
-
+  value = (value & MODULATION_MASK) | modulation;
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, value)) return false;
 
-  // save so 'set_modulation_scheme_' could be used more generally
+  // save, so 'set_modulation_scheme_' could be used more generally
   this->tas58xx_modulation_scheme_ = modulation;
   ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode");
   return true;
