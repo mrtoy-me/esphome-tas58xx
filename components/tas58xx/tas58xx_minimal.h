@@ -68,9 +68,9 @@ static constexpr Tas58xxConfiguration TAS58XX_CONFIG[] = {
     {0x03, 0x02},  // DEVICE_CTRL_2: Hi-Z
 
     // Additional register configuration
-    // GPIO0 is a dedicated pin (separate from ADR), configured as the FAULTZ output
-    {0x61, 0x0B},  // GPIO0_SEL: GPIO0 as FAULTZ
-    {0x60, 0x01},  // GPIO_CTRL: GPIO0 is output
+    // GPIO1 is a dedicated pin on TAS5825M (separate from ADR) which is commonly used for reporting faults
+    {0x62, 0x0B},  // GPIO1_SEL: GPIO0 as FAULTZ
+    {0x60, 0x10},  // GPIO1_CTRL: GPIO1 is output
     {0x77, 0x07},  // CBC_CONTROL: enable cycle-by-cycle current limit for warnings and faults
 #endif
 };
