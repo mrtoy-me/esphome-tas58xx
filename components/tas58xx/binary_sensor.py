@@ -13,11 +13,11 @@ CONF_LEFT_CHANNEL_DC_FAULT = "left_channel_dc_fault"
 CONF_RIGHT_CHANNEL_DC_FAULT = "right_channel_dc_fault"
 CONF_LEFT_CHANNEL_OVER_CURRENT = "left_channel_over_current"
 CONF_RIGHT_CHANNEL_OVER_CURRENT = "right_channel_over_current"
-CONF_OTP_CRC_ERROR = "otp_crc_check"
+CONF_OTP_CRC_CHECK = "otp_crc_check"
 CONF_BQ_WRITE_FAILED = "bq_write_failed"
-CONF_CLOCK_FAULT = "clock fault"
-CONF_PVDD_OVER_VOLTAGE = "pcdd_over_voltage"
-CONF_PVDD_UNDER_VOLTAGE = "pcdd_under_voltage"
+CONF_CLOCK_FAULT = "clock_fault"
+CONF_PVDD_OVER_VOLTAGE = "pvdd_over_voltage"
+CONF_PVDD_UNDER_VOLTAGE = "pvdd_under_voltage"
 CONF_OVER_TEMP_SHUTDOWN = "over_temp_shutdown"
 CONF_OVER_TEMP_WARNING = "over_temp_warning"
 
@@ -58,7 +58,7 @@ CONFIG_SCHEMA = {
         device_class=DEVICE_CLASS_PROBLEM,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
     ),
-    cv.Optional(CONF_OTP_CRC_ERROR): binary_sensor.binary_sensor_schema(
+    cv.Optional(CONF_OTP_CRC_CHECK): binary_sensor.binary_sensor_schema(
         device_class=DEVICE_CLASS_PROBLEM,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
     ),
@@ -113,7 +113,7 @@ async def to_code(config):
         sens = await binary_sensor.new_binary_sensor(has_fault_config)
         cg.add(tas58xx_component.set_right_channel_over_current_fault_binary_sensor(sens))
 
-    if has_fault_config := config.get(CONF_OTP_CRC_ERROR):
+    if has_fault_config := config.get(CONF_OTP_CRC_CHECK):
         sens = await binary_sensor.new_binary_sensor(has_fault_config)
         cg.add(tas58xx_component.set_otp_crc_check_error_binary_sensor(sens))
 
