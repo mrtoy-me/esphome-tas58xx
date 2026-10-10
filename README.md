@@ -198,12 +198,11 @@ Example configuration:
 audio_dac:
   - platform: tas58xx
     id: tas5825_dac
-    tas85xx_dac: TAS5825M # for Tas5805m DAC use tas85xx_dac: TAS5805M
+    tas58xx_dac: TAS5825M # for Tas5805m DAC use tas58xx_dac: TAS5805M
     enable_pin: GPIOxx
     analog_gain: -9db
     modulation: BD_MODE # default can be omitted; for 1SPW Mode use modulation: 1SPW_MODE
     dac_mode: BTL
-    modulation: BD_MODE # default can be omitted
     mixer_mode: STEREO # default can be omitted
     volume_max: 0dB
     volume_min: -60db
@@ -212,7 +211,7 @@ audio_dac:
     update_interval: 1s
 ```
 Configuration variables:
-- **tas85xx_dac:** (*Required*): valid values TAS5805M or TAS5825M. Defaults to TAS5805M
+- **tas58xx_dac:** (*Optional*): valid values TAS5805M or TAS5825M. Defaults to TAS5805M
 
 - **enable_pin:** (*Required*): GPIOxx, enable pin
 
@@ -222,8 +221,6 @@ Configuration variables:
 - **modulation:** (*Optional*): valid values BD_MODE or 1SPW_MODE. Defaults to BD_MODE.
 
 - **dac_mode:** (*Optional*): valid values BTL or PBTL. Defaults to BTL.
-
-- **modulation:** (*Optional*): valid values BD_MODE or 1SPW_MODE. Defaults to BD_MODE.
 
 - **mixer_mode:** (*Optional*): values STEREO, INVERSE_STEREO, MONO, LEFT or RIGHT
   Defaults to STEREO. Note: for PBTL Dac Mode, only MONO, LEFT or RIGHT are valid.
