@@ -4,7 +4,6 @@
 #include "esphome/core/component.h"
 #include "esphome/components/i2c/i2c.h"
 #include "esphome/core/hal.h"
-#include "esphome/core/log.h"
 
 #include "tas58xx_defs.h"
 #include "tas58xx_eq_common.h"
@@ -13,11 +12,6 @@
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
-#endif
-
-// ESPHOME_LOG_TAG is not in released ESPHome yet (dev only), provide a fallback
-#ifndef ESPHOME_LOG_TAG
-#define ESPHOME_LOG_TAG(name, tag) static constexpr const char *const name = tag
 #endif
 
 namespace esphome::tas58xx {
