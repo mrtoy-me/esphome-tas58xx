@@ -53,8 +53,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void config_input_mixer_mode(InputMixerMode mixer_mode) {this->tas58xx_input_mixer_mode_ = mixer_mode; }
 
-  void config_refresh_eq(EqRefreshMode eq_refresh) { this->eq_refresh_ = eq_refresh; }
-
   // configured maximum and minimum with units dB
   void config_volume_max(float volume_max) { this->tas58xx_volume_max_ = static_cast<int8_t>(volume_max); }
   void config_volume_min(float volume_min) { this->tas58xx_volume_min_ = static_cast<int8_t>(volume_min); }
@@ -106,7 +104,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   uint32_t times_faults_cleared();
 
-  bool using_manual_eq_refresh();
 
   float volume() override { return this->tas58xx_volume_; }
   bool set_volume(float value) override;
@@ -117,6 +114,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool configure_registers_();
 
    bool is_dac_playing_();
+   bool can_write_dsp_();
    bool write_dsp_settings_();
 
    bool set_analog_gain_(float gain_db);
@@ -162,8 +160,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    } error_code_{NONE};
 
    // configured by YAML
-   EqRefreshMode eq_refresh_;  // YAML default 'AUTO' = 0
-
 #ifdef USE_TAS58XX_BINARY_SENSOR
    bool exclude_clock_fault_from_have_faults_; // YAML default = true
 #endif
@@ -212,6 +208,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    //// utility variables used by update and dump_config
    bool dsp_ready_{false}; // DSP settings are written only once the I2S clock has been seen
+   bool writing_dsp_settings_{false}; // set while write_dsp_settings_ runs
 
    bool update_delay_finished_{false}; // use to indicate if delay before starting 'update' starting is complete
 

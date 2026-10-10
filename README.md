@@ -175,18 +175,11 @@ speaker:
 Snapcast client components drive I2S directly and do not notify the component when audio starts.
 In this case, the component checks at each **update_interval:** whether the DAC is playing,
 and writes the settings once it is. This also applies to a speaker without **audio_dac:** configured.
+No additional configuration is required.
 
-Optionally, **refresh_eq: MANUAL** can be configured under **audio_dac:**. With this option
-the EQ Mode Select starts as Off. Moving the EQ Mode Select from Off to the
-relevant EQ Mode while audio is playing writes the settings immediately and turns EQ on.
-This requires **select: - platform: tas58xx** with **eq_mode:** to be configured:
-
-```
-select:
-  - platform: tas58xx
-    eq_mode:
-      name: EQ Mode
-```
+## Changing settings when audio is not playing
+Settings changed in Homeassistant while the DAC is playing are written straight away.
+Settings changed while no audio is playing are saved and written when audio next starts.
 
 
 # YAML configuration
@@ -207,7 +200,6 @@ audio_dac:
     volume_max: 0dB
     volume_min: -60db
     ignore_fault: CLOCK_FAULT # default can be omitted
-    refresh_eq: AUTO # default can be omitted
     update_interval: 1s
 ```
 Configuration variables:
@@ -232,10 +224,8 @@ Configuration variables:
 - **ignore_fault:** (*Optional*): Valid options are **CLOCK_FAULT** and **NONE**. Default is **CLOCK_FAULT**.
   That is, by default clock faults are ignored when determining if fault registers require clearing. To trigger clearing of fault registers on any fault condition, specify **ignore_fault: NONE**
 
-- **refresh_eq:** (*Optional*): valid values **AUTO** or **MANUAL**. Default is **AUTO**.
-  With **AUTO** the settings are written when audio is first played. With **MANUAL** the EQ Mode Select starts as Off
-  and moving it to the EQ Mode while audio is playing writes the settings and turns EQ on.
-  See information under "Activation of Mixer mode and EQ Gains" section above.
+- **refresh_eq:** (*Optional*): no longer used and can be removed. It is still accepted, so existing
+  configurations remain valid. See "Activation of Mixer mode and EQ Gains" section above.
 
 - **update_interval:** (*Optional*): defines the interval (seconds) at which faults will be
   checked and then if detected, the clearing of the fault registers will occur at next interval. Defaults to 1s. **Note:** update interval cannot be reduced below 1s.
@@ -267,8 +257,7 @@ The EQ Mode select option (in addition to Off) is determined based on the YAML c
 - 15 x Left EQ Gains and 15 x Right EQ Gains configured -> **EQ BIAMP 15 Band**
 - EQ Preset Left Channel and EQ Preset Right Channel frequency cutoffs configured -> **EQ Presets**
 
-If the audio_dac: refresh_eq: option is MANUAL then on startup the EQ Mode Select is initially selected Off.
-Whereas, if audio_dac: option refresh_eq: AUTO then on startup the EQ Mode Select is initially selected the relevant Eq Mode.
+On startup the EQ Mode Select is initially selected the relevant Eq Mode.
 
 
 # EQ Control configuration

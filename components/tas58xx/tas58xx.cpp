@@ -95,9 +95,21 @@ bool Tas58xxComponent::is_dac_playing_() {
   return (power_state & POWER_STATE_MASK) == CTRL_PLAY;
 }
 
+// true if DSP settings can be written now. If the tas58xx is not playing (no I2S clock)
+// the value is only saved and all settings are rewritten at the next audio start or update
+bool Tas58xxComponent::can_write_dsp_() {
+  if (!this->dsp_ready_) return false;
+  if (this->writing_dsp_settings_ || this->is_dac_playing_()) return true;
+  this->dsp_ready_ = false;
+  ESP_LOGD(TAG, "DAC not playing, settings written at next audio start");
+  return false;
+}
+
 bool Tas58xxComponent::write_dsp_settings_() {
   // setters only save their value until dsp_ready_ is set
+  // callers have checked the I2S clock is running, so setters skip that check while writing
   this->dsp_ready_ = true;
+  this->writing_dsp_settings_ = true;
   bool ok = true;
 
   // setup Eq Mode first
@@ -155,6 +167,7 @@ bool Tas58xxComponent::write_dsp_settings_() {
   }
 #endif // USE_TAS58XX_EQ_PRESETS
 
+  this->writing_dsp_settings_ = false;
   if (!ok) {
     // retried at next audio start or update
     this->dsp_ready_ = false;
@@ -242,15 +255,13 @@ void Tas58xxComponent::dump_config() {
               "  Mixer Mode: %s\n"
               "  Volume Maximum: %idB\n"
               "  Volume Minimum: %idB\n"
-              "  Ignore Fault: %s\n"
-              "  Refresh EQ: %s\n",
+              "  Ignore Fault: %s\n",
               this->number_registers_configured_, this->tas58xx_analog_gain_,
               this->tas58xx_modulation_scheme_ ? LOG_STR_LITERAL("1SPW Mode") : LOG_STR_LITERAL("BD Mode"),
               this->tas58xx_dac_mode_ ? LOG_STR_LITERAL("PBTL") : LOG_STR_LITERAL("BTL"),
               INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_],
               this->tas58xx_volume_max_, this->tas58xx_volume_min_,
-              this->ignore_clock_faults_when_clearing_faults_ ? LOG_STR_LITERAL("CLOCK FAULTS") : LOG_STR_LITERAL("NONE"),
-              this->eq_refresh_ ? LOG_STR_LITERAL("MANUAL") : LOG_STR_LITERAL("AUTO")
+              this->ignore_clock_faults_when_clearing_faults_ ? LOG_STR_LITERAL("CLOCK FAULTS") : LOG_STR_LITERAL("NONE")
               );
       LOG_UPDATE_INTERVAL(this);
       break;
@@ -302,7 +313,7 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
   this->tas58xx_input_mixer_mode_ = mode;
 
   // only save until the I2S clock has been seen
-  if (!this->dsp_ready_) {
+  if (!this->can_write_dsp_()) {
      ESP_LOGD(TAG, "Save %s: %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
      return true;
   }
@@ -383,7 +394,7 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
   this->tas58xx_channel_volume_[channel] = volume_dB;
 
   // only save until the I2S clock has been seen
-  if (!this->dsp_ready_) {
+  if (!this->can_write_dsp_()) {
     ESP_LOGD(TAG, "Save %s Channel Volume: %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
     return true;
   }
@@ -405,14 +416,8 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 void Tas58xxComponent::select_eq_mode(uint8_t select_index) {
   if ( select_index == static_cast<uint8_t>(EqMode::EQ_OFF) ) {
     this->set_eq_mode_(EqMode::EQ_OFF);
-    return;
-  }
-  this->set_eq_mode_(this->configured_eq_mode_);
-
-  // refresh_eq: MANUAL - moving Select EQ Mode from Off to an Eq Mode while audio is playing writes the DSP settings
-  if (!this->dsp_ready_ && this->using_manual_eq_refresh() && !this->is_failed() && this->is_dac_playing_()) {
-    ESP_LOGD(TAG, "EQ Mode Select manually triggered writing DSP settings");
-    this->write_dsp_settings_();
+  } else {
+    this->set_eq_mode_(this->configured_eq_mode_);
   }
 }
 
@@ -435,7 +440,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   this->tas58xx_eq_gain_[channel][band_index] = gain;
 
   // only save until the I2S clock has been seen
-  if (!this->dsp_ready_) {
+  if (!this->can_write_dsp_()) {
     ESP_LOGD(TAG, "Save %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return true;
   }
@@ -483,7 +488,7 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
   this->tas58xx_channel_preset_[channel] = select_preset;
 
   // only save until the I2S clock has been seen
-  if (!this->dsp_ready_) {
+  if (!this->can_write_dsp_()) {
     ESP_LOGD(TAG, "Save %s Channel EQ Preset index: %d", LR_CHANNEL_TEXT[channel], select_preset);
     return true;
   }
@@ -553,11 +558,6 @@ bool Tas58xxComponent::set_mute_on() {
 // used by fault sensor
 uint32_t Tas58xxComponent::times_faults_cleared() {
   return this->times_faults_cleared_;
-}
-
-// used by 'select eq_mode'
-bool Tas58xxComponent::using_manual_eq_refresh() {
-  return (this->eq_refresh_ == EqRefreshMode::MANUAL);
 }
 
 bool Tas58xxComponent::set_volume(float volume) {
@@ -678,7 +678,7 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
   this->tas58xx_eq_mode_ = new_mode;
 
   // only save until the I2S clock has been seen
-  if (!this->dsp_ready_) {
+  if (!this->can_write_dsp_()) {
     ESP_LOGD(TAG, "Save EQ Mode: %s", EQ_MODE_TEXT[new_mode]);
     return true;
   }

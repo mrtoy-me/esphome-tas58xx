@@ -20,11 +20,6 @@ void EqModeSelect::setup() {
     initial_select_index = EqMode::EQ_ON;
   }
 
-  // if manual eq refresh - start with Select EQ OFF, moving from Off to Eq Mode triggers writing DSP settings
-  if(this->parent_->using_manual_eq_refresh()) {
-    initial_select_index = EqMode::EQ_OFF;
-  }
-
   // based on select options enum (index) which was derived from YAML configuration
   // set size of select option as either 1 = EQ Off only or 2 = EQ Off plus one of the other EQ On options
   if (select_options_index > EqMode::EQ_OFF) {

@@ -19,11 +19,6 @@ enum ModulationScheme : uint8_t {
   MODE_1SPW = 1,
 };
 
-enum EqRefreshMode : uint8_t {
-    AUTO   = 0,
-    MANUAL = 1,
-};
-
 enum ExcludeIgnoreMode : uint8_t {
     NONE        = 0,
     CLOCK_FAULT = 1,

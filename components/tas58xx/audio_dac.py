@@ -1,3 +1,5 @@
+import logging
+
 import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
@@ -14,11 +16,9 @@ from esphome.const import (
     CONF_PLATFORM,
 )
 
-try:
-    from esphome.components.const import CONF_VOLUME_MAX, CONF_VOLUME_MIN
-except ImportError:  # esphome.components.const has these from 2026.4.0
-    CONF_VOLUME_MAX = "volume_max"  # NOLINT
-    CONF_VOLUME_MIN = "volume_min"  # NOLINT
+_LOGGER = logging.getLogger(__name__)
+
+from esphome.components.const import CONF_VOLUME_MAX, CONF_VOLUME_MIN
 
 #MULTI_CONF = True
 CODEOWNERS = ["@mrtoy-me"]
@@ -60,10 +60,10 @@ TAS5825M_I2C_ADDR = 0x4C
 tas58xx_ns = cg.esphome_ns.namespace("tas58xx")
 Tas58xxComponent = tas58xx_ns.class_("Tas58xxComponent", AudioDac, cg.PollingComponent, i2c.I2CDevice)
 
-EqRefreshMode = tas58xx_ns.enum("EqRefreshMode")
+# refresh_eq is no longer used, it is accepted so existing YAML still validates
 EQ_REFRESH_MODES = {
-     "AUTO"  : EqRefreshMode.AUTO,
-     "MANUAL": EqRefreshMode.MANUAL,
+     "AUTO"  : "AUTO",
+     "MANUAL": "MANUAL",
 }
 
 TasDac = tas58xx_ns.enum("TasDac")
@@ -103,6 +103,8 @@ ANALOG_GAINS = [-15.5, -15, -14.5, -14, -13.5, -13, -12.5, -12, -11.5, -11, -10.
                  -7.5,  -7,  -6.5,  -6,  -5.5,  -5,  -4.5,  -4,  -3.5,  -3,  -2.5,  -2, -1.5, -1, -0.5,  0]
 
 def validate_config(config):
+    if CONF_REFRESH_EQ in config:
+        _LOGGER.warning("refresh_eq is no longer used and can be removed")
     if config[CONF_DAC_MODE] == "PBTL" and (config[CONF_MIXER_MODE] == "STEREO" or config[CONF_MIXER_MODE] == "STEREO_INVERSE"):
         raise cv.Invalid("dac_mode: PBTL must have mixer_mode: MONO or RIGHT or LEFT")
     if (config[CONF_VOLUME_MAX] - config[CONF_VOLUME_MIN]) < 9:
@@ -132,7 +134,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_MIXER_MODE, default="STEREO"): cv.enum(
                         INPUT_MIXER_MODES, upper=True
             ),
-            cv.Optional(CONF_REFRESH_EQ, default="AUTO"): cv.enum(
+            cv.Optional(CONF_REFRESH_EQ): cv.enum(
                         EQ_REFRESH_MODES, upper=True
             ),
             cv.Optional(CONF_VOLUME_MAX, default=24): cv.All(
@@ -202,7 +204,6 @@ async def to_code(config):
     cg.add(var.config_modulation_scheme(config[CONF_MODULATION]))
     cg.add(var.config_ignore_fault_mode(config[CONF_IGNORE_FAULT]))
     cg.add(var.config_input_mixer_mode(config[CONF_MIXER_MODE]))
-    cg.add(var.config_refresh_eq(config[CONF_REFRESH_EQ]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
     cg.add(var.config_eq_mode(derived_eq_mode_configuration))

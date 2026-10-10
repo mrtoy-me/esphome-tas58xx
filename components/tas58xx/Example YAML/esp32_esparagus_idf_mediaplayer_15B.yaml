@@ -81,7 +81,6 @@ audio_dac:
     mixer_mode: STEREO
     volume_max: -1dB
     volume_min: -50db
-    #refresh_eq: MANUAL
     update_interval: 1s
 
 

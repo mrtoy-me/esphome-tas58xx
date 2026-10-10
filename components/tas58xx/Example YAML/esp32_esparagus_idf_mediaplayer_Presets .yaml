@@ -81,7 +81,6 @@ audio_dac:
     mixer_mode: STEREO
     volume_max: -1dB
     volume_min: -50db
-    #refresh_eq: AUTO = default when not specified; #refresh_eq: MANUAL for snapclient - activates when an EQ Mode selected
     update_interval: 1s
 
 speaker:
