@@ -1,0 +1,53 @@
+esphome:
+  name: t
+esp32:
+  variant: esp32
+  framework:
+    type: esp-idf
+external_components:
+  - source: {type: local, path: COMPDIR}
+    components: [tas58xx]
+i2c:
+  sda: GPIO21
+  scl: GPIO27
+audio_dac:
+  - platform: tas58xx
+    id: dac1
+    enable_pin: GPIO33
+    dac_mode: BTL
+number:
+  - platform: tas58xx
+    left_eq_gain_20Hz:
+      name: left 20
+    left_eq_gain_31.5Hz:
+      name: left 31.5
+    left_eq_gain_50Hz:
+      name: left 50
+    left_eq_gain_80Hz:
+      name: left 80
+    left_eq_gain_125Hz:
+      name: left 125
+    left_eq_gain_200Hz:
+      name: left 200
+    left_eq_gain_315Hz:
+      name: left 315
+    left_eq_gain_500Hz:
+      name: left 500
+    left_eq_gain_800Hz:
+      name: left 800
+    left_eq_gain_1250Hz:
+      name: left 1250
+    left_eq_gain_2000Hz:
+      name: left 2000
+    left_eq_gain_3150Hz:
+      name: left 3150
+    left_eq_gain_5000Hz:
+      name: left 5000
+    left_eq_gain_8000Hz:
+      name: left 8000
+    left_eq_gain_16000Hz:
+      name: left 16000
+select:
+  - platform: tas58xx
+    eq_mode: {name: m}
+    mixer_mode: {name: x}

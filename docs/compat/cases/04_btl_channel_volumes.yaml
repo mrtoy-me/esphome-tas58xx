@@ -1,0 +1,21 @@
+esphome:
+  name: t
+esp32:
+  variant: esp32
+  framework:
+    type: esp-idf
+external_components:
+  - source: {type: local, path: COMPDIR}
+    components: [tas58xx]
+i2c:
+  sda: GPIO21
+  scl: GPIO27
+audio_dac:
+  - platform: tas58xx
+    id: dac1
+    enable_pin: GPIO33
+    dac_mode: BTL
+number:
+  - platform: tas58xx
+    channel_volume_left: {name: L}
+    channel_volume_right: {name: R}

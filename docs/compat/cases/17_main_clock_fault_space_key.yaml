@@ -1,0 +1,31 @@
+esphome:
+  name: t
+esp32:
+  variant: esp32
+  framework:
+    type: esp-idf
+external_components:
+  - source: {type: local, path: COMPDIR}
+    components: [tas58xx]
+i2c:
+  sda: GPIO21
+  scl: GPIO27
+audio_dac:
+  - platform: tas58xx
+    id: dac1
+    enable_pin: GPIO33
+    dac_mode: BTL
+binary_sensor:
+  - platform: tas58xx
+    have_fault: {name: f, exclude: NONE}
+    left_channel_dc_fault: {name: a}
+    right_channel_dc_fault: {name: b}
+    left_channel_over_current: {name: c}
+    right_channel_over_current: {name: d}
+    otp_crc_check: {name: e}
+    bq_write_failed: {name: g}
+    clock fault: {name: h}
+    pcdd_over_voltage: {name: i}
+    pcdd_under_voltage: {name: j}
+    over_temp_shutdown: {name: k}
+    over_temp_warning: {name: l}

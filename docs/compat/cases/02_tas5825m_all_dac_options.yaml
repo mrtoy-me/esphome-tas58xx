@@ -1,0 +1,26 @@
+esphome:
+  name: t
+esp32:
+  variant: esp32
+  framework:
+    type: esp-idf
+external_components:
+  - source: {type: local, path: COMPDIR}
+    components: [tas58xx]
+i2c:
+  sda: GPIO21
+  scl: GPIO27
+audio_dac:
+  - platform: tas58xx
+    id: dac1
+    enable_pin: GPIO33
+    dac_mode: BTL
+    tas58xx_dac: TAS5825M
+    analog_gain: -9db
+    modulation: 1SPW_MODE
+    mixer_mode: MONO
+    volume_max: 0dB
+    volume_min: -60db
+    ignore_fault: NONE
+    refresh_eq: MANUAL
+    update_interval: 1s
