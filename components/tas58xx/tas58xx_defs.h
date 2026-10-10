@@ -62,6 +62,9 @@ struct Tas58xxFault {
 static constexpr float TAS58XX_MIN_ANALOG_GAIN         = -15.5;
 static constexpr float TAS58XX_MAX_ANALOG_GAIN         = 0.0;
 
+static constexpr uint8_t TAS58XX_DIG_VOL_0DB           = 0x30;
+static constexpr uint8_t TAS58XX_DIG_VOL_MINUS_103DB   = 0xFE;
+
 // set book and page registers
 static constexpr uint8_t TAS58XX_PAGE_SET              = 0x00;
 static constexpr uint8_t TAS58XX_BOOK_SET              = 0x7F;
@@ -71,18 +74,12 @@ static constexpr uint8_t TAS58XX_PAGE_ZERO             = 0x00;
 // tas58x5m registers
 static constexpr uint8_t TAS58XX_DEVICE_CTRL_1         = 0x02;
 static constexpr uint8_t TAS58XX_DEVICE_CTRL_2         = 0x03;
-static constexpr uint8_t TAS58XX_FS_MON                = 0x37;
-static constexpr uint8_t TAS58XX_BCK_MON               = 0x38;
 static constexpr uint8_t TAS58XX_DIG_VOL_CTRL          = 0x4C;
-static constexpr uint8_t TAS58XX_ANA_CTRL              = 0x53;
 static constexpr uint8_t TAS58XX_AGAIN                 = 0x54;
 static constexpr uint8_t TAS58XX_POWER_STATE           = 0x68;
 
 // TAS58XX FAULT constants
 static constexpr uint8_t TAS58XX_CHAN_FAULT            = 0x70;
-static constexpr uint8_t TAS58XX_GLOBAL_FAULT1         = 0x71;
-static constexpr uint8_t TAS58XX_GLOBAL_FAULT2         = 0x72;
-static constexpr uint8_t TAS58XX_OT_WARNING            = 0x73;
 static constexpr uint8_t TAS58XX_FAULT_CLEAR           = 0x78;
 static constexpr uint8_t TAS58XX_ANALOG_FAULT_CLEAR    = 0x80;
 

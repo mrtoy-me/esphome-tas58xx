@@ -103,7 +103,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   bool using_auto_eq_refresh();
   bool using_manual_eq_refresh();
 
-  float volume() override;
+  float volume() override { return this->tas58xx_volume_; }
   bool set_volume(float value) override;
 
  protected:
@@ -111,24 +111,19 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    bool configure_registers_();
 
-   bool get_analog_gain_(uint8_t* raw_gain);
    bool set_analog_gain_(float gain_db);
 
-   bool get_dac_mode_(DacMode* mode);
    bool set_dac_mode_(DacMode mode);
 
    bool set_deep_sleep_off_();
    bool set_deep_sleep_on_();
 
-   bool get_digital_volume_(uint8_t* raw_volume);
-   bool set_digital_volume_(uint8_t new_volume);
+   bool set_digital_volume_(uint8_t raw_volume);
 
-   bool get_eq_mode_(EqMode* current_mode);
    bool set_eq_mode_(EqMode new_mode);
 
    bool set_modulation_scheme_(ModulationScheme modulation);
 
-   bool get_state_(ControlState* state);
    bool set_state_(ControlState state);
 
    // manage faults
@@ -172,7 +167,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    uint8_t tas58xx_channel_preset_[NUMBER_CHANNELS]{0};
    int8_t tas58xx_channel_volume_[NUMBER_CHANNELS]{0};
 
-   ControlState tas58xx_control_state_; // initialised in setup
+   ControlState tas58xx_control_state_{CTRL_HI_Z}; // set to CTRL_PLAY in setup by configure_registers_
 
    DacMode tas58xx_dac_mode_; // configured in YAML
 
@@ -190,11 +185,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    ModulationScheme tas58xx_modulation_scheme_; // YAML default = BD Mode
 
-   uint8_t tas58xx_raw_volume_max_; // maximum volume as digital volume register range 254 to 0
-   uint8_t tas58xx_raw_volume_min_; // minimum volume as digital volume register range 254 to 0
+   float tas58xx_volume_{0}; // last volume written, range 0.0 to 1.0
 
    int8_t tas58xx_volume_max_;  // YAML configured maximum volume dB
-   int8_t tas58xx_volume_min_;  // YAML configured maximum volume dB
+   int8_t tas58xx_volume_min_;  // YAML configured minimum volume dB
 
    //// fault processing variables
    bool is_fault_to_clear_{false}; // false so clear fault registers is skipped on first update

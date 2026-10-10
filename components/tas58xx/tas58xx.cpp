@@ -5,6 +5,8 @@
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
 
+#include <cmath>
+
 namespace esphome::tas58xx {
 
 #ifdef USE_TAS5805M_DAC
@@ -37,10 +39,6 @@ void Tas58xxComponent::setup() {
     this->error_code_ = CONFIGURATION_FAILED;
     this->mark_failed();
   }
-
-  // rescale -103db to 24db digital volume range to register digital volume range 254 to 0
-  this->tas58xx_raw_volume_max_ = (uint8_t)((this->tas58xx_volume_max_ - 24) * -2);
-  this->tas58xx_raw_volume_min_ = (uint8_t)((this->tas58xx_volume_min_ - 24) * -2);
 }
 
 bool Tas58xxComponent::configure_registers_() {
@@ -72,8 +70,12 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
+  float initial_volume = remap<float, float>(0.0f, this->tas58xx_volume_min_, this->tas58xx_volume_max_, 0.0f, 1.0f);
+  if (!this->set_volume(initial_volume)) return false;
+
   uint8_t ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
+  this->tas58xx_control_state_ = CTRL_PLAY;
 
   this->start_time_ = App.get_loop_component_start_time();
   return true;
@@ -582,32 +584,19 @@ bool Tas58xxComponent::using_manual_eq_refresh() {
   return (this->eq_refresh_ == EqRefreshMode::MANUAL);
 }
 
-float Tas58xxComponent::volume() {
-  uint8_t raw_volume;
-  this->get_digital_volume_(&raw_volume);
-  return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
-}
-
 bool Tas58xxComponent::set_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
-  uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
+  float volume_db = remap<float, float>(new_volume, 0.0f, 1.0f, this->tas58xx_volume_min_, this->tas58xx_volume_max_);
+  // round to nearest 0.5dB step of digital volume register
+  uint8_t raw_volume = static_cast<uint8_t>(
+      lroundf(clamp(TAS58XX_DIG_VOL_0DB - volume_db * 2.0f, 0.0f, float{TAS58XX_DIG_VOL_MINUS_103DB})));
   if (!this->set_digital_volume_(raw_volume)) return false;
-  #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-    int8_t dB = -(raw_volume / 2) + 24;
-    ESP_LOGV(TAG, "Volume >> %ddB", dB);
-  #endif
+  this->tas58xx_volume_ = new_volume;
+  ESP_LOGV(TAG, "Volume >> %.1fdB", (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f);
   return true;
 }
 
 // protected //
-
-bool Tas58xxComponent::get_analog_gain_(uint8_t* raw_gain) {
-  uint8_t current;
-  if (!this->tas58xx_read_bytes_(TAS58XX_AGAIN, &current, 1)) return false;
-  // remove top 3 reserved bits
-  *raw_gain = current & 0x1F;
-  return true;
-}
 
 // Analog Gain Control , with 0.5dB one step
 // lower 5 bits controls the analog gain.
@@ -631,18 +620,6 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
 
   ESP_LOGD(TAG, "Analog Gain >> %fdB", gain_db);
   return true;
-}
-
-bool Tas58xxComponent::get_dac_mode_(DacMode* mode) {
-    uint8_t current_value;
-    if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &current_value, 1)) return false;
-    if (current_value & (1 << 2)) {
-        *mode = PBTL;
-    } else {
-        *mode = BTL;
-    }
-    this->tas58xx_dac_mode_ = *mode;
-    return true;
 }
 
 // only runs once from 'setup'
@@ -716,13 +693,6 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
   return true;
 }
 
-bool Tas58xxComponent::get_digital_volume_(uint8_t* raw_volume) {
-  uint8_t current = 254; // lowest raw volume
-  if (!this->tas58xx_read_bytes_(TAS58XX_DIG_VOL_CTRL, &current, 1)) return false;
-  *raw_volume = current;
-  return true;
-}
-
 // controls both left and right channel digital volume
 // digital volume is 24 dB to -103 dB in -0.5 dB step
 // 00000000: +24.0 dB
@@ -734,11 +704,6 @@ bool Tas58xxComponent::get_digital_volume_(uint8_t* raw_volume) {
 // 11111111: Mute
 bool Tas58xxComponent::set_digital_volume_(uint8_t raw_volume) {
   if (!this->tas58xx_write_byte_(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
-  return true;
-}
-
-bool Tas58xxComponent::get_eq_mode_(EqMode* current_mode) {
-  *current_mode = this->tas58xx_eq_mode_;
   return true;
 }
 
@@ -784,11 +749,6 @@ bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
   // save, so 'set_modulation_scheme_' could be used more generally
   this->tas58xx_modulation_scheme_ = modulation;
   ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode");
-  return true;
-}
-
-bool Tas58xxComponent::get_state_(ControlState* state) {
-  *state = this->tas58xx_control_state_;
   return true;
 }
 
