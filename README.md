@@ -472,6 +472,9 @@ one binary sensor **have_fault:** is configured.
       Valid options are **NONE** and **CLOCK_FAULT**. Default is **CLOCK_FAULT** which excludes clock faults from **have_fault** binary sensor. To include all faults, specify **exclude: NONE**.
       Excluding clock faults by default is implemented since a clock fault is essentially a warning about unexpected behavior of the I2S clock and Esphome idf mediaplayers generate clock faults because I2S is manipulated to guarentee timing.
 
+**pvdd_over_voltage:** and **pvdd_under_voltage:**
+  - The original misspelled keys **pcdd_over_voltage:** and **pcdd_under_voltage:** are still accepted.
+
 **over_temp_warning:**
   - To attempt to mitigate an over temperature upon receiving a over temperature, the volume can be decreased using **interval:** configuration.
     For this YAML to take effect, the **mediaplayer:**  configuration must include configuration of the **volume_increment:**.
@@ -500,10 +503,10 @@ binary_sensor:
       name: BQ Write Failure
     clock_fault:
       name: I2S Clock Fault
-    pcdd_over_voltage:
-      name: PCDD Over Voltage
-    pcdd_under_voltage:
-      name: PCDD Under Voltage
+    pvdd_over_voltage:
+      name: PVDD Over Voltage
+    pvdd_under_voltage:
+      name: PVDD Under Voltage
     over_temp_shutdown:
       name: Over Temperature Shutdown Fault
     over_temp_warning:

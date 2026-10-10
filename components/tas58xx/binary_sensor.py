@@ -16,8 +16,8 @@ CONF_RIGHT_CHANNEL_OVER_CURRENT = "right_channel_over_current"
 CONF_OTP_CRC_CHECK = "otp_crc_check"
 CONF_BQ_WRITE_FAILED = "bq_write_failed"
 CONF_CLOCK_FAULT = "clock_fault"
-CONF_PVDD_OVER_VOLTAGE = "pcdd_over_voltage"  # NOLINT
-CONF_PVDD_UNDER_VOLTAGE = "pcdd_under_voltage"  # NOLINT
+CONF_PVDD_OVER_VOLTAGE = "pvdd_over_voltage"
+CONF_PVDD_UNDER_VOLTAGE = "pvdd_under_voltage"
 CONF_OVER_TEMP_SHUTDOWN = "over_temp_shutdown"
 CONF_OVER_TEMP_WARNING = "over_temp_warning"
 
@@ -90,9 +90,10 @@ _BINARY_SENSOR_SCHEMA = cv.Schema(
     }
 )
 
-# accept the original "clock fault" key so existing YAML keeps working
+# also accept the original (misspelled) pcdd_ keys so existing YAML keeps working
 CONFIG_SCHEMA = cv.All(
-    cv.rename_key("clock fault", CONF_CLOCK_FAULT),
+    cv.rename_key("pcdd_over_voltage", CONF_PVDD_OVER_VOLTAGE),
+    cv.rename_key("pcdd_under_voltage", CONF_PVDD_UNDER_VOLTAGE),
     _BINARY_SENSOR_SCHEMA,
 )
 
