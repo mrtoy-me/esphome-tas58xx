@@ -3,7 +3,6 @@
 #include "tas58xx_helpers.h"
 
 #include "esphome/core/log.h"
-#include "esphome/core/application.h"
 
 #include <cmath>
 
@@ -21,7 +20,6 @@ static constexpr const char* EQ_BAND = "EQ Band";
 
 static constexpr uint8_t TAS58XX_MUTE_CONTROL = 0x08; // bit mask for mute control
 
-static constexpr uint16_t INITIAL_UPDATE_DELAY = 4000;  // initial ms delay before starting fault updates
 
 void Tas58xxComponent::setup() {
   ESP_LOGCONFIG(TAG, "Running setup");
@@ -73,7 +71,10 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_state_(CTRL_PLAY, this->is_muted_)) return false;
 
-  this->start_time_ = App.get_loop_component_start_time();
+  // clear any faults latched while the tas58xx was powering up
+  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
+    ESP_LOGW(TAG, "%s initialising faults", ERROR);
+  }
   return true;
 }
 
@@ -182,29 +183,6 @@ void Tas58xxComponent::update() {
     this->write_dsp_settings_();
   }
 
-  // initial delay before proceeding with updates
-  if (!this->update_delay_finished_) {
-    const uint32_t current_time = App.get_loop_component_start_time();
-    this->update_delay_finished_ = ((current_time - this->start_time_) > INITIAL_UPDATE_DELAY);
-
-    if (!this->update_delay_finished_) return;
-
-    // finished delay so clear faults
-    if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
-      ESP_LOGW(TAG, "%s initialising faults", ERROR);
-    }
-
-    // publish all binary sensors as false on first update
-#ifdef USE_TAS58XX_BINARY_SENSOR
-    this->publish_faults_();
-#endif
-
-    // read and process faults from next update
-    return;
-  }
-
-  // after delay updates starts here
-
   // if there was a fault last update then clear any faults
   if (this->is_fault_to_clear_) {
     if (!this->clear_fault_registers_()) {
@@ -221,6 +199,15 @@ void Tas58xxComponent::update() {
   this->is_fault_to_clear_ =
      ( this->tas58xx_faults_.is_fault_except_clock_fault || (this->tas58xx_faults_.clock_fault && (!this->ignore_clock_faults_when_clearing_faults_)) );
 
+
+  // publish all binary sensors on first update, then only when faults change
+  if (!this->faults_published_) {
+    this->is_new_channel_fault_ = true;
+    this->is_new_common_fault_ = true;
+    this->is_new_global_fault_ = true;
+    this->is_new_over_temperature_issue_ = true;
+    this->faults_published_ = true;
+  }
 
   // if no change in faults bypass publishing
   if ( !(this->is_new_common_fault_ || this->is_new_over_temperature_issue_ || this->is_new_channel_fault_ || this->is_new_global_fault_) ) return;

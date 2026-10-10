@@ -210,13 +210,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    //// utility variables used by update and dump_config
    bool dsp_ready_{false}; // DSP settings are written only once the I2S clock has been seen
 
-   bool update_delay_finished_{false}; // use to indicate if delay before starting 'update' starting is complete
+   bool faults_published_{false}; // all binary sensors are published on first update
 
    uint8_t i2c_error_{0}; // last i2c error
 
    uint16_t number_registers_configured_{0}; // number tas58xx registers configured during 'setup'
 
-   uint32_t start_time_; // initialised in setup, used for delay in starting 'update'
 };
 
 }  // namespace esphome::tas58xx
