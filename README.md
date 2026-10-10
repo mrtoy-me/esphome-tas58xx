@@ -498,12 +498,12 @@ binary_sensor:
       name: CRC Check Fault
     bq_write_failed:
       name: BQ Write Failure
-    clock fault:
+    clock_fault:
       name: I2S Clock Fault
-    pcdd_over_voltage:
-      name: PCDD Over Voltage
-    pcdd_under_voltage:
-      name: PCDD Under Voltage
+    pvdd_over_voltage:
+      name: PVDD Over Voltage
+    pvdd_under_voltage:
+      name: PVDD Under Voltage
     over_temp_shutdown:
       name: Over Temperature Shutdown Fault
     over_temp_warning:

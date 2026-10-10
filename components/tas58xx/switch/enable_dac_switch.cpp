@@ -21,4 +21,4 @@ void EnableDacSwitch::write_state(bool state) {
   this->parent_->enable_dac(state);
 }
 
-}  // namespace esphome::tas58XX
+}  // namespace esphome::tas58xx

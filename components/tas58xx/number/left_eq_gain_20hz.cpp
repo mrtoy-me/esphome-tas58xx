@@ -28,4 +28,4 @@ void LeftEqGain20hz::control(float value) {
   this->pref_.save(&value);
 }
 
-}  // namespace esphomme::tas58xx
+}  // namespace esphome::tas58xx

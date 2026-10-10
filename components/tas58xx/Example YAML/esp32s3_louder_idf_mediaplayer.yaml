@@ -16,7 +16,7 @@ esphome:
       media_player.speaker.play_on_device_media_file: startup_sync_sound
 
 esp32:
-  variant: esp32
+  variant: esp32s3
   flash_size: 8MB
   cpu_frequency: 240MHz
   framework:
@@ -64,6 +64,7 @@ globals:
     initial_value: 'false'
 
 psram:
+  mode: octal
   speed: 80MHz
   ignore_not_found: false
 
@@ -83,9 +84,9 @@ external_components:
     components: [ tas58xx ]
     refresh: 0s
 
-udio_dac:
+audio_dac:
   - platform: tas58xx
-    id: tas5805m_dac
+    id: tas58xx_dac
     enable_pin: GPIO17
     analog_gain: -15.5db
     dac_mode: BTL
@@ -195,12 +196,12 @@ binary_sensor:
       name: BQ Write Failure
     # I2S clock fault binary sensor is not really useful with speaker media player
     # since it generates clock faults when it manipulates I2S.
-    # clock fault:
+    # clock_fault:
     #   name: I2S Clock Fault
-    pcdd_over_voltage:
-      name: PCDD Over Voltage
-    pcdd_under_voltage:
-      name: PCDD Under Voltage
+    pvdd_over_voltage:
+      name: PVDD Over Voltage
+    pvdd_under_voltage:
+      name: PVDD Under Voltage
     over_temp_shutdown:
       name: Over Temperature Shutdown Fault
     over_temp_warning:
