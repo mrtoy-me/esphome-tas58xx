@@ -500,10 +500,10 @@ binary_sensor:
       name: BQ Write Failure
     clock_fault:
       name: I2S Clock Fault
-    pvdd_over_voltage:
-      name: PVDD Over Voltage
-    pvdd_under_voltage:
-      name: PVDD Under Voltage
+    pcdd_over_voltage:
+      name: PCDD Over Voltage
+    pcdd_under_voltage:
+      name: PCDD Under Voltage
     over_temp_shutdown:
       name: Over Temperature Shutdown Fault
     over_temp_warning:
