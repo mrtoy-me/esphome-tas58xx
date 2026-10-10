@@ -124,7 +124,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    bool set_modulation_scheme_(ModulationScheme modulation);
 
-   bool set_state_(ControlState state);
+   bool set_state_(ControlState state, bool muted);
 
    // manage faults
    bool clear_fault_registers_();

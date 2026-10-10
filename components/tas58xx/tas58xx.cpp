@@ -73,9 +73,7 @@ bool Tas58xxComponent::configure_registers_() {
   float initial_volume = remap<float, float>(0.0f, this->tas58xx_volume_min_, this->tas58xx_volume_max_, 0.0f, 1.0f);
   if (!this->set_volume(initial_volume)) return false;
 
-  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
-  this->tas58xx_control_state_ = CTRL_PLAY;
+  if (!this->set_state_(CTRL_PLAY, this->is_muted_)) return false;
 
   this->start_time_ = App.get_loop_component_start_time();
   return true;
@@ -553,17 +551,16 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
 
 bool Tas58xxComponent::set_mute_off() {
   if (!this->is_muted_) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_)) return false;
+  if (!this->set_state_(this->tas58xx_control_state_, false)) return false;
   this->is_muted_ = false;
   ESP_LOGV(TAG, "Mute Off");
   return true;
 }
 
 // set bit 3 MUTE in TAS58XX_DEVICE_CTRL_2 and retain current Control State
-// ensures get_state = get_power_state
 bool Tas58xxComponent::set_mute_on() {
   if (this->is_muted_) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_ + TAS58XX_MUTE_CONTROL)) return false;
+  if (!this->set_state_(this->tas58xx_control_state_, true)) return false;
   this->is_muted_ = true;
   ESP_LOGV(TAG, "Mute On");
   return true;
@@ -643,30 +640,19 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
 
 bool Tas58xxComponent::set_deep_sleep_off_() {
   if (this->is_failed()) return false;
-  if (this->tas58xx_control_state_ != CTRL_DEEP_SLEEP) return true; // already not in deep sleep
+  if (this->tas58xx_control_state_ == CTRL_PLAY) return true; // already out of deep sleep
   if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) {
     ESP_LOGE(TAG, "Select Book-Page failed");
     return false;
   }
 
   // deep sleep off needs this sequence - tas5805 datasheet 7.4.5
-  // write Hi-Z and preserve mute state
-  uint8_t hiz_value = (this->is_muted_) ? (CTRL_HI_Z + TAS58XX_MUTE_CONTROL) : CTRL_HI_Z;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, hiz_value)) return false;
+  // Hi-Z, Deep Sleep, Hi-Z then Play, preserving mute state
+  if (!this->set_state_(CTRL_HI_Z, this->is_muted_) ||
+      !this->set_state_(CTRL_DEEP_SLEEP, this->is_muted_) ||
+      !this->set_state_(CTRL_HI_Z, this->is_muted_) ||
+      !this->set_state_(CTRL_PLAY, this->is_muted_)) return false;
 
-  // write Deep Sleep and preserve mute state
-  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value )) return false;
-
-  // write Hi-Z and preserve mute state
-  hiz_value = (this->is_muted_) ? (CTRL_HI_Z + TAS58XX_MUTE_CONTROL) : CTRL_HI_Z;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, hiz_value)) return false;
-
-  // write play and preserve mute state
-  ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
-
-  this->tas58xx_control_state_ = CTRL_PLAY;                        // save Control State as play
   ESP_LOGV(TAG, "Deep Sleep >> Off");
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
@@ -681,11 +667,8 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
     ESP_LOGE(TAG, "Select Book-Page failed");
     return false;
   }
-  // preserve mute state
-  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
+  if (!this->set_state_(CTRL_DEEP_SLEEP, this->is_muted_)) return false;
 
-  this->tas58xx_control_state_ = CTRL_DEEP_SLEEP;                   // set Control State to deep sleep
   ESP_LOGV(TAG, "Deep Sleep >> On");
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
@@ -752,9 +735,10 @@ bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
   return true;
 }
 
-bool Tas58xxComponent::set_state_(ControlState state) {
-  if (this->tas58xx_control_state_ == state) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, state)) return false;
+// write Control State to DEVICE_CTRL_2 with bit 3 MUTE
+bool Tas58xxComponent::set_state_(ControlState state, bool muted) {
+  uint8_t ctrl_value = muted ? (state + TAS58XX_MUTE_CONTROL) : state;
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
   this->tas58xx_control_state_ = state;
   return true;
 }
