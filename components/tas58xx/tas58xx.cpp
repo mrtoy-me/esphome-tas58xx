@@ -10,9 +10,9 @@
 namespace esphome::tas58xx {
 
 #ifdef USE_TAS5805M_DAC
-static constexpr const char* TAG = "tas5805m";
+ESPHOME_LOG_TAG(TAG, "tas5805m");
 #else
-static constexpr const char* TAG = "tas5825m";
+ESPHOME_LOG_TAG(TAG, "tas5825m");
 #endif
 
 static constexpr const char* ERROR = "Error";
@@ -258,12 +258,12 @@ void Tas58xxComponent::dump_config() {
               "  Ignore Fault: %s\n"
               "  Refresh EQ: %s\n",
               this->number_registers_configured_, this->tas58xx_analog_gain_,
-              this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
-              this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
+              this->tas58xx_modulation_scheme_ ? LOG_STR_LITERAL("1SPW Mode") : LOG_STR_LITERAL("BD Mode"),
+              this->tas58xx_dac_mode_ ? LOG_STR_LITERAL("PBTL") : LOG_STR_LITERAL("BTL"),
               INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_],
               this->tas58xx_volume_max_, this->tas58xx_volume_min_,
-              this->ignore_clock_faults_when_clearing_faults_ ? "CLOCK FAULTS" : "NONE",
-              this->eq_refresh_ ? "MANUAL" : "AUTO"
+              this->ignore_clock_faults_when_clearing_faults_ ? LOG_STR_LITERAL("CLOCK FAULTS") : LOG_STR_LITERAL("NONE"),
+              this->eq_refresh_ ? LOG_STR_LITERAL("MANUAL") : LOG_STR_LITERAL("AUTO")
               );
       LOG_UPDATE_INTERVAL(this);
       break;
@@ -272,7 +272,7 @@ void Tas58xxComponent::dump_config() {
 #ifdef USE_TAS58XX_BINARY_SENSOR
   ESP_LOGCONFIG(TAG, "Tas58xx Binary Sensors:");
   LOG_BINARY_SENSOR("  ", "Any Faults", this->have_fault_binary_sensor_);
-  ESP_LOGCONFIG(TAG, "    Exclude: %s", this->exclude_clock_fault_from_have_faults_ ? "CLOCK FAULTS" : "NONE");
+  ESP_LOGCONFIG(TAG, "    Exclude: %s", this->exclude_clock_fault_from_have_faults_ ? LOG_STR_LITERAL("CLOCK FAULTS") : LOG_STR_LITERAL("NONE"));
 
   LOG_BINARY_SENSOR("  ", "Right Channel Over Current", this->right_channel_over_current_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Left Channel Over Current", this->left_channel_over_current_fault_binary_sensor_);
@@ -634,7 +634,7 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
 
   // save so 'set_dac_mode_' could be used more generally
   this->tas58xx_dac_mode_ = mode;
-  ESP_LOGD(TAG, "DAC mode >> %s", this->tas58xx_dac_mode_ ? "PBTL" : "BTL");
+  ESP_LOGD(TAG, "DAC mode >> %s", this->tas58xx_dac_mode_ ? LOG_STR_LITERAL("PBTL") : LOG_STR_LITERAL("BTL"));
   return true;
 }
 
@@ -655,7 +655,9 @@ bool Tas58xxComponent::set_deep_sleep_off_() {
 
   ESP_LOGV(TAG, "Deep Sleep >> Off");
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-  if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
+  if (this->is_muted_) {
+    ESP_LOGV(TAG, "Mute On preserved");
+  }
   #endif
   return true;
 }
@@ -671,7 +673,9 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
 
   ESP_LOGV(TAG, "Deep Sleep >> On");
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-  if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
+  if (this->is_muted_) {
+    ESP_LOGV(TAG, "Mute On preserved");
+  }
   #endif
   return true;
 }
@@ -731,7 +735,7 @@ bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
 
   // save, so 'set_modulation_scheme_' could be used more generally
   this->tas58xx_modulation_scheme_ = modulation;
-  ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode");
+  ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? LOG_STR_LITERAL("1SPW Mode") : LOG_STR_LITERAL("BD Mode"));
   return true;
 }
 
@@ -893,7 +897,7 @@ bool Tas58xxComponent::biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t s
   // limited to writing across one page boundary as is required for tas5805m while tas5825m has biquads aligned to page boundaries
 
   // Biquad addressing constants
-  static constexpr uint8_t PAGE_SIZE = 0x80;           		// 0x7F + 1 = 0x80
+  static constexpr uint8_t PAGE_SIZE = 0x80;  // 0x7F + 1 = 0x80
   static constexpr uint8_t MINIMUM_PAGE_SUBADDR = 0x08;   // start subaddr for pages = 0x08
 
   // check for usage error on number bytes to write

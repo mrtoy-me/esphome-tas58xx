@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const char* TAG = "tas58xx.select";
+ESPHOME_LOG_TAG(TAG, "tas58xx.select");
 
 uint8_t MAX_SELECT_INDEX;
 uint8_t MIN_MIXER_MODE;

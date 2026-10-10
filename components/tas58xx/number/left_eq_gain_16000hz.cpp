@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const char* TAG = "tas58xx.number";
+ESPHOME_LOG_TAG(TAG, "tas58xx.number");
 
 void LeftEqGain16000hz::setup() {
   float value;

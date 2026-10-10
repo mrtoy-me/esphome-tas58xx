@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const char* TAG = "tas58xx.select";
+ESPHOME_LOG_TAG(TAG, "tas58xx.select");
 
 static constexpr uint8_t EQ_OFF_NUMBER_OPTIONS = 1; // only one option if EQ is off
 static constexpr uint8_t EQ_ON_NUMBER_OPTIONS  = 2; // two options there is an EQ option
