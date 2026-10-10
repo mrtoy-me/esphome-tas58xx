@@ -14,6 +14,12 @@ from esphome.const import (
     CONF_PLATFORM,
 )
 
+try:
+    from esphome.components.const import CONF_VOLUME_MAX, CONF_VOLUME_MIN
+except ImportError:  # esphome.components.const has these from 2026.4.0
+    CONF_VOLUME_MAX = "volume_max"  # NOLINT
+    CONF_VOLUME_MIN = "volume_min"  # NOLINT
+
 #MULTI_CONF = True
 CODEOWNERS = ["@mrtoy-me"]
 DEPENDENCIES = ["i2c"]
@@ -26,8 +32,6 @@ CONF_TAS58XX_DAC = "tas58xx_dac"
 CONF_IGNORE_FAULT = "ignore_fault"
 CONF_MIXER_MODE = "mixer_mode"
 CONF_REFRESH_EQ = "refresh_eq"
-CONF_VOLUME_MIN = "volume_min"
-CONF_VOLUME_MAX = "volume_max"
 CONF_TAS58XX_ID = "tas58xx_id"
 
 # used for looking through CORE.config to derive eq configuration

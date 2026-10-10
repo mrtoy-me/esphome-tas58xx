@@ -1,3 +1,5 @@
+import logging
+
 import esphome.codegen as cg
 from esphome.components import number
 import esphome.config_validation as cv
@@ -12,6 +14,8 @@ from esphome.const import (
     UNIT_DECIBEL,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
 DAC_MODE = "dac_mode"
@@ -21,37 +25,37 @@ EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
 CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
-CONF_LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
-CONF_LEFT_EQ_GAIN_31P5HZ = "left_eq_gain_31.5Hz"
-CONF_LEFT_EQ_GAIN_50HZ = "left_eq_gain_50Hz"
-CONF_LEFT_EQ_GAIN_80HZ = "left_eq_gain_80Hz"
-CONF_LEFT_EQ_GAIN_125HZ = "left_eq_gain_125Hz"
-CONF_LEFT_EQ_GAIN_200HZ = "left_eq_gain_200Hz"
-CONF_LEFT_EQ_GAIN_315HZ = "left_eq_gain_315Hz"
-CONF_LEFT_EQ_GAIN_500HZ = "left_eq_gain_500Hz"
-CONF_LEFT_EQ_GAIN_800HZ = "left_eq_gain_800Hz"
-CONF_LEFT_EQ_GAIN_1250HZ = "left_eq_gain_1250Hz"
-CONF_LEFT_EQ_GAIN_2000HZ = "left_eq_gain_2000Hz"
-CONF_LEFT_EQ_GAIN_3150HZ = "left_eq_gain_3150Hz"
-CONF_LEFT_EQ_GAIN_5000HZ = "left_eq_gain_5000Hz"
-CONF_LEFT_EQ_GAIN_8000HZ = "left_eq_gain_8000Hz"
-CONF_LEFT_EQ_GAIN_16000HZ = "left_eq_gain_16000Hz"
+CONF_LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_31P5HZ = "left_eq_gain_31.5Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_50HZ = "left_eq_gain_50Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_80HZ = "left_eq_gain_80Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_125HZ = "left_eq_gain_125Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_200HZ = "left_eq_gain_200Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_315HZ = "left_eq_gain_315Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_500HZ = "left_eq_gain_500Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_800HZ = "left_eq_gain_800Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_1250HZ = "left_eq_gain_1250Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_2000HZ = "left_eq_gain_2000Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_3150HZ = "left_eq_gain_3150Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_5000HZ = "left_eq_gain_5000Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_8000HZ = "left_eq_gain_8000Hz"  # NOLINT
+CONF_LEFT_EQ_GAIN_16000HZ = "left_eq_gain_16000Hz"  # NOLINT
 
-CONF_RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
-CONF_RIGHT_EQ_GAIN_31P5HZ = "right_eq_gain_31.5Hz"
-CONF_RIGHT_EQ_GAIN_50HZ = "right_eq_gain_50Hz"
-CONF_RIGHT_EQ_GAIN_80HZ = "right_eq_gain_80Hz"
-CONF_RIGHT_EQ_GAIN_125HZ = "right_eq_gain_125Hz"
-CONF_RIGHT_EQ_GAIN_200HZ = "right_eq_gain_200Hz"
-CONF_RIGHT_EQ_GAIN_315HZ = "right_eq_gain_315Hz"
-CONF_RIGHT_EQ_GAIN_500HZ = "right_eq_gain_500Hz"
-CONF_RIGHT_EQ_GAIN_800HZ = "right_eq_gain_800Hz"
-CONF_RIGHT_EQ_GAIN_1250HZ = "right_eq_gain_1250Hz"
-CONF_RIGHT_EQ_GAIN_2000HZ = "right_eq_gain_2000Hz"
-CONF_RIGHT_EQ_GAIN_3150HZ = "right_eq_gain_3150Hz"
-CONF_RIGHT_EQ_GAIN_5000HZ = "right_eq_gain_5000Hz"
-CONF_RIGHT_EQ_GAIN_8000HZ = "right_eq_gain_8000Hz"
-CONF_RIGHT_EQ_GAIN_16000HZ = "right_eq_gain_16000Hz"
+CONF_RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_31P5HZ = "right_eq_gain_31.5Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_50HZ = "right_eq_gain_50Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_80HZ = "right_eq_gain_80Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_125HZ = "right_eq_gain_125Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_200HZ = "right_eq_gain_200Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_315HZ = "right_eq_gain_315Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_500HZ = "right_eq_gain_500Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_800HZ = "right_eq_gain_800Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_1250HZ = "right_eq_gain_1250Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_2000HZ = "right_eq_gain_2000Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_3150HZ = "right_eq_gain_3150Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_5000HZ = "right_eq_gain_5000Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_8000HZ = "right_eq_gain_8000Hz"  # NOLINT
+CONF_RIGHT_EQ_GAIN_16000HZ = "right_eq_gain_16000Hz"  # NOLINT
 
 ICON_VOLUME_SOURCE = "mdi:volume-source"
 
@@ -194,7 +198,8 @@ def _final_validate(config):
                 raise cv.Invalid("channel_volume_left is required with channel_volume_right - add channel_volume_left to YAML configuration")
         else:
             if (have_this_number_channel_volume_right):
-                raise cv.Invalid("channel_volume_right is not required when dac_mode is PBTL - remove channel_volume_right from YAML configuration")
+                # warn rather than fail, so YAML that was valid in earlier releases still validates
+                _LOGGER.warning("channel_volume_right is not used when dac_mode is PBTL - it can be removed from YAML configuration")
 
     return config
 

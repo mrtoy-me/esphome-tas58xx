@@ -1,3 +1,5 @@
+import logging
+
 import esphome.codegen as cg
 from esphome.components import select
 from esphome.core import CORE
@@ -11,6 +13,8 @@ from esphome.const import (
   CONF_PLATFORM,
   ENTITY_CATEGORY_CONFIG,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
 
@@ -108,11 +112,13 @@ def _final_validate(config):
 
         if not is_dac_mode_btl:
             if have_this_select_eq_preset_right:
-                raise cv.Invalid("Select eq_preset_right is not required when dac_mode is PBTL - remove Select eq_preset_right from YAML configuration")
+                # warn rather than fail, so YAML that was valid in earlier releases still validates
+                _LOGGER.warning("Select eq_preset_right is not used when dac_mode is PBTL - it can be removed from YAML configuration")
 
     # wait to validate until after other validations
     if have_this_select_eq_mode and (not have_number_left_eq_gain) and (not have_this_select_eq_preset_left):
-        raise cv.Invalid("Select eq_mode applies only when Select EQ Presets or EQ Gain numbers are configured - remove Select eq_mode from YAML configuration")
+        # warn rather than fail, so YAML that was valid in earlier releases still validates
+        _LOGGER.warning("Select eq_mode only applies when Select EQ Presets or EQ Gain numbers are configured - it can be removed from YAML configuration")
 
     return config
 

@@ -3,7 +3,7 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const char* TAG = "tas58xx.number";
+ESPHOME_LOG_TAG(TAG, "tas58xx.number");
 
 void ChannelVolumeRight::setup() {
   float value;
@@ -23,4 +23,4 @@ void ChannelVolumeRight::control(float value) {
   this->pref_.save(&value);
 }
 
-}  // namespace esphomme::tas58xx
+}  // namespace esphome::tas58xx

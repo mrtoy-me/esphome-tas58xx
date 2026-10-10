@@ -5,12 +5,14 @@
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
 
+#include <cmath>
+
 namespace esphome::tas58xx {
 
 #ifdef USE_TAS5805M_DAC
-static constexpr const char* TAG = "tas5805m";
+ESPHOME_LOG_TAG(TAG, "tas5805m");
 #else
-static constexpr const char* TAG = "tas5825m";
+ESPHOME_LOG_TAG(TAG, "tas5825m");
 #endif
 
 static constexpr const char* ERROR = "Error";
@@ -37,10 +39,6 @@ void Tas58xxComponent::setup() {
     this->error_code_ = CONFIGURATION_FAILED;
     this->mark_failed();
   }
-
-  // rescale -103db to 24db digital volume range to register digital volume range 254 to 0
-  this->tas58xx_raw_volume_max_ = (uint8_t)((this->tas58xx_volume_max_ - 24) * -2);
-  this->tas58xx_raw_volume_min_ = (uint8_t)((this->tas58xx_volume_min_ - 24) * -2);
 }
 
 bool Tas58xxComponent::configure_registers_() {
@@ -72,8 +70,10 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
-  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
+  float initial_volume = remap<float, float>(0.0f, this->tas58xx_volume_min_, this->tas58xx_volume_max_, 0.0f, 1.0f);
+  if (!this->set_volume(initial_volume)) return false;
+
+  if (!this->set_state_(CTRL_PLAY, this->is_muted_)) return false;
 
   this->start_time_ = App.get_loop_component_start_time();
   return true;
@@ -258,12 +258,12 @@ void Tas58xxComponent::dump_config() {
               "  Ignore Fault: %s\n"
               "  Refresh EQ: %s\n",
               this->number_registers_configured_, this->tas58xx_analog_gain_,
-              this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode",
-              this->tas58xx_dac_mode_ ? "PBTL" : "BTL",
+              this->tas58xx_modulation_scheme_ ? LOG_STR_LITERAL("1SPW Mode") : LOG_STR_LITERAL("BD Mode"),
+              this->tas58xx_dac_mode_ ? LOG_STR_LITERAL("PBTL") : LOG_STR_LITERAL("BTL"),
               INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_],
               this->tas58xx_volume_max_, this->tas58xx_volume_min_,
-              this->ignore_clock_faults_when_clearing_faults_ ? "CLOCK FAULTS" : "NONE",
-              this->eq_refresh_ ? "MANUAL" : "AUTO"
+              this->ignore_clock_faults_when_clearing_faults_ ? LOG_STR_LITERAL("CLOCK FAULTS") : LOG_STR_LITERAL("NONE"),
+              this->eq_refresh_ ? LOG_STR_LITERAL("MANUAL") : LOG_STR_LITERAL("AUTO")
               );
       LOG_UPDATE_INTERVAL(this);
       break;
@@ -272,7 +272,7 @@ void Tas58xxComponent::dump_config() {
 #ifdef USE_TAS58XX_BINARY_SENSOR
   ESP_LOGCONFIG(TAG, "Tas58xx Binary Sensors:");
   LOG_BINARY_SENSOR("  ", "Any Faults", this->have_fault_binary_sensor_);
-  ESP_LOGCONFIG(TAG, "    Exclude: %s", this->exclude_clock_fault_from_have_faults_ ? "CLOCK FAULTS" : "NONE");
+  ESP_LOGCONFIG(TAG, "    Exclude: %s", this->exclude_clock_fault_from_have_faults_ ? LOG_STR_LITERAL("CLOCK FAULTS") : LOG_STR_LITERAL("NONE"));
 
   LOG_BINARY_SENSOR("  ", "Right Channel Over Current", this->right_channel_over_current_fault_binary_sensor_);
   LOG_BINARY_SENSOR("  ", "Left Channel Over Current", this->left_channel_over_current_fault_binary_sensor_);
@@ -551,17 +551,16 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
 
 bool Tas58xxComponent::set_mute_off() {
   if (!this->is_muted_) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_)) return false;
+  if (!this->set_state_(this->tas58xx_control_state_, false)) return false;
   this->is_muted_ = false;
   ESP_LOGV(TAG, "Mute Off");
   return true;
 }
 
 // set bit 3 MUTE in TAS58XX_DEVICE_CTRL_2 and retain current Control State
-// ensures get_state = get_power_state
 bool Tas58xxComponent::set_mute_on() {
   if (this->is_muted_) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, this->tas58xx_control_state_ + TAS58XX_MUTE_CONTROL)) return false;
+  if (!this->set_state_(this->tas58xx_control_state_, true)) return false;
   this->is_muted_ = true;
   ESP_LOGV(TAG, "Mute On");
   return true;
@@ -582,32 +581,19 @@ bool Tas58xxComponent::using_manual_eq_refresh() {
   return (this->eq_refresh_ == EqRefreshMode::MANUAL);
 }
 
-float Tas58xxComponent::volume() {
-  uint8_t raw_volume;
-  this->get_digital_volume_(&raw_volume);
-  return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
-}
-
 bool Tas58xxComponent::set_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
-  uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
+  float volume_db = remap<float, float>(new_volume, 0.0f, 1.0f, this->tas58xx_volume_min_, this->tas58xx_volume_max_);
+  // round to nearest 0.5dB step of digital volume register
+  uint8_t raw_volume = static_cast<uint8_t>(
+      lroundf(clamp(TAS58XX_DIG_VOL_0DB - volume_db * 2.0f, 0.0f, float{TAS58XX_DIG_VOL_MINUS_103DB})));
   if (!this->set_digital_volume_(raw_volume)) return false;
-  #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-    int8_t dB = -(raw_volume / 2) + 24;
-    ESP_LOGV(TAG, "Volume >> %ddB", dB);
-  #endif
+  this->tas58xx_volume_ = new_volume;
+  ESP_LOGV(TAG, "Volume >> %.1fdB", (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f);
   return true;
 }
 
 // protected //
-
-bool Tas58xxComponent::get_analog_gain_(uint8_t* raw_gain) {
-  uint8_t current;
-  if (!this->tas58xx_read_bytes_(TAS58XX_AGAIN, &current, 1)) return false;
-  // remove top 3 reserved bits
-  *raw_gain = current & 0x1F;
-  return true;
-}
 
 // Analog Gain Control , with 0.5dB one step
 // lower 5 bits controls the analog gain.
@@ -633,18 +619,6 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
   return true;
 }
 
-bool Tas58xxComponent::get_dac_mode_(DacMode* mode) {
-    uint8_t current_value;
-    if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &current_value, 1)) return false;
-    if (current_value & (1 << 2)) {
-        *mode = PBTL;
-    } else {
-        *mode = BTL;
-    }
-    this->tas58xx_dac_mode_ = *mode;
-    return true;
-}
-
 // only runs once from 'setup'
 bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
   uint8_t current_value;
@@ -660,39 +634,30 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
 
   // save so 'set_dac_mode_' could be used more generally
   this->tas58xx_dac_mode_ = mode;
-  ESP_LOGD(TAG, "DAC mode >> %s", this->tas58xx_dac_mode_ ? "PBTL" : "BTL");
+  ESP_LOGD(TAG, "DAC mode >> %s", this->tas58xx_dac_mode_ ? LOG_STR_LITERAL("PBTL") : LOG_STR_LITERAL("BTL"));
   return true;
 }
 
 bool Tas58xxComponent::set_deep_sleep_off_() {
   if (this->is_failed()) return false;
-  if (this->tas58xx_control_state_ != CTRL_DEEP_SLEEP) return true; // already not in deep sleep
+  if (this->tas58xx_control_state_ == CTRL_PLAY) return true; // already out of deep sleep
   if (!this->set_book_and_page_(TAS58XX_BOOK_ZERO, TAS58XX_PAGE_ZERO)) {
     ESP_LOGE(TAG, "Select Book-Page failed");
     return false;
   }
 
   // deep sleep off needs this sequence - tas5805 datasheet 7.4.5
-  // write Hi-Z and preserve mute state
-  uint8_t hiz_value = (this->is_muted_) ? (CTRL_HI_Z + TAS58XX_MUTE_CONTROL) : CTRL_HI_Z;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, hiz_value)) return false;
+  // Hi-Z, Deep Sleep, Hi-Z then Play, preserving mute state
+  if (!this->set_state_(CTRL_HI_Z, this->is_muted_) ||
+      !this->set_state_(CTRL_DEEP_SLEEP, this->is_muted_) ||
+      !this->set_state_(CTRL_HI_Z, this->is_muted_) ||
+      !this->set_state_(CTRL_PLAY, this->is_muted_)) return false;
 
-  // write Deep Sleep and preserve mute state
-  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value )) return false;
-
-  // write Hi-Z and preserve mute state
-  hiz_value = (this->is_muted_) ? (CTRL_HI_Z + TAS58XX_MUTE_CONTROL) : CTRL_HI_Z;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, hiz_value)) return false;
-
-  // write play and preserve mute state
-  ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
-
-  this->tas58xx_control_state_ = CTRL_PLAY;                        // save Control State as play
   ESP_LOGV(TAG, "Deep Sleep >> Off");
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-  if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
+  if (this->is_muted_) {
+    ESP_LOGV(TAG, "Mute On preserved");
+  }
   #endif
   return true;
 }
@@ -704,22 +669,14 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
     ESP_LOGE(TAG, "Select Book-Page failed");
     return false;
   }
-  // preserve mute state
-  uint8_t ctrl_value = (this->is_muted_) ? (CTRL_DEEP_SLEEP + TAS58XX_MUTE_CONTROL) : CTRL_DEEP_SLEEP;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
+  if (!this->set_state_(CTRL_DEEP_SLEEP, this->is_muted_)) return false;
 
-  this->tas58xx_control_state_ = CTRL_DEEP_SLEEP;                   // set Control State to deep sleep
   ESP_LOGV(TAG, "Deep Sleep >> On");
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-  if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
+  if (this->is_muted_) {
+    ESP_LOGV(TAG, "Mute On preserved");
+  }
   #endif
-  return true;
-}
-
-bool Tas58xxComponent::get_digital_volume_(uint8_t* raw_volume) {
-  uint8_t current = 254; // lowest raw volume
-  if (!this->tas58xx_read_bytes_(TAS58XX_DIG_VOL_CTRL, &current, 1)) return false;
-  *raw_volume = current;
   return true;
 }
 
@@ -734,11 +691,6 @@ bool Tas58xxComponent::get_digital_volume_(uint8_t* raw_volume) {
 // 11111111: Mute
 bool Tas58xxComponent::set_digital_volume_(uint8_t raw_volume) {
   if (!this->tas58xx_write_byte_(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
-  return true;
-}
-
-bool Tas58xxComponent::get_eq_mode_(EqMode* current_mode) {
-  *current_mode = this->tas58xx_eq_mode_;
   return true;
 }
 
@@ -783,18 +735,14 @@ bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
 
   // save, so 'set_modulation_scheme_' could be used more generally
   this->tas58xx_modulation_scheme_ = modulation;
-  ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? "1SPW Mode" : "BD Mode");
+  ESP_LOGD(TAG, "Modulation >> %s", this->tas58xx_modulation_scheme_ ? LOG_STR_LITERAL("1SPW Mode") : LOG_STR_LITERAL("BD Mode"));
   return true;
 }
 
-bool Tas58xxComponent::get_state_(ControlState* state) {
-  *state = this->tas58xx_control_state_;
-  return true;
-}
-
-bool Tas58xxComponent::set_state_(ControlState state) {
-  if (this->tas58xx_control_state_ == state) return true;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, state)) return false;
+// write Control State to DEVICE_CTRL_2 with bit 3 MUTE
+bool Tas58xxComponent::set_state_(ControlState state, bool muted) {
+  uint8_t ctrl_value = muted ? (state + TAS58XX_MUTE_CONTROL) : state;
+  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
   this->tas58xx_control_state_ = state;
   return true;
 }
@@ -949,7 +897,7 @@ bool Tas58xxComponent::biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t s
   // limited to writing across one page boundary as is required for tas5805m while tas5825m has biquads aligned to page boundaries
 
   // Biquad addressing constants
-  static constexpr uint8_t PAGE_SIZE = 0x80;           		// 0x7F + 1 = 0x80
+  static constexpr uint8_t PAGE_SIZE = 0x80;  // 0x7F + 1 = 0x80
   static constexpr uint8_t MINIMUM_PAGE_SUBADDR = 0x08;   // start subaddr for pages = 0x08
 
   // check for usage error on number bytes to write
