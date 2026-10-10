@@ -1,3 +1,5 @@
+import logging
+
 import esphome.codegen as cg
 from esphome.components import number
 import esphome.config_validation as cv
@@ -11,6 +13,8 @@ from esphome.const import (
     ENTITY_CATEGORY_CONFIG,
     UNIT_DECIBEL,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 SELECT_COMPONENT = "select"
 PLATFORM_TAS58XX = "tas58xx"
@@ -194,7 +198,8 @@ def _final_validate(config):
                 raise cv.Invalid("channel_volume_left is required with channel_volume_right - add channel_volume_left to YAML configuration")
         else:
             if (have_this_number_channel_volume_right):
-                raise cv.Invalid("channel_volume_right is not required when dac_mode is PBTL - remove channel_volume_right from YAML configuration")
+                # warn rather than fail, so YAML that was valid in earlier releases still validates
+                _LOGGER.warning("channel_volume_right is not used when dac_mode is PBTL - it can be removed from YAML configuration")
 
     return config
 

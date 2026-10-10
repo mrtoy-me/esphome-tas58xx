@@ -29,64 +29,74 @@ EXCLUDE_IGNORE_MODES = {
      "CLOCK_FAULT" : ExcludeIgnoreModes.CLOCK_FAULT,
 }
 
-CONFIG_SCHEMA = {
-    cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
+_BINARY_SENSOR_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
 
-    cv.Optional(CONF_HAVE_FAULT): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ).extend(
-        {
-            cv.Optional(CONF_EXCLUDE, default="CLOCK_FAULT"): cv.enum(
-                        EXCLUDE_IGNORE_MODES, upper=True),
-        }
-    ),
+        cv.Optional(CONF_HAVE_FAULT): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ).extend(
+            {
+                cv.Optional(CONF_EXCLUDE, default="CLOCK_FAULT"): cv.enum(
+                            EXCLUDE_IGNORE_MODES, upper=True),
+            }
+        ),
 
-    cv.Optional(CONF_LEFT_CHANNEL_DC_FAULT): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_RIGHT_CHANNEL_DC_FAULT): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_LEFT_CHANNEL_OVER_CURRENT): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_RIGHT_CHANNEL_OVER_CURRENT): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_OTP_CRC_CHECK): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_BQ_WRITE_FAILED): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_CLOCK_FAULT): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_PVDD_OVER_VOLTAGE): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_PVDD_UNDER_VOLTAGE): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_OVER_TEMP_SHUTDOWN): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-    cv.Optional(CONF_OVER_TEMP_WARNING): binary_sensor.binary_sensor_schema(
-        device_class=DEVICE_CLASS_PROBLEM,
-        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ),
-}
+        cv.Optional(CONF_LEFT_CHANNEL_DC_FAULT): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_RIGHT_CHANNEL_DC_FAULT): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_LEFT_CHANNEL_OVER_CURRENT): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_RIGHT_CHANNEL_OVER_CURRENT): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_OTP_CRC_CHECK): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_BQ_WRITE_FAILED): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_CLOCK_FAULT): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_PVDD_OVER_VOLTAGE): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_PVDD_UNDER_VOLTAGE): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_OVER_TEMP_SHUTDOWN): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+        cv.Optional(CONF_OVER_TEMP_WARNING): binary_sensor.binary_sensor_schema(
+            device_class=DEVICE_CLASS_PROBLEM,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+    }
+)
+
+# accept the original (misspelled) keys so existing YAML keeps working
+CONFIG_SCHEMA = cv.All(
+    cv.rename_key("clock fault", CONF_CLOCK_FAULT),
+    cv.rename_key("pcdd_over_voltage", CONF_PVDD_OVER_VOLTAGE),
+    cv.rename_key("pcdd_under_voltage", CONF_PVDD_UNDER_VOLTAGE),
+    _BINARY_SENSOR_SCHEMA,
+)
 
 async def to_code(config):
     cg.add_define("USE_TAS58XX_BINARY_SENSOR")
