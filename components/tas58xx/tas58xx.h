@@ -111,6 +111,13 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool can_write_dsp_();
    bool write_dsp_settings_();
 
+   // write saved settings to the DSP, only called when the I2S clock is running
+   bool write_channel_volume_(Channels channel);
+   bool write_eq_gain_(Channels channel, uint8_t band_index);
+   bool write_eq_mode_();
+   bool write_eq_preset_(Channels channel);
+   bool write_input_mixer_mode_();
+
    bool set_analog_gain_(float gain_db);
 
    bool set_dac_mode_(DacMode mode);
@@ -202,7 +209,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    //// utility variables used by update and dump_config
    bool dsp_ready_{false}; // DSP settings are written only once the I2S clock has been seen
-   bool writing_dsp_settings_{false}; // set while write_dsp_settings_ runs
 
    bool update_delay_finished_{false}; // use to indicate if delay before starting 'update' starting is complete
 

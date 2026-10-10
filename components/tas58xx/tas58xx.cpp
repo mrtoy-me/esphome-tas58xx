@@ -99,37 +99,34 @@ bool Tas58xxComponent::is_dac_playing_() {
 // the value is only saved and all settings are rewritten at the next audio start or update
 bool Tas58xxComponent::can_write_dsp_() {
   if (!this->dsp_ready_) return false;
-  if (this->writing_dsp_settings_ || this->is_dac_playing_()) return true;
+  if (this->is_dac_playing_()) return true;
   this->dsp_ready_ = false;
   ESP_LOGD(TAG, "DAC not playing, settings written at next audio start");
   return false;
 }
 
 bool Tas58xxComponent::write_dsp_settings_() {
-  // setters only save their value until dsp_ready_ is set
-  // callers have checked the I2S clock is running, so setters skip that check while writing
-  this->dsp_ready_ = true;
-  this->writing_dsp_settings_ = true;
+  // callers have checked the I2S clock is running, write all saved settings
   bool ok = true;
 
   // setup Eq Mode first
-  if (!this->set_eq_mode_(this->tas58xx_eq_mode_)) {
+  if (!this->write_eq_mode_()) {
     ESP_LOGW(TAG, "%s setting EQ Mode: %s", ERROR, EQ_MODE_TEXT[this->tas58xx_eq_mode_]);
     ok = false;
   }
 
-  if (!this->set_input_mixer_mode(this->tas58xx_input_mixer_mode_)) {
+  if (!this->write_input_mixer_mode_()) {
     ESP_LOGW(TAG, "%s setting %s: %s", ERROR, MIXER_MODE, INPUT_MIXER_MODE_TEXT[this->tas58xx_input_mixer_mode_]);
     ok = false;
   }
 
 #ifdef USE_TAS58XX_CHANNEL_VOLUMES
-  if (!this->set_channel_volume(LEFT_CHANNEL, this->tas58xx_channel_volume_[LEFT_CHANNEL])) {
+  if (!this->write_channel_volume_(LEFT_CHANNEL)) {
     ESP_LOGW(TAG, "%s setting Left Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[LEFT_CHANNEL]);
     ok = false;
   }
 
-  if (!this->set_channel_volume(RIGHT_CHANNEL, this->tas58xx_channel_volume_[RIGHT_CHANNEL])) {
+  if (!this->write_channel_volume_(RIGHT_CHANNEL)) {
     ESP_LOGW(TAG, "%s setting Right Channel Gain: %ddb", ERROR, this->tas58xx_channel_volume_[RIGHT_CHANNEL]);
     ok = false;
   }
@@ -138,7 +135,7 @@ bool Tas58xxComponent::write_dsp_settings_() {
 #ifdef USE_TAS58XX_EQ_GAINS
   // all bands are written from saved gains, bands without a gain number are written as 0dB
   for (uint8_t band = 0; band < NUMBER_EQ_BANDS; band++) {
-    if (!this->set_eq_gain(LEFT_CHANNEL, band, this->tas58xx_eq_gain_[LEFT_CHANNEL][band])) {
+    if (!this->write_eq_gain_(LEFT_CHANNEL, band)) {
   #ifdef USE_TAS58XX_EQ_BIAMP
       ESP_LOGW(TAG, "%s setting Gain Left %s: %d", ERROR, EQ_BAND, band + 1);
   #else
@@ -148,7 +145,7 @@ bool Tas58xxComponent::write_dsp_settings_() {
     }
 
   #ifdef USE_TAS58XX_EQ_BIAMP
-    if (!this->set_eq_gain(RIGHT_CHANNEL, band, this->tas58xx_eq_gain_[RIGHT_CHANNEL][band])) {
+    if (!this->write_eq_gain_(RIGHT_CHANNEL, band)) {
       ESP_LOGW(TAG, "%s setting Gain Right %s: %d", ERROR, EQ_BAND, band + 1);
       ok = false;
     }
@@ -157,22 +154,23 @@ bool Tas58xxComponent::write_dsp_settings_() {
 #endif // USE_TAS58XX_EQ_GAINS
 
 #ifdef USE_TAS58XX_EQ_PRESETS
-  if (!this->set_eq_preset(LEFT_CHANNEL, this->tas58xx_channel_preset_[LEFT_CHANNEL])) {
+  if (!this->write_eq_preset_(LEFT_CHANNEL)) {
     ESP_LOGW(TAG, "%s setting Left Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
     ok = false;
   }
-  if (!this->set_eq_preset(RIGHT_CHANNEL, this->tas58xx_channel_preset_[RIGHT_CHANNEL])) {
+  if (!this->write_eq_preset_(RIGHT_CHANNEL)) {
     ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
     ok = false;
   }
 #endif // USE_TAS58XX_EQ_PRESETS
 
-  this->writing_dsp_settings_ = false;
   if (!ok) {
     // retried at next audio start or update
     this->dsp_ready_ = false;
     return false;
   }
+  // from now on setters write changes straight away while the tas58xx is playing
+  this->dsp_ready_ = true;
   ESP_LOGD(TAG, "DSP settings written");
   return true;
 }
@@ -317,6 +315,11 @@ bool Tas58xxComponent::set_input_mixer_mode(InputMixerMode mode) {
      ESP_LOGD(TAG, "Save %s: %s", MIXER_MODE, INPUT_MIXER_MODE_TEXT[mode]);
      return true;
   }
+  return this->write_input_mixer_mode_();
+}
+
+bool Tas58xxComponent::write_input_mixer_mode_() {
+  const InputMixerMode mode = this->tas58xx_input_mixer_mode_;
 
   // follows order of input mixer registers = Left to Left, Right to Left, Left to Right, Right to Right
   struct MixerCoefficients {
@@ -398,7 +401,15 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
     ESP_LOGD(TAG, "Save %s Channel Volume: %ddB", LR_CHANNEL_TEXT[channel], volume_dB);
     return true;
   }
+  return this->write_channel_volume_(channel);
+#else
+  return true;
+#endif
+}
 
+bool Tas58xxComponent::write_channel_volume_(Channels channel) {
+#ifdef USE_TAS58XX_CHANNEL_VOLUMES
+  const int8_t volume_dB = this->tas58xx_channel_volume_[channel];
   int32_t little_endian_9_23 = tas58xx_helpers::gain_to_f9_23_(volume_dB);
 
   if (!this-> book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_CHANNEL_VOLUME_PAGE, TAS58XX_CHANNEL_VOLUME_SUBADDR[channel],
@@ -444,6 +455,16 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
     ESP_LOGD(TAG, "Save %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return true;
   }
+  return this->write_eq_gain_(channel, band_index);
+#else
+  return true;
+#endif
+}
+
+bool Tas58xxComponent::write_eq_gain_(Channels channel, uint8_t band_index) {
+#ifdef USE_TAS58XX_EQ_GAINS
+  const uint8_t band = band_index + 1;
+  const int8_t gain = this->tas58xx_eq_gain_[channel][band_index];
 
 #ifdef USE_TAS5805M_DAC
   #ifdef USE_TAS58XX_EQ_BIAMP
@@ -492,6 +513,15 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
     ESP_LOGD(TAG, "Save %s Channel EQ Preset index: %d", LR_CHANNEL_TEXT[channel], select_preset);
     return true;
   }
+  return this->write_eq_preset_(channel);
+#else
+  return true;
+#endif
+}
+
+bool Tas58xxComponent::write_eq_preset_(Channels channel) {
+#ifdef USE_TAS58XX_EQ_PRESETS
+  const uint8_t select_preset = this->tas58xx_channel_preset_[channel];
 
 #ifdef USE_TAS5805M_DAC
   const AddressSequence* biquad1_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[0] : &TAS5805M_RIGHT_EQ_ADDRESS[0];
@@ -682,6 +712,15 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
     ESP_LOGD(TAG, "Save EQ Mode: %s", EQ_MODE_TEXT[new_mode]);
     return true;
   }
+  return this->write_eq_mode_();
+#else
+  return true;
+#endif
+}
+
+bool Tas58xxComponent::write_eq_mode_() {
+#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+  const EqMode new_mode = this->tas58xx_eq_mode_;
 
 #ifdef USE_TAS5805M_DAC
   if (!this->tas58xx_write_byte_(TAS5805M_DSP_MISC, TAS5805M_CTRL_EQ[new_mode])) {
