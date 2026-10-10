@@ -5,7 +5,7 @@ Information from his repositories has also been used/reproduced in this read.me 
 a better understanding of how to use this component to generate firmware using Esphome Builder.
 
 # Usage: tas58xx component on Github
-This component requires Esphome version 2026.2.0 or later.
+This component requires Esphome version 2026.10.0 or later.
 
 The following yaml can be used so ESPHome accesses the component files:
 ```
@@ -157,68 +157,29 @@ fault detection is periodic check of fault registers, and when there are any
 faults, provide notification through sensor/s and clear any fault afterwards.
 
 # Activation of Mixer mode and EQ Gains or EQ Presets
-For software configuration of the Mixer and EQ Gains, the TAS5805M and TAS5825M
-must have received a stable I2S signal. If EQ Band Gain Numbers or Eq Presets
-are configured, what this means for this component is that before the component
-writes these settings, the DAC must have received some audio.
+The TAS5805M and TAS5825M only accept the Mixer Mode, Left/Right Channel Volumes,
+EQ Mode and EQ Gains or EQ Presets settings once they are receiving an I2S signal.
+Until then, these settings are saved and the component writes them to the DAC
+the first time audio is played. No boot sound or additional YAML is required.
 
-## Typical Use Case - Speaker Mediaplayer
-The typical way of handling this requirement is where speaker mediaplayer component
-is configured to play audio during boot. In this case, a short sound file is
-configured under **mediaplayer:** and configuration added under **esphome:**
-to play that short sound at the correct point in the boot process.
-
-Two alternative flac sound files are provided which have a duration of about 0.5 second.
-A substition at the start of the YAML as show below can be used to reference by
-simply commenting out the sound file not required.
-You can use your own boot sound by creating a flac file of about 0.5 second duration and
-reference it appropriately in the YAML substitution.
-
+## Speaker Mediaplayer
+When the I2S speaker is configured with **audio_dac:** referencing the tas58xx audio dac,
+the speaker notifies the component when audio starts and the settings are written straight away:
 ```
-substitutions:
-  sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas58xx/raw/main/components/tas58xx/tas58xx_boot.flac"'
-
-  #use instead if you don't want an audible boot sound
-  #sync_dac_i2s_sound: '"https://github.com/mrtoy-me/esphome-tas58xx/raw/main/components/tas58xx/silent_boot.flac"'
+speaker:
+  - platform: i2s_audio
+    audio_dac: tas58xx_dac   # id of the tas58xx audio_dac
 ```
-
-The YAML configuration required under **mediaplayer:** to reference this file is:
-```
-files:
-  id: startup_sync_sound
-  file: file: ${sync_dac_i2s_sound}
-```
-
-The boot sound must be configured to play in the correct boot sequence, the following YAML configuration
-under **esphome:** is required. Note: If you are also configuring the Sendspin component,
-then different YAML is required. The following example configuration shows the two alternatives:
-
-```
-on_boot:
-  priority: 220.0
-  then:
-    media_player.speaker.play_on_device_media_file: startup_sync_sound
-
-    # if Sendspin component is also configured then use the following instead
-    media_player.play_media:
-      id: external_media_player # speaker media player id
-      media_url: file://startup_sync_sound
-```
-Note: **audio_dac:** has an optional configuration variable called **refresh_eq:**
-The default configuration of **refresh_eq: AUTO** matches the above use case and
-therefore can be omitted from the **audio_dac:** YAML configuration.
 
 ## Use Case where Speaker Mediaplayer is not used (eg using a SnapCast client component)
-Another use case, is use of Snapcast client component instead of Speaker Mediaplayer component
-to produce the required audio. In this use case, the following "workaround" is necessary
-to play audio before the component writes the Mixer Mode and EQ Gain settings to the DAC.
-This workaround requires the user to start playing audio
-then use the EQ Mode Select to move from Off to choose the relevant EQ Mode.
+Snapcast client components drive I2S directly and do not notify the component when audio starts.
+In this case, the component checks at each **update_interval:** whether the DAC is playing,
+and writes the settings once it is. This also applies to a speaker without **audio_dac:** configured.
 
-The following changed configuration is required:
-
-1) Configure **audio_dac:** with optional configuration variable and value **refresh_eq: MANUAL**
-2) Ensure **select: - platform: tas58xx** with **eq_mode:** is configured as follows:
+Optionally, **refresh_eq: MANUAL** can be configured under **audio_dac:**. With this option
+the EQ Mode Select starts as Off. Moving the EQ Mode Select from Off to the
+relevant EQ Mode while audio is playing writes the settings immediately and turns EQ on.
+This requires **select: - platform: tas58xx** with **eq_mode:** to be configured:
 
 ```
 select:
@@ -226,9 +187,6 @@ select:
     eq_mode:
       name: EQ Mode
 ```
-
-3) After Louder has booted, manually initiate playing of some audio
-4) Once audio is playing, move EQ Mode select dropdown from Off to relevant Eq Mode
 
 
 # YAML configuration
@@ -278,7 +236,9 @@ Configuration variables:
   That is, by default clock faults are ignored when determining if fault registers require clearing. To trigger clearing of fault registers on any fault condition, specify **ignore_fault: NONE**
 
 - **refresh_eq:** (*Optional*): valid values **AUTO** or **MANUAL**. Default is **AUTO**.
-  This setting is not required if you are using Speaker Mediaplayer component as the default matches this use case. The setting is mainly intended when the Snapcast client component is used instead of Speaker Mediaplayer. When a Snapcast client component is configured, the MANUAL setting should be used. See information under "Activation of Mixer mode and EQ Gains" section above.
+  With **AUTO** the settings are written when audio is first played. With **MANUAL** the EQ Mode Select starts as Off
+  and moving it to the EQ Mode while audio is playing writes the settings and turns EQ on.
+  See information under "Activation of Mixer mode and EQ Gains" section above.
 
 - **update_interval:** (*Optional*): defines the interval (seconds) at which faults will be
   checked and then if detected, the clearing of the fault registers will occur at next interval. Defaults to 1s. **Note:** update interval cannot be reduced below 1s.

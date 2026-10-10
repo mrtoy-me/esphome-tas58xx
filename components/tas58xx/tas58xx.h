@@ -26,8 +26,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
  public:
   void setup() override;
 
-  void loop() override;
   void update() override;
+
+  // called by the speaker driving this DAC once its I2S clock is running
+  void on_audio_started() override;
 
   void dump_config() override;
 
@@ -90,8 +92,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   bool is_eq_configured();
 
-  void refresh_eq_settings();
-
   bool set_channel_volume(Channels channel, int8_t volume_dB);
 
   void select_eq_mode(uint8_t select_index);
@@ -106,7 +106,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   uint32_t times_faults_cleared();
 
-  bool using_auto_eq_refresh();
   bool using_manual_eq_refresh();
 
   float volume() override { return this->tas58xx_volume_; }
@@ -116,6 +115,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    GPIOPin* enable_pin_{nullptr};
 
    bool configure_registers_();
+
+   bool is_dac_playing_();
+   bool write_dsp_settings_();
 
    bool set_analog_gain_(float gain_db);
 
@@ -208,18 +210,14 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    uint32_t times_faults_cleared_{0}; // counts number of times the faults register is cleared (used for publishing to sensor)
 
-   //// utility variables used by loop, update and dump_config
+   //// utility variables used by update and dump_config
+   bool dsp_ready_{false}; // DSP settings are written only once the I2S clock has been seen
+
    bool update_delay_finished_{false}; // use to indicate if delay before starting 'update' starting is complete
 
    uint8_t i2c_error_{0}; // last i2c error
 
-   uint8_t loop_counter_{0}; // counts number of 'loop' iterations before proceeding
-
-   LoopSetupStage loop_setup_stage_{WAIT_FOR_TRIGGER}; // used for state machine in 'loop'
-
    uint16_t number_registers_configured_{0}; // number tas58xx registers configured during 'setup'
-
-   uint8_t refresh_band_{0}; // eq band currently being refreshed by 'loop'
 
    uint32_t start_time_; // initialised in setup, used for delay in starting 'update'
 };

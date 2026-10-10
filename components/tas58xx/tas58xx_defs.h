@@ -29,21 +29,6 @@ enum ExcludeIgnoreMode : uint8_t {
     CLOCK_FAULT = 1,
 };
 
-enum LoopSetupStage : uint8_t {
-    WAIT_FOR_TRIGGER = 0,
-    RUN_DELAY_LOOP,
-    INPUT_MIXER_SETUP,
-    LR_VOLUME_SETUP,
-    EQ_BANDS_SETUP,
-    EQ_PRESETS_SETUP,
-#ifdef USE_SPEAKER_CONFIG
-    EQ_SUBCHANNEL_SETUP,
-    CROSSBAR_SETUP,
-    MONO_MIXER_SETUP,
-#endif
-    SETUP_COMPLETE,
-};
-
 struct Tas58xxFault {
   uint8_t channel_fault{0};                  // individual faults extracted when publishing
   uint8_t global_fault{0};                   // individual faults extracted when publishing

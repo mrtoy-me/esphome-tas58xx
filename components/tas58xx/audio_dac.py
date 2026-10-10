@@ -147,6 +147,8 @@ CONFIG_SCHEMA = cv.All(
     .extend(i2c.i2c_device_schema(DUMMY_I2C_ADDR))
     .add_extra(validate_config),
     cv.only_on_esp32,
+    # on_audio_started() is used to write DSP settings once the I2S clock is running
+    cv.require_esphome_version(2026, 10, 0),
 )
 
 def get_configured_number_eq_gains(config):

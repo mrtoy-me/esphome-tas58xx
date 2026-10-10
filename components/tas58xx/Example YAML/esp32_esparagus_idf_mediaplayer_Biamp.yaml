@@ -1,19 +1,9 @@
-substitutions:
-  sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas58xx/raw/beta/components/tas58xx/tas58xx_boot.flac"
-
-  #use instead if you don't want an audible boot sound
-  #sync_dac_i2s_sound: "https://github.com/mrtoy-me/esphome-tas58xx/raw/beta/components/tas58xx/silent_boot.flac"
-
 esphome:
   name: louder-esparagus
   friendly_name: Louder Esparagus
-  min_version: 2026.2.0
+  min_version: 2026.10.0
   platformio_options:
     board_build.flash_mode: dio
-  on_boot:
-    priority: 220.0
-    then:
-      media_player.speaker.play_on_device_media_file: startup_sync_sound
 
 esp32:
   variant: esp32
@@ -136,10 +126,6 @@ media_player:
     announcement_pipeline:
        speaker: announcement_spk_resampling_input
        num_channels: 1
-
-    files:
-      id: startup_sync_sound
-      file: ${sync_dac_i2s_sound}
 
     on_play:
       - if:

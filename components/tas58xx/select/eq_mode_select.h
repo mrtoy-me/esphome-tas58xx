@@ -18,8 +18,6 @@ public:
   float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
 
 protected:
-  bool trigger_refresh_settings_{false};
-
   ESPPreferenceObject pref_;
 
   //Pointers into stored_options_
