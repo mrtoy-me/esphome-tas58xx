@@ -4,6 +4,22 @@ Notes from the session of 2026-10-10 so work can continue in a later session, ei
 or in the cloud. Read this first. It covers the goal, the requirements set so far, the current
 branch state, the design, a to-check list and the plan forward.
 
+## Where we stopped (2026-10-11)
+- **Next step:** hardware test both `dev_update` (loop design, ESPHome 2026.2.0+, boot sound
+  YAML) and `dev_update_with_onaudio` (on_audio_started design, ESPHome 2026.10.0+, no boot
+  sound). Use the to-check list below during testing.
+- **Pending (you):** delete `dev_update_with_onaudio_split` (identical to
+  `dev_update_with_onaudio`) and `claude/jolly-ramanujan-7zxbba` (contained in `dev_update`).
+  The cloud session's git proxy refuses branch deletion (HTTP 403); use the GitHub Branches
+  page or `git push origin --delete <branch>`.
+- **Checks passed on `dev_update_with_onaudio`:** the `main`-compatibility matrix, the 4
+  example YAMLs, the generated EQ Mode select options for each EQ mode, ci-custom (0
+  findings), and the C++ parse against ESPHome beta in 5 define sets (0 errors, 0 fatal
+  include errors).
+- **To resume:** check out `dev_update_with_onaudio`, read this file, and ask Claude to read it
+  too. Locally, `esphome compile` of an example YAML is the best build check; it wasn't
+  possible in the cloud session.
+
 ## Goal
 - **Ultimate objective:** migrate the EQ functionality to ESPHome's own `esphome/tas58xx`
   (CODEOWNERS `@mrtoy-me @remcom`).
@@ -175,8 +191,8 @@ branch state, the design, a to-check list and the plan forward.
   `esphome/components/tas58xx` (without `Example YAML`), then run
   `python script/ci-custom.py $(find esphome/components/tas58xx -type f)`.
   Expected: 0 findings, apart from the `.flac` files on `dev_update`.
-- **C++ check:** a clang-tidy host-header parse against ESPHome **beta** headers, run for these
-  define sets:
+- **C++ check:** `docs/tools/cpp_check.sh <esphome-clone> [arduinojson-src]`. It runs a
+  clang-tidy host-header parse against ESPHome headers (beta or dev), for these define sets:
   - `USE_TAS5805M_DAC`
   - `USE_TAS5825M_DAC`
   - `USE_TAS58XX_EQ_GAINS`
