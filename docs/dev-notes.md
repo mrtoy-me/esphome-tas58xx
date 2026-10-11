@@ -31,7 +31,7 @@ branch state, the design, a to-check list and the plan forward.
   `dev_update_with_onaudio` it generates no code and logs "refresh_eq is no longer used and
   can be removed".
 
-### Activation of DSP settings (`dev_update_with_onaudio`)
+### Activation of DSP settings (`dev_update_with_onaudio` and `_split`)
 - **Reference design:** ESPHome beta `tas58xx` (2026.10). Use `on_audio_started()` plus a
   POWER_STATE = PLAY fallback in `update()`. Match or improve on beta's resilience.
 - **No boot sound:** the boot sound and its YAML (on_boot, files, substitutions, .flac files)
@@ -60,21 +60,21 @@ branch state, the design, a to-check list and the plan forward.
   before hardware testing.
 
 ### Git
-- `dev_update`: tidied current design, the fallback for existing users.
-- `dev_update`: now holds the on_audio_started design (fast-forwarded from
-  `dev_update_with_onaudio_split` on 2026-10-11) and is the branch to hardware test.
-  It requires ESPHome 2026.10.0. The previous loop design is still on `main`, `beta` and `dev`.
+- `dev_update`: tidied loop design (lint fixes, `main`-compatible YAML). Requires 2026.2.0.
+  Not changed by the on_audio_started work.
+- `dev_update_with_onaudio_split`: the on_audio_started design, the branch to hardware test.
+  Requires ESPHome 2026.10.0.
 
 ## Branch state (2026-10-11)
 | Branch | Contents |
 |---|---|
 | `main`, `beta`, `dev` | unchanged by this work (loop design) |
-| `dev_update` | the on_audio_started design described below, for hardware testing. Requires 2026.10.0. |
-| `dev_update_with_onaudio` | earlier stage of the design, before the setter split, the startup delay removal and the EQ Mode select change; superseded by `dev_update` |
-| `dev_update_with_onaudio_split` | review branch for those three changes; same content as `dev_update` |
+| `dev_update` | loop design. Lint fixes (ci-custom clean), example YAML fixes, `main`-compatible YAML (warnings instead of errors, `pcdd_` aliases), README key and modulation fixes. Requires 2026.2.0. |
+| `dev_update_with_onaudio` | earlier stage of the on_audio_started design, before the setter split, the startup delay removal and the EQ Mode select change |
+| `dev_update_with_onaudio_split` | the on_audio_started design described below, for hardware testing. Requires 2026.10.0. |
 | `claude/jolly-ramanujan-7zxbba` | fully contained in `dev_update`; can be deleted |
 
-## Design on `dev_update`
+## Design on `dev_update_with_onaudio_split`
 - **Setters and writers:** each DSP setting has a setter, called only by the numbers and
   selects (`setup()` with the restored value, `control()` on a change), and a `write_..._()`
   function that only writes the saved value:
@@ -112,8 +112,8 @@ branch state, the design, a to-check list and the plan forward.
 
 ## To-check list
 1. **The old mixer bug** (with no `eq_mode` select and no EQ gains, `mixer_mode` and the
-   channel volumes were never written to the DAC) is fixed on `dev_update` by the new design.
-   It is still present on `main`, `beta` and `dev`.
+   channel volumes were never written to the DAC) is fixed on `dev_update_with_onaudio_split`.
+   It is still present on `main`, `beta`, `dev` and `dev_update`.
 2. **Re-enabling the DAC.** With `timeout: never` the speaker never stops, so
    `on_audio_started()` fires once only. A change made while `enable_dac` is off (deep sleep)
    is deferred. After switching it back on, the `update()` fallback should rewrite everything
@@ -127,7 +127,9 @@ branch state, the design, a to-check list and the plan forward.
      with `defer()`.
    - snapclient: settings should be written within one `update_interval` of playback.
 4. **Old branch:** `claude/jolly-ramanujan-7zxbba` can be deleted.
-5. **After testing:** decide whether `dev_update` becomes the new `beta`.
+5. **After testing:** decide how `dev_update_with_onaudio_split` is brought into `dev_update`
+   or `beta`. The two branches differ by one equivalent README commit (`2257e2f` on
+   `dev_update`, `aef0fd6` on the split branch), so a merge is clean.
 6. **Other selects:** the mixer mode and EQ preset selects still build their options at
    runtime. Both could pass `options=` from codegen like the EQ Mode select; the mixer select
    also uses two non-const globals (`MAX_SELECT_INDEX`, `MIN_MIXER_MODE`).
@@ -135,7 +137,7 @@ branch state, the design, a to-check list and the plan forward.
    Decide whether it should be.
 
 ## Plan forward
-1. **Hardware test `dev_update`.**
+1. **Hardware test `dev_update_with_onaudio_split`.**
    - Speaker media player: AUTO, presets, 15-band and biamp configs.
    - snapclient.
    - Changes while idle, and the `enable_dac` off/on case.
