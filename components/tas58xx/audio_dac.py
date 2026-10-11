@@ -110,6 +110,10 @@ def validate_config(config):
     return config
 
 CONFIG_SCHEMA = cv.All(
+    # also accept the keys used by ESPHome's own tas58xx, so the same YAML works with both
+    cv.rename_key("model", CONF_TAS58XX_DAC),
+    cv.rename_key("volume_min_db", CONF_VOLUME_MIN),
+    cv.rename_key("volume_max_db", CONF_VOLUME_MAX),
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(Tas58xxComponent),
