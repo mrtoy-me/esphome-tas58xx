@@ -16,6 +16,12 @@ branch state, the design, a to-check list and the plan forward.
   example YAMLs, the generated EQ Mode select options for each EQ mode, ci-custom (0
   findings), and the C++ parse against ESPHome beta in 5 define sets (0 errors, 0 fatal
   include errors).
+- **Latest change (both `dev_update` and `dev_update_with_onaudio`):** the `audio_dac:` keys
+  used by ESPHome's own tas58xx are accepted as aliases, so the same YAML works when switching
+  between ESPHome beta and these branches: `model` → `tas58xx_dac`, `volume_min_db` →
+  `volume_min`, `volume_max_db` → `volume_max` (`cv.rename_key`; both forms together is an
+  error). Only these three were asked for. Not added: fractional dB volumes, optional
+  `enable_pin`/`ignore_enable_pin_warning`, and beta's TAS5825M-only binary sensor keys.
 - **To resume:** check out `dev_update_with_onaudio`, read this file, and ask Claude to read it
   too. Locally, `esphome compile` of an example YAML is the best build check; it wasn't
   possible in the cloud session.
@@ -33,6 +39,8 @@ branch state, the design, a to-check list and the plan forward.
 ### YAML compatibility (compared with `main`)
 - No breaking YAML changes compared with `main`, except one accepted break: binary sensor
   `clock fault:` is now `clock_fault:`.
+- ESPHome tas58xx `audio_dac:` keys `model`, `volume_min_db` and `volume_max_db` are accepted
+  as aliases of `tas58xx_dac`, `volume_min` and `volume_max` (both branches).
 - `pvdd_over_voltage` / `pvdd_under_voltage` are the canonical keys. The original `pcdd_` keys
   are still accepted (`cv.rename_key`). Specifying both is an error.
 - The mixed-case EQ gain keys (`left_eq_gain_20Hz`, `left_eq_gain_31.5Hz`, ...) stay as they
@@ -85,7 +93,7 @@ branch state, the design, a to-check list and the plan forward.
 | Branch | Contents |
 |---|---|
 | `main`, `beta`, `dev` | unchanged by this work (loop design) |
-| `dev_update` | loop design. Lint fixes (ci-custom clean), example YAML fixes, `main`-compatible YAML (warnings instead of errors, `pcdd_` aliases), README key and modulation fixes. Requires 2026.2.0. |
+| `dev_update` | loop design. Lint fixes (ci-custom clean), example YAML fixes, `main`-compatible YAML (warnings instead of errors, `pcdd_` aliases), README key and modulation fixes, ESPHome tas58xx key aliases. Requires 2026.2.0. |
 | `dev_update_with_onaudio` | the on_audio_started design described below, for hardware testing. Requires 2026.10.0. |
 | `dev_update_with_onaudio_split` | review branch for the setter split, startup delay removal and EQ Mode select change; fast-forwarded into `dev_update_with_onaudio`, can be deleted |
 | `claude/jolly-ramanujan-7zxbba` | fully contained in `dev_update`; can be deleted |
