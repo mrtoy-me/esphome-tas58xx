@@ -284,11 +284,6 @@ uint8_t Tas58xxComponent::get_configured_dac_mode() {
    return static_cast<uint8_t>(this->tas58xx_dac_mode_); // BTL = 0 , PBTL = 1
 }
 
-// used by select eq mode
-uint8_t Tas58xxComponent::get_configured_eq_mode() {
-  return static_cast<uint8_t>(this->configured_eq_mode_);
-}
-
 uint8_t Tas58xxComponent::get_mixer_mode() {
   return static_cast<uint8_t>(this->tas58xx_input_mixer_mode_);
 }

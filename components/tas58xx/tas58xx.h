@@ -77,8 +77,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   uint8_t get_configured_dac_mode();
 
-  uint8_t get_configured_eq_mode();
-
   uint8_t get_mixer_mode();
   bool set_input_mixer_mode(InputMixerMode mode);
 

@@ -2,21 +2,26 @@ import logging
 
 import esphome.codegen as cg
 from esphome.components import select
-from esphome.core import CORE
 import esphome.config_validation as cv
 import esphome.final_validate as fv
 
 from esphome.const import (
-  CONF_AUDIO_DAC,
-  CONF_ID,
   CONF_NUMBER,
-  CONF_PLATFORM,
   ENTITY_CATEGORY_CONFIG,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
+from ..audio_dac import (
+    CONF_LEFT_EQ_GAINS,
+    CONF_TAS58XX_ID,
+    Tas58xxComponent,
+    find_matching_config,
+    get_audio_dac_config,
+    get_eq_mode,
+    has_eq_gains,
+    tas58xx_ns,
+)
 
 EqModeSelect = tas58xx_ns.class_("EqModeSelect", select.Select, cg.Component)
 MixerModeSelect = tas58xx_ns.class_("MixerModeSelect", select.Select, cg.Component)
@@ -28,10 +33,11 @@ CONF_MIXER_MODE = "mixer_mode"
 CONF_EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 CONF_EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
 
-PLATFORM_TAS58XX = "tas58xx"
 DAC_MODE = "dac_mode"
 DAC_MODE_BTL = "BTL"
-LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
+
+# EQ Mode select options, index matches C++ EqMode (Off, EQ 15 Band, EQ BIAMP, EQ Presets)
+EQ_MODE_OPTIONS = ["Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"]
 
 def validate_eq_presets(config):
     have_select_eq_mode = CONF_EQ_MODE in config
@@ -73,14 +79,9 @@ def _final_validate(config):
     have_this_select_eq_preset_left = CONF_EQ_PRESET_LEFT_CHANNEL in config
     have_this_select_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
 
-    # find the number ID that matches this select ID and flag if the number configuration has LEFT_EQ_GAIN_20HZ
-    have_number_left_eq_gain = False
-    number_confs = full_conf.get(CONF_NUMBER, [])
-    for number_conf in number_confs:
-        if number_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-          if number_conf.get(CONF_TAS58XX_ID) == this_select_id:
-              have_number_left_eq_gain = LEFT_EQ_GAIN_20HZ in number_conf
-              break
+    # the tas58xx number config with the same audio_dac ID as this select, and whether it has left EQ gains
+    number_conf = find_matching_config(full_conf, this_select_id, CONF_NUMBER)
+    have_number_left_eq_gain = has_eq_gains(number_conf, CONF_LEFT_EQ_GAINS)
 
     if have_number_left_eq_gain:
         # have_number_left_eq_gain and
@@ -91,18 +92,9 @@ def _final_validate(config):
         if not have_this_select_eq_mode:
             raise cv.Invalid("Select eq_mode is required with EQ Gain numbers - add Select eq_mode to YAML configuration")
 
-    audio_dac_id_matches_select_id = False
-    matching_audio_dac = None
-    # find the audic dac ID that matches the select ID
-    all_audio_dac = full_conf.get(CONF_AUDIO_DAC, [])
-    for audio_dac_conf in all_audio_dac:
-       if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-           if this_select_id == audio_dac_conf.get(CONF_ID):
-              audio_dac_id_matches_select_id = True
-              matching_audio_dac = audio_dac_conf
-              break
-
-    if audio_dac_id_matches_select_id:
+    # the audio_dac config declaring the ID used by this select
+    matching_audio_dac = get_audio_dac_config(full_conf, this_select_id)
+    if matching_audio_dac is not None:
         is_dac_mode_btl = matching_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
         if is_dac_mode_btl:
             if have_this_select_eq_preset_left and not have_this_select_eq_preset_right:
@@ -127,9 +119,12 @@ FINAL_VALIDATE_SCHEMA = _final_validate
 async def to_code(config):
     tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])
     if eq_mode_config := config.get(CONF_EQ_MODE):
+        # "Off" plus the EQ mode derived from the YAML configuration, if any
+        eq_mode = get_eq_mode(config[CONF_TAS58XX_ID])
+        options = [EQ_MODE_OPTIONS[0]] + ([EQ_MODE_OPTIONS[eq_mode]] if eq_mode else [])
         s = await select.new_select(
             eq_mode_config,
-            options=[],
+            options=options,
         )
         await cg.register_component(s, eq_mode_config)
         await cg.register_parented(s, tas58xx_component)

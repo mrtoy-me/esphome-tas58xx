@@ -20,6 +20,8 @@ _LOGGER = logging.getLogger(__name__)
 
 from esphome.components.const import CONF_VOLUME_MAX, CONF_VOLUME_MIN
 
+from . import DOMAIN
+
 #MULTI_CONF = True
 CODEOWNERS = ["@mrtoy-me"]
 DEPENDENCIES = ["i2c"]
@@ -34,13 +36,17 @@ CONF_MIXER_MODE = "mixer_mode"
 CONF_REFRESH_EQ = "refresh_eq"
 CONF_TAS58XX_ID = "tas58xx_id"
 
-# used for looking through CORE.config to derive eq configuration
+# used for looking through the full configuration to derive eq configuration
 PLATFORM_TAS58XX = "tas58xx"
 SELECT_COMPONENT = "select"
 
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
-LEFT_EQ_GAIN_20HZ = "left_eq_gain_20Hz"
-RIGHT_EQ_GAIN_20HZ = "right_eq_gain_20Hz"
+
+# eq gain number keys, eg left_eq_gain_20Hz
+EQ_BAND_FREQUENCIES = ("20", "31.5", "50", "80", "125", "200", "315", "500", "800",
+                       "1250", "2000", "3150", "5000", "8000", "16000")
+CONF_LEFT_EQ_GAINS = tuple(f"left_eq_gain_{freq}Hz" for freq in EQ_BAND_FREQUENCIES)
+CONF_RIGHT_EQ_GAINS = tuple(f"right_eq_gain_{freq}Hz" for freq in EQ_BAND_FREQUENCIES)
 
 # eq mode enum and select index values
 EQ_OFF = 0
@@ -153,36 +159,45 @@ CONFIG_SCHEMA = cv.All(
     cv.require_esphome_version(2026, 10, 0),
 )
 
-def get_configured_number_eq_gains(config):
-    audio_dac_id = config.get(CONF_ID)
-    all_numbers = CORE.config.get(CONF_NUMBER, [])
-    for num in all_numbers:
-        if num.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            if num.get(CONF_TAS58XX_ID) == audio_dac_id:
-                return LEFT_EQ_GAIN_20HZ in num, RIGHT_EQ_GAIN_20HZ in num
-    return False, False
+# tas58xx platform config (eg number or select) of the given component for the audio_dac id, or None
+def find_matching_config(full_conf, audio_dac_id, component):
+    for conf in full_conf.get(component, []):
+        if conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX and conf.get(CONF_TAS58XX_ID) == audio_dac_id:
+            return conf
+    return None
 
-def select_eq_presets_configured(config):
-    audio_dac_id = config.get(CONF_ID)
-    all_select = CORE.config.get(SELECT_COMPONENT, [])
-    for select in all_select:
-        if select.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-            if select.get(CONF_TAS58XX_ID) == audio_dac_id:
-                return EQ_PRESET_LEFT_CHANNEL in select
-    return False
+# audio_dac config declaring the given id
+def get_audio_dac_config(full_conf, audio_dac_id):
+    return full_conf.get_config_for_path(full_conf.get_path_for_id(audio_dac_id)[:-1])
+
+def has_eq_gains(number_conf, conf_eq_gains):
+    return number_conf is not None and any(key in number_conf for key in conf_eq_gains)
+
+# derive the eq mode from the tas58xx numbers and selects of this audio_dac
+# saved for audio_dac to_code and select to_code (EQ Mode select options)
+def _final_validate(config):
+    full_conf = fv.full_config.get()
+    audio_dac_id = config[CONF_ID]
+    number_conf = find_matching_config(full_conf, audio_dac_id, CONF_NUMBER)
+    select_conf = find_matching_config(full_conf, audio_dac_id, SELECT_COMPONENT)
+
+    eq_mode = EQ_OFF
+    if has_eq_gains(number_conf, CONF_RIGHT_EQ_GAINS):
+        eq_mode = EQ_BIAMP
+    elif has_eq_gains(number_conf, CONF_LEFT_EQ_GAINS):
+        eq_mode = EQ_15BAND
+    elif select_conf is not None and EQ_PRESET_LEFT_CHANNEL in select_conf:
+        eq_mode = EQ_PRESETS
+
+    CORE.data.setdefault(DOMAIN, {})[str(audio_dac_id)] = eq_mode
+    return config
+
+FINAL_VALIDATE_SCHEMA = _final_validate
+
+def get_eq_mode(audio_dac_id):
+    return CORE.data[DOMAIN][str(audio_dac_id)]
 
 async def to_code(config):
-    derived_eq_mode_configuration = EQ_OFF
-    number_left_eq_gain_configured, number_right_eq_gain_configured = get_configured_number_eq_gains(config)
-    if number_right_eq_gain_configured:
-        derived_eq_mode_configuration  = EQ_BIAMP
-    else:
-        if number_left_eq_gain_configured:
-            derived_eq_mode_configuration = EQ_15BAND
-        else:
-            if select_eq_presets_configured(config):
-                derived_eq_mode_configuration = EQ_PRESETS
-
     tas58xx_dac = config.get(CONF_TAS58XX_DAC)
 
     # when the user has not defined an audio dac i2c address
@@ -206,7 +221,7 @@ async def to_code(config):
     cg.add(var.config_input_mixer_mode(config[CONF_MIXER_MODE]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
-    cg.add(var.config_eq_mode(derived_eq_mode_configuration))
+    cg.add(var.config_eq_mode(get_eq_mode(config[CONF_ID])))
 
     if tas58xx_dac == TAS5805M_DAC:
         cg.add_define("USE_TAS5805M_DAC")

@@ -61,25 +61,33 @@ branch state, the design, a to-check list and the plan forward.
 
 ### Git
 - `dev_update`: tidied current design, the fallback for existing users.
-- `dev_update_with_onaudio`: the reference to hardware test and refine.
+- `dev_update`: now holds the on_audio_started design (fast-forwarded from
+  `dev_update_with_onaudio_split` on 2026-10-11) and is the branch to hardware test.
+  It requires ESPHome 2026.10.0. The previous loop design is still on `main`, `beta` and `dev`.
 
-## Branch state at end of session
-| Branch | Head | Contents |
-|---|---|---|
-| `main` | `89f29cf` | released |
-| `dev_update` | `2257e2f` | loop design. Lint fixes (ci-custom clean), example YAML fixes, `main`-compatible YAML (warnings instead of errors, `pcdd_` aliases), README key and modulation fixes. Requires 2026.2.0. |
-| `dev_update_with_onaudio` | `98ddc77` + this notes commit | `dev_update` plus the on_audio_started design (below). Requires 2026.10.0. |
-| `claude/jolly-ramanujan-7zxbba` | `b33b239` | fully contained in `dev_update`; can be deleted |
+## Branch state (2026-10-11)
+| Branch | Contents |
+|---|---|
+| `main`, `beta`, `dev` | unchanged by this work (loop design) |
+| `dev_update` | the on_audio_started design described below, for hardware testing. Requires 2026.10.0. |
+| `dev_update_with_onaudio` | earlier stage of the design, before the setter split, the startup delay removal and the EQ Mode select change; superseded by `dev_update` |
+| `dev_update_with_onaudio_split` | review branch for those three changes; same content as `dev_update` |
+| `claude/jolly-ramanujan-7zxbba` | fully contained in `dev_update`; can be deleted |
 
-## Design on `dev_update_with_onaudio`
-- **Saving values:** setters (`set_eq_mode_`, `set_input_mixer_mode`, `set_channel_volume`,
-  `set_eq_gain`, `set_eq_preset`) always save their value. They write to the DAC only if
-  `can_write_dsp_()` returns true: `dsp_ready_` is set and the DAC is playing (POWER_STATE
-  read). If the DAC isn't playing, the value is saved and `dsp_ready_` is cleared, so
-  everything is rewritten at the next trigger.
-- **`write_dsp_settings_()`** writes everything from the saved values, in this order: EQ mode,
-  input mixer, L/R channel volumes, all EQ bands (bands without a number are written as 0 dB),
-  presets. Any failure clears `dsp_ready_` so the next trigger retries.
+## Design on `dev_update`
+- **Setters and writers:** each DSP setting has a setter, called only by the numbers and
+  selects (`setup()` with the restored value, `control()` on a change), and a `write_..._()`
+  function that only writes the saved value:
+  `set_eq_mode_`/`write_eq_mode_`, `set_input_mixer_mode`/`write_input_mixer_mode_`,
+  `set_channel_volume`/`write_channel_volume_`, `set_eq_gain`/`write_eq_gain_`,
+  `set_eq_preset`/`write_eq_preset_`.
+  A setter validates and saves its value, then writes only if `can_write_dsp_()` returns true:
+  `dsp_ready_` is set and the DAC is playing (POWER_STATE read). If the DAC isn't playing, the
+  value is saved and `dsp_ready_` is cleared, so everything is rewritten at the next trigger.
+- **`write_dsp_settings_()`** calls the `write_..._()` functions for all saved values, in this
+  order: EQ mode, input mixer, L/R channel volumes, all EQ bands (bands without a number are
+  written as 0 dB), presets. `dsp_ready_` is set only when all writes succeed, so a failure is
+  retried at the next trigger.
 - **Triggers:**
   - `on_audio_started()`, called by the i2s speaker when its clock starts; the speaker needs
     `audio_dac:` set
@@ -87,14 +95,25 @@ branch state, the design, a to-check list and the plan forward.
     `audio_dac:`, retries)
 - **Removed:** `loop()`, `LoopSetupStage`, `refresh_eq_settings()`, the 16000 Hz and
   EqModeSelect triggers, and the MANUAL code.
-- **`set_input_mixer_mode()`** is the equivalent of beta's `write_mixer_()`: same registers,
+- **`write_input_mixer_mode_()`** is the equivalent of beta's `write_mixer_()`: same registers,
   same coefficients.
+- **Faults:** no startup delay. Faults latched while the DAC powers up are cleared at the end
+  of setup (as beta does); every binary sensor is published on the first `update()`, then
+  only on change. Without a boot sound there is no I2S clock until the first playback, so a
+  configured `clock_fault` sensor reads ON until then.
+- **EQ Mode select options:** derived at validation, following ESPHome's `i2s_audio` and
+  `logger` patterns. `audio_dac.py` `_final_validate` derives the EQ mode (any gain key, not
+  only 20 Hz) and stores it in `CORE.data[DOMAIN][str(id)]`; `get_eq_mode()` reads it in both
+  `audio_dac` and `select` `to_code`. The select passes `options=` to `new_select` ("Off" plus
+  the mode), so ESPHome stores them in flash; `EqModeSelect::setup()` only sets the initial
+  index. Shared helpers in `audio_dac.py`: `find_matching_config()`,
+  `get_audio_dac_config()` (uses `get_path_for_id()`), `has_eq_gains()`, and the
+  `CONF_LEFT_EQ_GAINS`/`CONF_RIGHT_EQ_GAINS` key tuples.
 
 ## To-check list
-1. **`dev_update` still has the old mixer bug.** With no `eq_mode` select and no EQ gains,
-   `mixer_mode` and the channel volumes are never written to the DAC. For example, PBTL with
-   `mixer_mode: MONO` doesn't actually run mono. Only `dev_update_with_onaudio` fixes this.
-   Decide whether `dev_update` needs a minimal fix.
+1. **The old mixer bug** (with no `eq_mode` select and no EQ gains, `mixer_mode` and the
+   channel volumes were never written to the DAC) is fixed on `dev_update` by the new design.
+   It is still present on `main`, `beta` and `dev`.
 2. **Re-enabling the DAC.** With `timeout: never` the speaker never stops, so
    `on_audio_started()` fires once only. A change made while `enable_dac` is off (deep sleep)
    is deferred. After switching it back on, the `update()` fallback should rewrite everything
@@ -108,11 +127,15 @@ branch state, the design, a to-check list and the plan forward.
      with `defer()`.
    - snapclient: settings should be written within one `update_interval` of playback.
 4. **Old branch:** `claude/jolly-ramanujan-7zxbba` can be deleted.
-5. **After testing:** fast-forward `dev_update` to `dev_update_with_onaudio`, or make it the
-   new `beta`.
+5. **After testing:** decide whether `dev_update` becomes the new `beta`.
+6. **Other selects:** the mixer mode and EQ preset selects still build their options at
+   runtime. Both could pass `options=` from codegen like the EQ Mode select; the mixer select
+   also uses two non-const globals (`MAX_SELECT_INDEX`, `MIN_MIXER_MODE`).
+7. **EQ Mode select state is not restored after a reboot** (it starts at the configured mode).
+   Decide whether it should be.
 
 ## Plan forward
-1. **Hardware test `dev_update_with_onaudio`.**
+1. **Hardware test `dev_update`.**
    - Speaker media player: AUTO, presets, 15-band and biamp configs.
    - snapclient.
    - Changes while idle, and the `enable_dac` off/on case.
@@ -160,7 +183,11 @@ branch state, the design, a to-check list and the plan forward.
   - `USE_TAS58XX_CHANNEL_VOLUMES`
   - `USE_TAS58XX_BINARY_SENSOR`
 
-  It needs ArduinoJson on the include path. A real ESP32 build (`esphome compile`) was not
+  It needs ArduinoJson on the include path. **Remove every `USE_LVGL` line from the ESPHome
+  copy's `esphome/core/defines.h`** (or install LVGL): `tas58xx.cpp`'s includes otherwise reach
+  `lvgl.h`, clang stops with a fatal "file not found", and the function bodies are never
+  checked even though no tas58xx errors are shown. Check the output has no "file not found".
+  A real ESP32 build (`esphome compile`) was not
   possible in the cloud session because the PlatformIO registry was blocked; locally,
   `esphome compile` on an example YAML is the better check.
 - **Examples:** `esphome config` on each file in `components/tas58xx/Example YAML/`. Point

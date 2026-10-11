@@ -5,34 +5,10 @@ namespace esphome::tas58xx {
 
 ESPHOME_LOG_TAG(TAG, "tas58xx.select");
 
-static constexpr uint8_t EQ_OFF_NUMBER_OPTIONS = 1; // only one option if EQ is off
-static constexpr uint8_t EQ_ON_NUMBER_OPTIONS  = 2; // two options there is an EQ option
-
 void EqModeSelect::setup() {
-  // retrieve the select options index which was derived from YAML configuration
-  // provides the index for the EQ Mode to be used in stored_options_
-  // Off = 0; EQ 15 Band = 1; EQ BIAMP = 2; EQ Presets = 3
-  uint8_t select_options_index = this->parent_->get_configured_eq_mode();
-
-  size_t initial_select_index = EqMode::EQ_OFF;
-
-  if (this->parent_->is_eq_configured()) {
-    initial_select_index = EqMode::EQ_ON;
-  }
-
-  // based on select options enum (index) which was derived from YAML configuration
-  // set size of select option as either 1 = EQ Off only or 2 = EQ Off plus one of the other EQ On options
-  if (select_options_index > EqMode::EQ_OFF) {
-    this->option_ptrs_.init(EQ_ON_NUMBER_OPTIONS);
-  } else {
-    this->option_ptrs_.init(EQ_OFF_NUMBER_OPTIONS);
-  }
-
-  // build pointer array pointing into select option strings
-  this->option_ptrs_.push_back(stored_options_[EqMode::EQ_OFF].c_str());  // is always EQ Off option
-  if (select_options_index > EqMode::EQ_OFF) this->option_ptrs_.push_back(stored_options_[select_options_index].c_str()); // now add second option dervied from YAML config
-
-  traits.set_options(this->option_ptrs_);
+  // options are set by codegen: "Off" plus the EQ mode derived from YAML configuration, if any
+  // start with the EQ mode selected when EQ gains or EQ presets are configured
+  size_t initial_select_index = this->parent_->is_eq_configured() ? EqMode::EQ_ON : EqMode::EQ_OFF;
 
   this->publish_state(initial_select_index);
   this->parent_->select_eq_mode(initial_select_index);

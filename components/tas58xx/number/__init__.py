@@ -6,9 +6,6 @@ import esphome.config_validation as cv
 import esphome.final_validate as fv
 
 from esphome.const import (
-    CONF_AUDIO_DAC,
-    CONF_ID,
-    CONF_PLATFORM,
     DEVICE_CLASS_SOUND_PRESSURE,
     ENTITY_CATEGORY_CONFIG,
     UNIT_DECIBEL,
@@ -17,7 +14,6 @@ from esphome.const import (
 _LOGGER = logging.getLogger(__name__)
 
 SELECT_COMPONENT = "select"
-PLATFORM_TAS58XX = "tas58xx"
 DAC_MODE = "dac_mode"
 DAC_MODE_BTL = "BTL"
 EQ_MODE = "eq_mode"
@@ -59,7 +55,16 @@ CONF_RIGHT_EQ_GAIN_16000HZ = "right_eq_gain_16000Hz"  # NOLINT
 
 ICON_VOLUME_SOURCE = "mdi:volume-source"
 
-from ..audio_dac import CONF_TAS58XX_ID, Tas58xxComponent, tas58xx_ns
+from ..audio_dac import (
+    CONF_LEFT_EQ_GAINS,
+    CONF_RIGHT_EQ_GAINS,
+    CONF_TAS58XX_ID,
+    Tas58xxComponent,
+    find_matching_config,
+    get_audio_dac_config,
+    has_eq_gains,
+    tas58xx_ns,
+)
 
 ChannelVolumeLeft = tas58xx_ns.class_("ChannelVolumeLeft", number.Number, cg.Component)
 ChannelVolumeRight = tas58xx_ns.class_("ChannelVolumeRight", number.Number, cg.Component)
@@ -150,19 +155,13 @@ def _final_validate(config):
     full_conf = fv.full_config.get()
 
     this_number_id = config[CONF_TAS58XX_ID]
-    have_this_number_eq_gains = CONF_LEFT_EQ_GAIN_20HZ in config or CONF_RIGHT_EQ_GAIN_20HZ in config
+    have_this_number_eq_gains = has_eq_gains(config, CONF_LEFT_EQ_GAINS + CONF_RIGHT_EQ_GAINS)
 
     if have_this_number_eq_gains:
-        have_select_eq_mode = False
-        have_select_eq_preset = False
-        # find the select ID with EQ Mode that matches this number ID and the audio_dac ID
-        select_confs = full_conf.get(SELECT_COMPONENT, [])
-        for select_conf in select_confs:
-            if select_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-                if select_conf.get(CONF_TAS58XX_ID) == this_number_id:
-                    have_select_eq_mode = EQ_MODE in select_conf
-                    have_select_eq_preset = EQ_PRESET_LEFT_CHANNEL in select_conf
-                    break
+        # the tas58xx select config with the same audio_dac ID as this number
+        select_conf = find_matching_config(full_conf, this_number_id, SELECT_COMPONENT)
+        have_select_eq_mode = select_conf is not None and EQ_MODE in select_conf
+        have_select_eq_preset = select_conf is not None and EQ_PRESET_LEFT_CHANNEL in select_conf
 
         # have_this_number_eq_gains and
         if (not have_select_eq_mode):
@@ -173,18 +172,9 @@ def _final_validate(config):
             raise cv.Invalid("EQ Gain numbers are not allowed with Select eq_presets - remove one set of those configurations")
 
 
-    audio_dac_id_matches_number_id = False
-    matching_audio_dac = None
-    # find the audic dac ID that matches the number ID
-    all_audio_dac = full_conf.get(CONF_AUDIO_DAC, [])
-    for audio_dac_conf in all_audio_dac:
-       if audio_dac_conf.get(CONF_PLATFORM) == PLATFORM_TAS58XX:
-           if audio_dac_conf.get(CONF_ID) == this_number_id:
-                audio_dac_id_matches_number_id = True
-                matching_audio_dac = audio_dac_conf
-                break
-
-    if audio_dac_id_matches_number_id:
+    # the audio_dac config declaring the ID used by this number
+    matching_audio_dac = get_audio_dac_config(full_conf, this_number_id)
+    if matching_audio_dac is not None:
         is_dac_mode_btl = matching_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
 
         have_this_number_channel_volume_left = CONF_CHANNEL_VOLUME_LEFT in config
