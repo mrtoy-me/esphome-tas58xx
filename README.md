@@ -203,7 +203,8 @@ audio_dac:
     update_interval: 1s
 ```
 Configuration variables:
-- **tas58xx_dac:** (*Optional*): valid values TAS5805M or TAS5825M. Defaults to TAS5805M
+- **tas58xx_dac:** (*Optional*): valid values TAS5805M or TAS5825M. Defaults to TAS5805M.
+  **model:** is also accepted, as used by ESPHome's own tas58xx component.
 
 - **enable_pin:** (*Required*): GPIOxx, enable pin
 
@@ -218,8 +219,10 @@ Configuration variables:
   Defaults to STEREO. Note: for PBTL Dac Mode, only MONO, LEFT or RIGHT are valid.
 
 - **volume_max:** (*Optional*): whole dB values from -103dB to 24dB. Defaults to 24dB.
+  **volume_max_db:** is also accepted, as used by ESPHome's own tas58xx component.
 
 - **volume_min:** (*Optional*): whole dB values from -103dB to 24dB. Defaults to -103dB.
+  **volume_min_db:** is also accepted, as used by ESPHome's own tas58xx component.
 
 - **ignore_fault:** (*Optional*): Valid options are **CLOCK_FAULT** and **NONE**. Default is **CLOCK_FAULT**.
   That is, by default clock faults are ignored when determining if fault registers require clearing. To trigger clearing of fault registers on any fault condition, specify **ignore_fault: NONE**
