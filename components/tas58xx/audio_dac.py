@@ -160,7 +160,7 @@ CONFIG_SCHEMA = cv.All(
     .add_extra(validate_config),
     cv.only_on_esp32,
     # on_audio_started() is used to write DSP settings once the I2S clock is running
-    cv.require_esphome_version(2026, 10, 0),
+    cv.require_esphome_version(2026, 9, 0),
 )
 
 # tas58xx platform config (eg number or select) of the given component for the audio_dac id, or None
