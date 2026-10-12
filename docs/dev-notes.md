@@ -4,7 +4,21 @@ Notes from the session of 2026-10-10 so work can continue in a later session, ei
 or in the cloud. Read this first. It covers the goal, the requirements set so far, the current
 branch state, the design, a to-check list and the plan forward.
 
-## Where we stopped (2026-10-11)
+## Where we stopped (2026-10-12)
+- **Upstream PR branch ready for review:** `add_fault_output` on the fork `mrtoy-me/esphome`
+  (commit `ee421f4`, based on upstream `esphome/esphome` `dev` `9acc07a`). It adds the
+  `fault_output:` option to ESPHome's own tas58xx. Not yet raised as a PR. Details in
+  "fault_output (upstream PR)" below.
+- **TAS5825M fault pin fix in this component:** `tas58xx_minimal.h` wrote `{0x60, 0x10}`, a
+  reserved bit, so GPIO1 never became an output and FAULTZ never reached the pin. Now
+  `{0x60, 0x02}` (GPIO1_OE) on both `dev_update` (`00cbe49`) and `dev_update_with_onaudio`
+  (`a6c67fe`). Worth checking on hardware if the board wires GPIO1.
+- **Not reviewed:** two commits made on GitHub, `7591cba` and `8b2e4e2` ("Update
+  audio_dac.py"), are on `dev_update_with_onaudio` before `a6c67fe`.
+- **Your fork's `dev` is behind upstream** (`94ed178`, 2026-09-30, no `model_tas5825m.cpp`).
+  Sync it on GitHub if you want it current; `add_fault_output` does not depend on it.
+
+## Earlier stop (2026-10-11)
 - **Next step:** hardware test both `dev_update` (loop design, ESPHome 2026.2.0+, boot sound
   YAML) and `dev_update_with_onaudio` (on_audio_started design, ESPHome 2026.10.0+, no boot
   sound). Use the to-check list below during testing.
@@ -183,6 +197,59 @@ branch state, the design, a to-check list and the plan forward.
    - a single gain class
    - an EQ restriction on ESP8266/RP2040
    - clang-format, ruff and clang-tidy clean
+
+## fault_output (upstream PR)
+Branch `add_fault_output` on `mrtoy-me/esphome`, one commit `ee421f4`
+("[tas58xx] Add fault_output to choose the FAULTZ pin"), based on upstream `dev` `9acc07a`.
+
+**YAML:** `fault_output:` under `audio_dac: - platform: tas58xx`. Values per model:
+`tas5805m`: `adr` (default) or `none`; `tas5825m`: `gpio0`, `gpio1` (default), `gpio2` or
+`none`. Case-insensitive. `none` writes nothing, so the pin keeps its power-on state. The
+defaults match the old hard-coded behaviour. The key is `fault_output`, not `fault_pin`,
+because `*_pin` in ESPHome means an MCU pin.
+
+**Design (chosen after comparing a computed `0x61+n` version and a sparse per-model list):**
+- `tas58xx.h`: `enum FaultOutput { ADR, GPIO0, GPIO1, GPIO2, COUNT, NONE = 0xFF }`, the index
+  into each model's table. ADR is first so TAS5805M lists one row. New pins are added just
+  before `COUNT` so the existing tables keep their positions.
+- `struct FaultOutputInfo { select_register; output_mask; }`. `select_register == 0` means the
+  model does not have that pin (`{}` or zero-filled tail).
+- `ModelInfo` gains `fault_output_ctrl_register` and `fault_output_function` (per model, as
+  they could differ on another chip) and `fault_outputs[FAULT_OUTPUT_COUNT]`.
+- `model_*.cpp`: the fault pin lines are removed from `STARTUP_SEQUENCE`. TAS5805M table:
+  `{0x61, 0x01}` (ADR), rest zero-filled. TAS5825M: `{}` (ADR), `{0x61,0x01}`, `{0x62,0x02}`,
+  `{0x63,0x04}`. Both: ctrl `0x60`, function `0x0B`.
+- `init_()`: after the startup sequence, if not NONE, write the select register with the
+  function, then the ctrl register with the mask. A pin the model lacks (only reachable from
+  C++) logs a warning. `dump_config` prints "Fault Output".
+- Python: `FAULT_OUTPUTS` maps names to the C++ enumerators (matched by name; codegen emits
+  `set_fault_output(tas58xx::FAULT_OUTPUT_GPIO1)`, values come from C++). `Model` gains
+  `fault_outputs` (allowed names) and `default_fault_output`; `typed_schema` gives each model
+  only its names.
+- Known costs: one `{}` row for chips without ADR; a chip whose pins do not start at GPIO0
+  (for example only GPIO3/GPIO4) would need leading `{}` rows. The ctrl register is per model;
+  if a chip ever has enable bits in more than one register, move it into `FaultOutputInfo`.
+  The ctrl register is written plainly (not read-modify-write), which is right while only one
+  pin is an output. `ModelInfo` is in RAM on ESP8266 (+10 bytes, selected model only).
+
+**Datasheet facts (TAS5805M SLASEH5D §7.6.1.24–25, TAS5825M SLASEH7H §9.6.1.33–36):**
+- TAS5805M: `0x60` ADR_PIN_CTRL bit 0 ADR_OE; `0x61` ADR_PIN_CONFIG, `01011` = FAULTZ. No GPIO
+  pins.
+- TAS5825M: `0x60` GPIO_CTRL bits 0–2 = GPIO0_OE..GPIO2_OE (bits 7–3 reserved); `0x61`/`0x62`/
+  `0x63` GPIO0_SEL/GPIO1_SEL/GPIO2_SEL, `1011` = FAULTZ, `1000` = WARNZ. ADR is an analog input
+  (address resistor) only. `0x64` is GPIO_INPUT_SEL, so select registers are not assumed to
+  continue past `0x63`.
+
+**Checks run (all pass):** `script/test_build_components.py -e config -c tas58xx` (4 configs);
+invalid pins rejected (`gpio1` on tas5805m, `adr` on tas5825m, `gpio3`); defaults generate
+`FAULT_OUTPUT_ADR` / `FAULT_OUTPUT_GPIO1`; clang-tidy and clang++/g++ `-Wall -Wextra` on the
+tas58xx files (no tas58xx diagnostics, negative control fails as expected); clang-format
+13.0.1, ruff 0.16.10, flake8 and `script/ci-custom.py` clean. Not done: a real target build
+and hardware test.
+
+**Before raising the PR:** hardware test the TAS5825M GPIO pins if possible, use the
+`.github/PULL_REQUEST_TEMPLATE.md` template with title `[tas58xx] Add fault_output option`, and
+add the docs entry to `esphome/esphome.io`.
 
 ## How the work was checked, and how to repeat it locally
 - **`main`-compatibility matrix:** `docs/compat/cases/*.yaml` (18 configs) and
