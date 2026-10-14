@@ -5,12 +5,8 @@
 #include <numbers>
 
 #include "esphome/core/helpers.h"
-#include "esphome/core/log.h"
 
 namespace esphome::tas58xx_helpers {
-
-// only used by verbose logging
-[[maybe_unused]] ESPHOME_LOG_TAG(TAG, "tas58xx.helper");
 
 // Double precision is used so coefficient values match TI PurePath Console 3, float precision does not give
 // close matches. Double calculations on the ESP32 are much slower than float, so common terms are calculated
@@ -46,11 +42,7 @@ int32_t double_to_fixed_5_27(double x) {
     fixed_5_27 = INT32_MIN;
   }
 
-  const int32_t little_endian = byteswap(fixed_5_27);
-
-  ESP_LOGV(TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, x,
-           fixed_5_27, little_endian);
-  return little_endian;
+  return byteswap(fixed_5_27);
 }
 
 // 10^(gain / N) with the exp constant ln(10) / N, exp(0) = 1 is not calculated
@@ -191,11 +183,7 @@ int32_t gain_to_fixed_9_23(int8_t gain) {
   if (linear < MIN_VALUE) linear = MIN_VALUE;
 
   const int32_t fixed_9_23 = static_cast<int32_t>(linear * SCALE);
-  const int32_t little_endian = byteswap(fixed_9_23);
-
-  ESP_LOGV(TAG, "Gain:%ddb >> Fixed 9.23: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, gain, fixed_9_23,
-           little_endian);
-  return little_endian;
+  return byteswap(fixed_9_23);
 }
 
 BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
