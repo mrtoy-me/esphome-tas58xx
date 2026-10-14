@@ -197,6 +197,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool eq_filters_written_[NUMBER_CHANNELS]{false, false};
 #endif
 
+   int8_t eq_ganged_{-1}; // ganging written to the DSP, -1 until written
    EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode
 
    InputMixerMode tas58xx_input_mixer_mode_; // YAML default = STEREO

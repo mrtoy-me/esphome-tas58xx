@@ -30,7 +30,9 @@ Not yet hardware tested. `dev_update_with_onaudio` itself is unchanged.
      records whether the DSP holds the channel's filters or is flat, `eq_channel_need()` says what a mode needs
      (filters, flat, or any), `write_eq_channels_()` writes the difference. EQ Off and EQ On Left=Right from a mode
      with left filters write only the mode register. A gain or preset change is written only when the channel's
-     filters are in the DSP. A rewrite after the clock was lost rewrites the filters in the DSP. Select index to mode through
+     filters are in the DSP. A rewrite after the clock was lost rewrites the filters in the DSP.
+     Debug log: one "<Left|Right> Channel EQ >> flat" entry for each channel set flat, and "EQ Ganged >> ..."
+     whenever the ganging written to the DSP changes (`eq_ganged_`). Select index to mode through
      the `config_eq_modes` mask.
    - Right EQ gain numbers with `dac_mode: PBTL` log a warning. Compat cases 19 to 28 added.
 2. **`80dd98b` presets calculated with the helpers.** `eq_profiles.h` (42 coefficient tables, 446 lines) is

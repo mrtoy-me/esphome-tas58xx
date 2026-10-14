@@ -117,6 +117,9 @@ static constexpr EqModeCoefficients TAS5825M_CTRL_EQ[NUMBER_EQ_MODES] = {
 #endif
 
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+// the registers gang the EQ (right channel uses the left channel filters) for EQ Off and EQ On Left=Right
+constexpr bool eq_mode_is_ganged(EqMode mode) { return mode == EQ_OFF || mode == EQ_ON; }
+
 // what an EQ mode needs in the biquads of a channel
 enum EqChannelNeed : uint8_t {
   EQ_CHANNEL_ANY = 0,  // not used by the EQ mode, left as it is

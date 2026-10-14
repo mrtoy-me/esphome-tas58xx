@@ -538,7 +538,7 @@ bool Tas58xxComponent::write_eq_channel_(Channels channel, bool filters) {
 #endif
   if (ok) {
     this->eq_filters_written_[channel] = filters;
-    if (!filters) ESP_LOGD(TAG, "%s Channel EQ >> flat", LR_CHANNEL_TEXT[channel]);
+    if (!filters) ESP_LOGD(TAG, "%s Channel EQ >> flat", LR_CHANNEL_TEXT[channel]);  // one entry for each channel set flat
   }
 #endif
   return ok;
@@ -746,6 +746,13 @@ bool Tas58xxComponent::write_eq_mode_() {
 #endif
 
   ESP_LOGD(TAG, "EQ Mode >> %s", EQ_MODE_TEXT[new_mode]);
+
+  // log when the ganging of the left and right channel filters changes
+  const int8_t ganged = eq_mode_is_ganged(new_mode) ? 1 : 0;
+  if (ganged != this->eq_ganged_) {
+    this->eq_ganged_ = ganged;
+    ESP_LOGD(TAG, "EQ Ganged >> %s", ganged ? LOG_STR_LITERAL("Left=Right") : LOG_STR_LITERAL("Left and Right separate"));
+  }
 #endif
   return true;
 }
