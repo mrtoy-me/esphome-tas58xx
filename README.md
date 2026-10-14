@@ -256,11 +256,11 @@ being EQ Off and, depending on configuration, EQ On or EQ BIAMP On.
 Note: if any EQ Gains or EQ Presets are configured then Eq Mode Select must be defined.
 
 The EQ Mode select option (in addition to EQ Off) is determined based on the YAML configuration as follows:
-- Left EQ Gains only (any number of bands) -> **EQ On**: the left EQ Gains are applied to both channels
-- Right EQ Gains (with or without Left EQ Gains), or EQ Gains on one channel and an EQ Preset on the other channel -> **EQ BIAMP On**: each channel has its own filters
-- EQ Presets only (left channel, right channel or both) -> **EQ On**
+- Left channel configured (EQ Gains or EQ Preset) -> **EQ On** is available: the left channel filters are applied to both channels
+- Right channel configured (EQ Gains or EQ Preset) -> **EQ BIAMP On** is available: each channel has its own filters
+- Both channels configured -> both **EQ On** and **EQ BIAMP On** are available
 
-On startup the EQ Mode Select is initially selected the relevant Eq Mode.
+On startup the EQ Mode Select starts at the highest EQ Mode available (the last option), EQ BIAMP On if available otherwise EQ On.
 
 
 # EQ Control configuration

@@ -6,9 +6,9 @@ namespace esphome::tas58xx {
 ESPHOME_LOG_TAG(TAG, "tas58xx.select");
 
 void EqModeSelect::setup() {
-  // options are set by codegen: "Off" plus the EQ mode derived from YAML configuration, if any
-  // start with the EQ mode selected when EQ gains or EQ presets are configured
-  size_t initial_select_index = this->parent_->is_eq_configured() ? EqMode::EQ_ON : EqMode::EQ_OFF;
+  // options are set by codegen: EQ Off plus the EQ modes derived from YAML configuration
+  // start at the highest EQ mode configured, which is the last option
+  size_t initial_select_index = this->parent_->get_highest_eq_select_index();
 
   this->publish_state(initial_select_index);
   this->parent_->select_eq_mode(initial_select_index);

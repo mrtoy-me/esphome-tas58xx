@@ -357,11 +357,6 @@ bool Tas58xxComponent::write_input_mixer_mode_() {
   return true;
 }
 
-// used by 'select eq mode' to determine initially selected EQ mode
-bool Tas58xxComponent::is_eq_configured() {
-  return this->eq_configured_;
-}
-
 bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 #ifdef USE_TAS58XX_CHANNEL_VOLUMES
   if (volume_dB < TAS58XX_CHANNEL_VOLUME_MIN_DB || volume_dB > TAS58XX_CHANNEL_VOLUME_MAX_DB) {
@@ -398,13 +393,25 @@ bool Tas58xxComponent::write_channel_volume_(Channels channel) {
   return true;
 }
 
-// used by select eq mode
+// used by select eq mode, the options are EQ Off followed by each EQ mode in eq_modes_
 void Tas58xxComponent::select_eq_mode(uint8_t select_index) {
-  if ( select_index == static_cast<uint8_t>(EqMode::EQ_OFF) ) {
-    this->set_eq_mode_(EqMode::EQ_OFF);
-  } else {
-    this->set_eq_mode_(this->configured_eq_mode_);
+  uint8_t option = 0;
+  for (uint8_t mode = EQ_ON; mode < NUMBER_EQ_MODES; mode++) {
+    if ((this->eq_modes_ & (1u << mode)) && ++option == select_index) {
+      this->set_eq_mode_(static_cast<EqMode>(mode));
+      return;
+    }
   }
+  this->set_eq_mode_(EqMode::EQ_OFF);
+}
+
+// used by select eq mode to start at the highest EQ mode configured, which is its last option
+uint8_t Tas58xxComponent::get_highest_eq_select_index() {
+  uint8_t option = 0;
+  for (uint8_t mode = EQ_ON; mode < NUMBER_EQ_MODES; mode++) {
+    if (this->eq_modes_ & (1u << mode)) option++;
+  }
+  return option;
 }
 
 // used by eq gain numbers

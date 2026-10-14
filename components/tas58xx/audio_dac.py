@@ -30,6 +30,7 @@ DEPENDENCIES = ["i2c"]
 # yaml configuration constants
 CONF_ANALOG_GAIN = "analog_gain"
 CONF_DAC_MODE = "dac_mode"
+CONF_EQ_MODE = "eq_mode"
 CONF_MODULATION = "modulation"
 CONF_TAS58XX_DAC = "tas58xx_dac"
 CONF_IGNORE_FAULT = "ignore_fault"
@@ -41,8 +42,8 @@ CONF_TAS58XX_ID = "tas58xx_id"
 PLATFORM_TAS58XX = "tas58xx"
 SELECT_COMPONENT = "select"
 
-EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
-EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
+CONF_EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
+CONF_EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
 
 # eq gain number keys, eg left_eq_gain_20Hz
 EQ_BAND_FREQUENCIES = ("20", "31.5", "50", "80", "125", "200", "315", "500", "800",
@@ -50,11 +51,12 @@ EQ_BAND_FREQUENCIES = ("20", "31.5", "50", "80", "125", "200", "315", "500", "80
 CONF_LEFT_EQ_GAINS = tuple(f"left_eq_gain_{freq}Hz" for freq in EQ_BAND_FREQUENCIES)
 CONF_RIGHT_EQ_GAINS = tuple(f"right_eq_gain_{freq}Hz" for freq in EQ_BAND_FREQUENCIES)
 
-# eq mode enum and select index values
-EQ_OFF = 0
-EQ_15BAND = 1
-EQ_BIAMP = 2
-EQ_PRESETS = 3
+DAC_MODE_BTL = "BTL"
+
+# C++ EqMode values, also the index of the EQ Mode select option text
+EQ_ON = 1
+EQ_BIAMP_ON = 2
+EQ_MODE_OPTIONS = ("EQ Off", "EQ On", "EQ BIAMP On")
 
 # dac names
 TAS5805M_DAC = "TAS5805M"
@@ -134,7 +136,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_ANALOG_GAIN, default=-15.5): cv.All(
                         cv.decibel, cv.one_of(*ANALOG_GAINS)
             ),
-            cv.Optional(CONF_DAC_MODE, default="BTL"): cv.enum(
+            cv.Optional(CONF_DAC_MODE, default=DAC_MODE_BTL): cv.enum(
                         DAC_MODES, upper=True
             ),
             cv.Optional(CONF_MODULATION, default="BD_MODE"): cv.enum(
@@ -186,8 +188,8 @@ def get_eq_channels(number_conf, select_conf):
     return EqChannels(
         left_gains=has_eq_gains(number_conf, CONF_LEFT_EQ_GAINS),
         right_gains=has_eq_gains(number_conf, CONF_RIGHT_EQ_GAINS),
-        left_preset=select_conf is not None and EQ_PRESET_LEFT_CHANNEL in select_conf,
-        right_preset=select_conf is not None and EQ_PRESET_RIGHT_CHANNEL in select_conf,
+        left_preset=select_conf is not None and CONF_EQ_PRESET_LEFT_CHANNEL in select_conf,
+        right_preset=select_conf is not None and CONF_EQ_PRESET_RIGHT_CHANNEL in select_conf,
     )
 
 # each channel has either EQ gain numbers or an EQ preset, not both
@@ -197,20 +199,15 @@ def validate_eq_channels(eq_channels):
     if eq_channels.right_gains and eq_channels.right_preset:
         raise cv.Invalid("Right EQ Gain numbers are not allowed with Select eq_preset_right_channel - remove one of those configurations")
 
-# EQ_15BAND shares one set of filters between both channels (left gains are applied to both channels)
-# EQ_BIAMP and EQ_PRESETS have separate filters for each channel
-def derive_eq_mode(eq_channels):
-    have_gains = eq_channels.left_gains or eq_channels.right_gains
-    have_presets = eq_channels.left_preset or eq_channels.right_preset
-    if eq_channels.left_gains and not (eq_channels.right_gains or have_presets):
-        return EQ_15BAND
-    if have_gains:
-        return EQ_BIAMP
-    if have_presets:
-        return EQ_PRESETS
-    return EQ_OFF
+# EQ modes that can be selected, in select option order after EQ Off
+# EQ On shares the left channel filters between both channels, so it needs the left channel configured
+# EQ BIAMP On has separate filters for each channel, so it needs the right channel configured
+def derive_eq_modes(eq_channels):
+    left = eq_channels.left_gains or eq_channels.left_preset
+    right = eq_channels.right_gains or eq_channels.right_preset
+    return tuple(mode for mode, wanted in ((EQ_ON, left), (EQ_BIAMP_ON, right)) if wanted)
 
-# derive the eq mode from the tas58xx numbers and selects of this audio_dac
+# derive the EQ modes from the tas58xx numbers and selects of this audio_dac
 # saved for audio_dac to_code and select to_code (EQ Mode select options)
 def _final_validate(config):
     full_conf = fv.full_config.get()
@@ -218,14 +215,14 @@ def _final_validate(config):
     number_conf = find_matching_config(full_conf, audio_dac_id, CONF_NUMBER)
     select_conf = find_matching_config(full_conf, audio_dac_id, SELECT_COMPONENT)
 
-    eq_mode = derive_eq_mode(get_eq_channels(number_conf, select_conf))
+    eq_modes = derive_eq_modes(get_eq_channels(number_conf, select_conf))
 
-    CORE.data.setdefault(DOMAIN, {})[str(audio_dac_id)] = eq_mode
+    CORE.data.setdefault(DOMAIN, {})[str(audio_dac_id)] = eq_modes
     return config
 
 FINAL_VALIDATE_SCHEMA = _final_validate
 
-def get_eq_mode(audio_dac_id):
+def get_eq_modes(audio_dac_id):
     return CORE.data[DOMAIN][str(audio_dac_id)]
 
 async def to_code(config):
@@ -252,7 +249,7 @@ async def to_code(config):
     cg.add(var.config_input_mixer_mode(config[CONF_MIXER_MODE]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
-    cg.add(var.config_eq_mode(get_eq_mode(config[CONF_ID])))
+    cg.add(var.config_eq_modes(sum(1 << mode for mode in get_eq_modes(config[CONF_ID]))))
 
     if tas58xx_dac == TAS5805M_DAC:
         cg.add_define("USE_TAS5805M_DAC")

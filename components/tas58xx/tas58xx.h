@@ -38,7 +38,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void config_modulation_scheme(ModulationScheme modulation_scheme) {this->tas58xx_modulation_scheme_ = modulation_scheme; }
 
-  void config_eq_mode(uint8_t configured_eq_mode) { this->configured_eq_mode_ = static_cast<EqMode>(configured_eq_mode); }
+  // bit mask of the EQ modes that can be selected, derived from YAML (bit EQ_ON, bit EQ_BIAMP_ON)
+  void config_eq_modes(uint8_t eq_modes) { this->eq_modes_ = eq_modes; }
 
   void config_ignore_fault_mode(ExcludeIgnoreMode ignore_fault_mode) {
     this->ignore_clock_faults_when_clearing_faults_ = (ignore_fault_mode == ExcludeIgnoreMode::CLOCK_FAULT);
@@ -79,11 +80,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   uint8_t get_mixer_mode();
   bool set_input_mixer_mode(InputMixerMode mode);
 
-  bool is_eq_configured();
-
   bool set_channel_volume(Channels channel, int8_t volume_dB);
 
   void select_eq_mode(uint8_t select_index);
+  uint8_t get_highest_eq_select_index();
 
   bool set_eq_gain(Channels channel, uint8_t band_index, int8_t gain);
 
@@ -156,7 +156,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t number_bytes);
 
    //// variables
-   EqMode configured_eq_mode_; // derived from YAML
+   uint8_t eq_modes_{0}; // derived from YAML: bit mask of selectable EQ modes
 
    enum ErrorCode {
      NONE = 0,
@@ -179,13 +179,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    DacMode tas58xx_dac_mode_; // configured in YAML
 
-#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
-   bool eq_configured_{true};
-#else
-   bool eq_configured_{false};
-#endif
-
-   int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
+   int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{}; // used if eq gain numbers are defined in YAML
 
 #ifdef USE_TAS58XX_EQ_GAINS
    // only the biquads defined in YAML are written, the others stay at their power on (flat) state
@@ -196,7 +190,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool eq_preset_defined_[NUMBER_CHANNELS]{false}; // set by an EQ preset select
 #endif
 
-   EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
+   EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode
 
    InputMixerMode tas58xx_input_mixer_mode_; // YAML default = STEREO
 

@@ -32,11 +32,9 @@ enum Channels : uint8_t {
 };
 
 enum EqMode : uint8_t {
-  EQ_OFF        = 0,
-  EQ_ON         = 1,
-  EQ_15BAND_ON  = 1,
-  EQ_BIAMP_ON   = 2,
-  EQ_PRESETS_ON = 3,
+  EQ_OFF      = 0,
+  EQ_ON       = 1,  // left channel filters shared by both channels
+  EQ_BIAMP_ON = 2,  // separate filters for each channel
 };
 
 enum InputMixerMode : uint8_t {
@@ -47,6 +45,7 @@ enum InputMixerMode : uint8_t {
   LEFT,
 };
 
+// Future speaker configuration (subwoofer mixer and output crossbar), not used yet
 // enum SubchannelMixerMode: uint8_t {
 //   NO_SUB = 0,
 //   LEFT_SUB,
@@ -112,10 +111,10 @@ static constexpr uint8_t TAS58XX_ANALOG_FAULT_CLEAR    = 0x80;
 // channels, EQ modes and mixer: counts and text
 static constexpr uint8_t NUMBER_CHANNELS = 2;
 static constexpr uint8_t NUMBER_EQ_BANDS = 15;
-static constexpr uint8_t NUMBER_EQ_MODES = 4;
+static constexpr uint8_t NUMBER_EQ_MODES = 3;
 // static constexpr uint8_t NUMBER_OUTPUT_CROSSBAR = 4; // Analog Left, Analog Right, Digital Left, Digital Right
 
-static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
+static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"EQ Off", "EQ On", "EQ BIAMP On"};
 static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"};
 static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
 // static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"NO SUB", "LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};

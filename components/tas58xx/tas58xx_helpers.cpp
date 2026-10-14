@@ -3,11 +3,13 @@
 #include "esphome/core/log.h"
 
 namespace esphome::tas58xx_helpers {
+
+ESPHOME_LOG_TAG(TAG, "tas58xx.helper");
+
   // double precision used so coefficent values match well with TI Pure Path Console 3
   // whereas using float precision does not give close matches
   // speed optimisations are utilised where possible since double precision calculations on esp32 are much slower than float
 
-  static constexpr const char* HELPER_TAG = "tas58xx.helper";
 
   // b0 = 1.0 and all other coefficients 0.0 as 5.27 fixed point, already converted to the byte order written to the DSP
   constexpr BiquadCoefficients ALL_PASS = {0x00000008, 0x00000000, 0x00000000, 0x00000000, 0x00000000};
@@ -42,7 +44,7 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     int32_t little_endian = byteswap(fixed_9_23);
 
-    ESP_LOGV(HELPER_TAG, "Gain:%ddb >> Fixed 9.23: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, gain, fixed_9_23, little_endian);
+    ESP_LOGV(TAG, "Gain:%ddb >> Fixed 9.23: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, gain, fixed_9_23, little_endian);
     return little_endian;
   }
 
@@ -71,7 +73,7 @@ namespace esphome::tas58xx_helpers {
     // convert to 32 bit little endian
     const int32_t little_endian = byteswap(fixed_5_27);
 
-    ESP_LOGV(HELPER_TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, x, fixed_5_27, little_endian);
+    ESP_LOGV(TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, x, fixed_5_27, little_endian);
     return little_endian;
   }
 

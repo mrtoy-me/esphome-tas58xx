@@ -90,10 +90,10 @@ static constexpr EqPreset EQ_PRESETS[EQ_PROFILE_MAXIMUM_INDEX + 1] = {
 static constexpr uint8_t TAS58XX_EQ_CTRL_BOOK = 0xAA;
 
 // EQ mode coefficients equivalent to the indexes of the eq_modes
-// Off=Bypass EQ On + Ganged On; EQ 15 Band=Bypass EQ Off + Ganged On; EQ BIAMP 15 Band and EQ Presets=Bypass EQ Off + Ganged Off
+// EQ Off = bypass EQ; EQ On = EQ ganged (left filters used by both channels); EQ BIAMP On = separate filters for each channel
 #ifdef USE_TAS5805M_DAC
 static constexpr uint8_t TAS5805M_DSP_MISC = 0x66;
-static constexpr uint8_t TAS5805M_CTRL_EQ[NUMBER_EQ_MODES] = {0b0111, 0b0110, 0b1110, 0b1110};
+static constexpr uint8_t TAS5805M_CTRL_EQ[NUMBER_EQ_MODES] = {0b0111, 0b0110, 0b1110};
 #else
 static constexpr uint8_t TAS5825M_EQ_MODE_CTRL_PAGE = 0x0B;
 static constexpr uint8_t TAS5825M_GANG_EQ = 0x28; // TAS5825M_BYPASS_EQ = 0x2C;
@@ -106,10 +106,9 @@ struct EqModeCoefficients {
 // 0x00000001 EQ Ganged ie L/R channel common coefficients
 // 0x00000000 Bypass EQ = false ie EQ enabled
 static constexpr EqModeCoefficients TAS5825M_CTRL_EQ[NUMBER_EQ_MODES] = {
-  {0x00000001, 0x00000001}, // EQ Off     = Ganged true  + Bypass EQ true
-  {0x00000001, 0x00000000}, // EQ 15 Band = Ganged true  + Bypass EQ false
-  {0x00000000, 0x00000000}, // EQ BIAMP   = Ganged false + Bypass EQ false
-  {0x00000000, 0x00000000}, // EQ Presets = Ganged false + Bypass EQ false
+  {0x00000001, 0x00000001}, // EQ Off      = Ganged true  + Bypass EQ true
+  {0x00000001, 0x00000000}, // EQ On       = Ganged true  + Bypass EQ false
+  {0x00000000, 0x00000000}, // EQ BIAMP On = Ganged false + Bypass EQ false
 };
 #endif
 

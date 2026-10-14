@@ -13,20 +13,19 @@ from esphome.const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-SELECT_COMPONENT = "select"
-DAC_MODE = "dac_mode"
-DAC_MODE_BTL = "BTL"
-EQ_MODE = "eq_mode"
-
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
 CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
 
 ICON_VOLUME_SOURCE = "mdi:volume-source"
 
 from ..audio_dac import (
+    CONF_DAC_MODE,
+    CONF_EQ_MODE,
     CONF_LEFT_EQ_GAINS,
     CONF_RIGHT_EQ_GAINS,
     CONF_TAS58XX_ID,
+    DAC_MODE_BTL,
+    SELECT_COMPONENT,
     Tas58xxComponent,
     find_matching_config,
     get_audio_dac_config,
@@ -57,7 +56,7 @@ def _final_validate(config):
     if have_this_number_eq_gains:
         # the tas58xx select config with the same audio_dac ID as this number
         select_conf = find_matching_config(full_conf, this_number_id, SELECT_COMPONENT)
-        have_select_eq_mode = select_conf is not None and EQ_MODE in select_conf
+        have_select_eq_mode = select_conf is not None and CONF_EQ_MODE in select_conf
 
         if not have_select_eq_mode:
             raise cv.Invalid("Select eq_mode is required with EQ Gain numbers - add Select eq_mode to YAML configuration")
@@ -67,7 +66,7 @@ def _final_validate(config):
     # the audio_dac config declaring the ID used by this number
     matching_audio_dac = get_audio_dac_config(full_conf, this_number_id)
     if matching_audio_dac is not None:
-        is_dac_mode_btl = matching_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
+        is_dac_mode_btl = matching_audio_dac.get(CONF_DAC_MODE) == DAC_MODE_BTL
 
         have_this_number_channel_volume_left = CONF_CHANNEL_VOLUME_LEFT in config
         have_this_number_channel_volume_right = CONF_CHANNEL_VOLUME_RIGHT in config
