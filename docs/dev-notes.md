@@ -9,7 +9,9 @@ Branch `dev_update_with_onaudio_plus_eq` is based on `dev_update_with_onaudio` (
 had gone well) and holds the EQ rework, in 4 commits that can be checked or reverted separately, plus follow-up commits
 `7493875` (EQ modes), `f7e75d1`, `712d989` (EQ Left/Right/Left=Right modes), `78d21c2` (PBTL left is always EQ Left On).
 Not yet hardware tested. `dev_update_with_onaudio` itself is unchanged.
-Later on 2026-10-14 (newest first, HEAD `f274aeb`): `f274aeb` Q as a double, `2220468` sand_box future band options
+Later on 2026-10-14 (newest first, HEAD `0653923`): `0653923` 5.27 constants inside `double_to_fixed_5_27`, `20c886b`
+mixer select offset per instance (two DACs), `12b34f0` helpers in `esphome::tas58xx` with `static` file local
+functions, `fbdbc6b` helper verbose logs removed, `ae320d0` notes, `f274aeb` Q as a double, `2220468` sand_box future band options
 kept as comments in `number/__init__.py`, `d0e3499` / `926e1c0` PPC reference check, `7801822` I2CDevice functions
 and one I2C write per DSP page segment, `23bfaa1` DSP writes in runs without the heap, `2749ff8` TAS5825M EQ flag byte
 order, `db3b8a1` helper cleanup; before those the EQ mode state tracking (`62d138f`) and logs (`9edb28d`, `8570b14`).
@@ -406,6 +408,22 @@ add the docs entry to `esphome/esphome.io`.
 - EQ mode changes (`62d138f`) write only what changes: `eq_filters_written_` per channel and `eq_channel_need()`.
   Logs: "<Left|Right> Channel EQ >> flat" for each channel set flat, "EQ Ganged >> On|Off" when ganging changes.
 
+- Helpers tidy (`fbdbc6b`, `12b34f0`, `0653923`): the verbose coefficient logs (5.27 and 9.23), log tag and log include
+  are removed (proven by the host tools). The helpers are in the component namespace `esphome::tas58xx` (no more
+  `tas58xx_helpers::` prefix; the files `tas58xx_helpers.h/.cpp` stay). File local functions are `static` (ESPHome's
+  usual style, not an anonymous namespace); constants used by one function live inside it, shared ones
+  (`TWO_PI`, `INVERSE_SQRT2`, `LN10_DIV_*`) at file scope.
+
+## Two DACs of the same type on one board (goal, 2026-10-14)
+- Wanted later: two `audio_dac: - platform: tas58xx` entries of the same model with different I2C addresses.
+- Fixed (`20c886b`): the mixer select's option offset was a file global shared by all mixer selects (a BTL and a
+  PBTL DAC would break each other); it is now a member `min_mixer_mode_`. `MAX_SELECT_INDEX` (unused) removed.
+- Already fine: helpers are pure functions; per DAC data is keyed by the DAC id (EQ modes in `CORE.data`, matching
+  number/select lookups) or is component state; `USE_TAS58XX_*` defines only say what is compiled in.
+- Not possible by design: two different models on one build (`USE_TAS5805M_DAC` / `USE_TAS5825M_DAC`).
+- Still to check when it is done: test YAML with two DACs (ids, numbers and selects for each, preferences per
+  entity), and that nothing else is file global (a search found only the mixer select globals).
+
 ## Mixer values checked (2026-10-14, no change)
 - Mixer registers are 9.23 big endian (TAS5805M book 0x8C page 0x29 from 0x18, TAS5825M book 0x8C page 0x0B from
   0x14, order left to left, right to left, left to right, right to right). Our constants are stored byte swapped:
@@ -462,7 +480,7 @@ add the docs entry to `esphome/esphome.io`.
   `number/__init__.py` (`2220468`). When it is done: Q goes into the generated `EqBand` table as a double literal,
   add a range check for Q (Q = 0 divides by zero), frequency below 48 kHz, gain range is ±15 dB here
   (`TAS58XX_EQ_MAX_DB`) while sand_box allowed ±24 dB, and a band defined in both forms is an error.
-- Hardware checks for today's rework: no I2C errors in the log at startup and on EQ changes (TAS5805M biquads that
+- Hardware checks for today's rework (also: mixer select still maps its options correctly in BTL and PBTL): no I2C errors in the log at startup and on EQ changes (TAS5805M biquads that
   cross a page), EQ mode switching writes only what changes, TAS5825M EQ Off bypasses and EQ On Left=Right gangs
   (flag byte order), "DAC not playing" / audio start behaviour (Power State read is now one write-read).
 - Upstream PRs for `add_fault_output` and `add_modulation_option` (branches in `mrtoy-me/esphome`) are not raised;
