@@ -134,34 +134,26 @@ bool Tas58xxComponent::write_dsp_settings_() {
 #endif
 
 #ifdef USE_TAS58XX_EQ_GAINS
-  // all bands are written from saved gains, bands without a gain number are written as 0dB
-  for (uint8_t band = 0; band < NUMBER_EQ_BANDS; band++) {
-    if (!this->write_eq_gain_(LEFT_CHANNEL, band)) {
-  #ifdef USE_TAS58XX_EQ_BIAMP
-      ESP_LOGW(TAG, "%s setting Gain Left %s: %d", ERROR, EQ_BAND, band + 1);
-  #else
-      ESP_LOGW(TAG, "%s setting Gain %s: %d", ERROR, EQ_BAND, band + 1);
-  #endif
-      ok = false;
+  // only bands with a gain number in YAML are written, the other biquads keep their power on (flat) state
+  for (uint8_t channel = LEFT_CHANNEL; channel < NUMBER_CHANNELS; channel++) {
+    for (uint8_t band = 0; band < NUMBER_EQ_BANDS; band++) {
+      if (!(this->eq_gain_defined_[channel] & (1u << band))) continue;
+      if (!this->write_eq_gain_(static_cast<Channels>(channel), band)) {
+        ESP_LOGW(TAG, "%s setting %s Gain %s: %d", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band + 1);
+        ok = false;
+      }
     }
-
-  #ifdef USE_TAS58XX_EQ_BIAMP
-    if (!this->write_eq_gain_(RIGHT_CHANNEL, band)) {
-      ESP_LOGW(TAG, "%s setting Gain Right %s: %d", ERROR, EQ_BAND, band + 1);
-      ok = false;
-    }
-  #endif
   }
 #endif // USE_TAS58XX_EQ_GAINS
 
 #ifdef USE_TAS58XX_EQ_PRESETS
-  if (!this->write_eq_preset_(LEFT_CHANNEL)) {
-    ESP_LOGW(TAG, "%s setting Left Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[LEFT_CHANNEL]);
-    ok = false;
-  }
-  if (!this->write_eq_preset_(RIGHT_CHANNEL)) {
-    ESP_LOGW(TAG, "%s setting Right Channel Preset index: %d", ERROR, this->tas58xx_channel_preset_[RIGHT_CHANNEL]);
-    ok = false;
+  // only channels with an EQ preset select in YAML are written
+  for (uint8_t channel = LEFT_CHANNEL; channel < NUMBER_CHANNELS; channel++) {
+    if (!this->eq_preset_defined_[channel]) continue;
+    if (!this->write_eq_preset_(static_cast<Channels>(channel))) {
+      ESP_LOGW(TAG, "%s setting %s Channel Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], this->tas58xx_channel_preset_[channel]);
+      ok = false;
+    }
   }
 #endif // USE_TAS58XX_EQ_PRESETS
 
@@ -431,6 +423,7 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
   }
 
   this->tas58xx_eq_gain_[channel][band_index] = gain;
+  this->eq_gain_defined_[channel] |= static_cast<uint16_t>(1u << band_index);
 
   // only save until the I2S clock has been seen
   if (!this->can_write_dsp_()) {
@@ -449,17 +442,9 @@ bool Tas58xxComponent::write_eq_gain_(Channels channel, uint8_t band_index) {
   const int8_t gain = this->tas58xx_eq_gain_[channel][band_index];
 
 #ifdef USE_TAS5805M_DAC
-  #ifdef USE_TAS58XX_EQ_BIAMP
   const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[band_index] : &TAS5805M_RIGHT_EQ_ADDRESS[band_index];
-  #else
-  const AddressSequence* eq_address = &TAS5805M_LEFT_EQ_ADDRESS[band_index];
-  #endif
 #else
-  #ifdef USE_TAS58XX_EQ_BIAMP
   const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[band_index] : &TAS5825M_RIGHT_EQ_ADDRESS[band_index];
-  #else
-  const AddressSequence* eq_address = &TAS5825M_LEFT_EQ_ADDRESS[band_index];
-  #endif
 #endif
 
   if (eq_address == NULL) {
@@ -489,6 +474,7 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
   }
 
   this->tas58xx_channel_preset_[channel] = select_preset;
+  this->eq_preset_defined_[channel] = true;
 
   // only save until the I2S clock has been seen
   if (!this->can_write_dsp_()) {

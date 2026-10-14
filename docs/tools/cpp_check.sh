@@ -19,9 +19,9 @@ rm -rf "$DEST" && mkdir "$DEST" && cp -r "$REPO/components/tas58xx/." "$DEST/" &
 cd "$ESPHOME"
 for combo in "-DUSE_TAS5805M_DAC" \
              "-DUSE_TAS5805M_DAC -DUSE_TAS58XX_EQ_GAINS -DUSE_TAS58XX_CHANNEL_VOLUMES -DUSE_TAS58XX_BINARY_SENSOR" \
-             "-DUSE_TAS5805M_DAC -DUSE_TAS58XX_EQ_GAINS -DUSE_TAS58XX_EQ_BIAMP" \
+             "-DUSE_TAS5805M_DAC -DUSE_TAS58XX_EQ_GAINS -DUSE_TAS58XX_EQ_PRESETS" \
              "-DUSE_TAS5825M_DAC -DUSE_TAS58XX_EQ_PRESETS -DUSE_TAS58XX_CHANNEL_VOLUMES" \
-             "-DUSE_TAS5825M_DAC -DUSE_TAS58XX_EQ_GAINS -DUSE_TAS58XX_EQ_BIAMP -DUSE_TAS58XX_BINARY_SENSOR"; do
+             "-DUSE_TAS5825M_DAC -DUSE_TAS58XX_EQ_GAINS -DUSE_TAS58XX_EQ_PRESETS -DUSE_TAS58XX_BINARY_SENSOR"; do
   all=""
   for f in $(find esphome/components/tas58xx -name '*.cpp'); do
     all+=$(clang-tidy --checks=-*,llvm-namespace-comment "$f" -- -std=gnu++20 -I. -I"$AJ" -DUSE_HOST $combo 2>&1)$'\n'

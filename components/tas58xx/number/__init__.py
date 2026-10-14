@@ -17,7 +17,6 @@ SELECT_COMPONENT = "select"
 DAC_MODE = "dac_mode"
 DAC_MODE_BTL = "BTL"
 EQ_MODE = "eq_mode"
-EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
 
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
 CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
@@ -31,8 +30,10 @@ from ..audio_dac import (
     Tas58xxComponent,
     find_matching_config,
     get_audio_dac_config,
+    get_eq_channels,
     has_eq_gains,
     tas58xx_ns,
+    validate_eq_channels,
 )
 
 ChannelVolumeLeft = tas58xx_ns.class_("ChannelVolumeLeft", number.Number, cg.Component)
@@ -42,22 +43,9 @@ Channels = tas58xx_ns.enum("Channels")
 
 # the gain keys are in band order, so a key's position in the tuple is its band index
 EQ_GAIN_CHANNELS = (
-    (Channels.LEFT_CHANNEL, CONF_LEFT_EQ_GAINS, "USE_TAS58XX_EQ_GAINS"),
-    (Channels.RIGHT_CHANNEL, CONF_RIGHT_EQ_GAINS, "USE_TAS58XX_EQ_BIAMP"),
+    (Channels.LEFT_CHANNEL, CONF_LEFT_EQ_GAINS),
+    (Channels.RIGHT_CHANNEL, CONF_RIGHT_EQ_GAINS),
 )
-
-
-def validate_eq_gain_numbers(config):
-    have_left_gains = [key in config for key in CONF_LEFT_EQ_GAINS]
-    have_right_gains = [key in config for key in CONF_RIGHT_EQ_GAINS]
-
-    if any(have_left_gains) and not all(have_left_gains):
-        raise cv.Invalid("All 15 Left EQ Gain numbers must be configured")
-    if any(have_right_gains) and not all(have_right_gains):
-        raise cv.Invalid("All 15 Right EQ Gain numbers must be configured")
-    if all(have_right_gains) and not all(have_left_gains):
-        raise cv.Invalid("When Right EQ Gain Numbers are configured, all 15 Left EQ Gain numbers must also be configured")
-    return config
 
 
 def _final_validate(config):
@@ -70,16 +58,11 @@ def _final_validate(config):
         # the tas58xx select config with the same audio_dac ID as this number
         select_conf = find_matching_config(full_conf, this_number_id, SELECT_COMPONENT)
         have_select_eq_mode = select_conf is not None and EQ_MODE in select_conf
-        have_select_eq_preset = select_conf is not None and EQ_PRESET_LEFT_CHANNEL in select_conf
 
-        # have_this_number_eq_gains and
-        if (not have_select_eq_mode):
-            raise cv.Invalid("Select eq_mode is required with Left EQ Gain numbers - add Select eq_mode to YAML configuration")
+        if not have_select_eq_mode:
+            raise cv.Invalid("Select eq_mode is required with EQ Gain numbers - add Select eq_mode to YAML configuration")
 
-        # have_this_number_eq_gains and
-        if (have_select_eq_preset):
-            raise cv.Invalid("EQ Gain numbers are not allowed with Select eq_presets - remove one set of those configurations")
-
+        validate_eq_channels(get_eq_channels(config, select_conf))
 
     # the audio_dac config declaring the ID used by this number
     matching_audio_dac = get_audio_dac_config(full_conf, this_number_id)
@@ -96,9 +79,11 @@ def _final_validate(config):
             if (have_this_number_channel_volume_right and not have_this_number_channel_volume_left):
                 raise cv.Invalid("channel_volume_left is required with channel_volume_right - add channel_volume_left to YAML configuration")
         else:
+            # warn rather than fail, so YAML that was valid in earlier releases still validates
             if (have_this_number_channel_volume_right):
-                # warn rather than fail, so YAML that was valid in earlier releases still validates
                 _LOGGER.warning("channel_volume_right is not used when dac_mode is PBTL - it can be removed from YAML configuration")
+            if has_eq_gains(config, CONF_RIGHT_EQ_GAINS):
+                _LOGGER.warning("Right EQ Gain numbers are not used when dac_mode is PBTL - they can be removed from YAML configuration")
 
     return config
 
@@ -138,7 +123,7 @@ CONFIG_SCHEMA = cv.Schema(
 
         **{cv.Optional(key): _eq_gain_schema() for key in CONF_LEFT_EQ_GAINS + CONF_RIGHT_EQ_GAINS},
     }
-).add_extra(validate_eq_gain_numbers)
+)
 
 async def to_code(config):
     tas58xx_component = await cg.get_variable(config[CONF_TAS58XX_ID])
@@ -158,10 +143,11 @@ async def to_code(config):
         await cg.register_component(n, channel_volume_right_config)
         await cg.register_parented(n, tas58xx_component)
 
-    # left gains, then right gains (EQ BiAMP)
-    for channel, gain_keys, define in EQ_GAIN_CHANNELS:
-        if any(key in config for key in gain_keys):
-            cg.add_define(define)
+    if has_eq_gains(config, CONF_LEFT_EQ_GAINS + CONF_RIGHT_EQ_GAINS):
+        cg.add_define("USE_TAS58XX_EQ_GAINS")
+
+    # left gains, then right gains
+    for channel, gain_keys in EQ_GAIN_CHANNELS:
         for band, key in enumerate(gain_keys):
             if gain_config := config.get(key):
                 n = await number.new_number(

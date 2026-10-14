@@ -182,6 +182,14 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{0}; // used if eq gain numbers are defined in YAML
 
+#ifdef USE_TAS58XX_EQ_GAINS
+   // only the biquads defined in YAML are written, the others stay at their power on (flat) state
+   uint16_t eq_gain_defined_[NUMBER_CHANNELS]{0}; // one bit per band, set by an EQ gain number
+#endif
+#ifdef USE_TAS58XX_EQ_PRESETS
+   bool eq_preset_defined_[NUMBER_CHANNELS]{false}; // set by an EQ preset select
+#endif
+
    EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode = EQ_OFF or EqMode configured_eq_mode_
 
    InputMixerMode tas58xx_input_mixer_mode_; // YAML default = STEREO

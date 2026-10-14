@@ -1,4 +1,5 @@
 import logging
+from collections import namedtuple
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
@@ -41,6 +42,7 @@ PLATFORM_TAS58XX = "tas58xx"
 SELECT_COMPONENT = "select"
 
 EQ_PRESET_LEFT_CHANNEL = "eq_preset_left_channel"
+EQ_PRESET_RIGHT_CHANNEL = "eq_preset_right_channel"
 
 # eq gain number keys, eg left_eq_gain_20Hz
 EQ_BAND_FREQUENCIES = ("20", "31.5", "50", "80", "125", "200", "315", "500", "800",
@@ -177,6 +179,37 @@ def get_audio_dac_config(full_conf, audio_dac_id):
 def has_eq_gains(number_conf, conf_eq_gains):
     return number_conf is not None and any(key in number_conf for key in conf_eq_gains)
 
+# what is configured for each channel: at least one EQ gain number and/or an EQ preset select
+EqChannels = namedtuple("EqChannels", "left_gains right_gains left_preset right_preset")
+
+def get_eq_channels(number_conf, select_conf):
+    return EqChannels(
+        left_gains=has_eq_gains(number_conf, CONF_LEFT_EQ_GAINS),
+        right_gains=has_eq_gains(number_conf, CONF_RIGHT_EQ_GAINS),
+        left_preset=select_conf is not None and EQ_PRESET_LEFT_CHANNEL in select_conf,
+        right_preset=select_conf is not None and EQ_PRESET_RIGHT_CHANNEL in select_conf,
+    )
+
+# each channel has either EQ gain numbers or an EQ preset, not both
+def validate_eq_channels(eq_channels):
+    if eq_channels.left_gains and eq_channels.left_preset:
+        raise cv.Invalid("Left EQ Gain numbers are not allowed with Select eq_preset_left_channel - remove one of those configurations")
+    if eq_channels.right_gains and eq_channels.right_preset:
+        raise cv.Invalid("Right EQ Gain numbers are not allowed with Select eq_preset_right_channel - remove one of those configurations")
+
+# EQ_15BAND shares one set of filters between both channels (left gains are applied to both channels)
+# EQ_BIAMP and EQ_PRESETS have separate filters for each channel
+def derive_eq_mode(eq_channels):
+    have_gains = eq_channels.left_gains or eq_channels.right_gains
+    have_presets = eq_channels.left_preset or eq_channels.right_preset
+    if eq_channels.left_gains and not (eq_channels.right_gains or have_presets):
+        return EQ_15BAND
+    if have_gains:
+        return EQ_BIAMP
+    if have_presets:
+        return EQ_PRESETS
+    return EQ_OFF
+
 # derive the eq mode from the tas58xx numbers and selects of this audio_dac
 # saved for audio_dac to_code and select to_code (EQ Mode select options)
 def _final_validate(config):
@@ -185,13 +218,7 @@ def _final_validate(config):
     number_conf = find_matching_config(full_conf, audio_dac_id, CONF_NUMBER)
     select_conf = find_matching_config(full_conf, audio_dac_id, SELECT_COMPONENT)
 
-    eq_mode = EQ_OFF
-    if has_eq_gains(number_conf, CONF_RIGHT_EQ_GAINS):
-        eq_mode = EQ_BIAMP
-    elif has_eq_gains(number_conf, CONF_LEFT_EQ_GAINS):
-        eq_mode = EQ_15BAND
-    elif select_conf is not None and EQ_PRESET_LEFT_CHANNEL in select_conf:
-        eq_mode = EQ_PRESETS
+    eq_mode = derive_eq_mode(get_eq_channels(number_conf, select_conf))
 
     CORE.data.setdefault(DOMAIN, {})[str(audio_dac_id)] = eq_mode
     return config

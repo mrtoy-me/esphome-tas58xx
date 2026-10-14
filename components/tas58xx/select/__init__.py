@@ -13,14 +13,14 @@ from esphome.const import (
 _LOGGER = logging.getLogger(__name__)
 
 from ..audio_dac import (
-    CONF_LEFT_EQ_GAINS,
     CONF_TAS58XX_ID,
     Tas58xxComponent,
     find_matching_config,
     get_audio_dac_config,
+    get_eq_channels,
     get_eq_mode,
-    has_eq_gains,
     tas58xx_ns,
+    validate_eq_channels,
 )
 
 EqModeSelect = tas58xx_ns.class_("EqModeSelect", select.Select, cg.Component)
@@ -37,7 +37,7 @@ DAC_MODE = "dac_mode"
 DAC_MODE_BTL = "BTL"
 
 # EQ Mode select options, index matches C++ EqMode (Off, EQ 15 Band, EQ BIAMP, EQ Presets)
-EQ_MODE_OPTIONS = ["Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"]
+EQ_MODE_OPTIONS = ["EQ Off", "EQ On", "EQ BIAMP On", "EQ On"]
 
 def validate_eq_presets(config):
     have_select_eq_mode = CONF_EQ_MODE in config
@@ -79,36 +79,28 @@ def _final_validate(config):
     have_this_select_eq_preset_left = CONF_EQ_PRESET_LEFT_CHANNEL in config
     have_this_select_eq_preset_right = CONF_EQ_PRESET_RIGHT_CHANNEL in config
 
-    # the tas58xx number config with the same audio_dac ID as this select, and whether it has left EQ gains
+    # the tas58xx number config with the same audio_dac ID as this select
     number_conf = find_matching_config(full_conf, this_select_id, CONF_NUMBER)
-    have_number_left_eq_gain = has_eq_gains(number_conf, CONF_LEFT_EQ_GAINS)
+    eq_channels = get_eq_channels(number_conf, config)
+    have_eq_gains = eq_channels.left_gains or eq_channels.right_gains
 
-    if have_number_left_eq_gain:
-        # have_number_left_eq_gain and
-        if have_this_select_eq_preset_left or have_this_select_eq_preset_right:
-            raise cv.Invalid("Select eq_presets are not allowed with EQ Gain numbers - remove one set of those configurations")
+    # each channel has either EQ gain numbers or an EQ preset, not both
+    validate_eq_channels(eq_channels)
 
-        # have_number_left_eq_gain and
-        if not have_this_select_eq_mode:
-            raise cv.Invalid("Select eq_mode is required with EQ Gain numbers - add Select eq_mode to YAML configuration")
+    if have_eq_gains and not have_this_select_eq_mode:
+        raise cv.Invalid("Select eq_mode is required with EQ Gain numbers - add Select eq_mode to YAML configuration")
 
     # the audio_dac config declaring the ID used by this select
     matching_audio_dac = get_audio_dac_config(full_conf, this_select_id)
     if matching_audio_dac is not None:
         is_dac_mode_btl = matching_audio_dac.get(DAC_MODE) == DAC_MODE_BTL
-        if is_dac_mode_btl:
-            if have_this_select_eq_preset_left and not have_this_select_eq_preset_right:
-                raise cv.Invalid("Select eq_preset_right is required with eq_preset_left - add Select eq_preset_right to YAML configuration")
-            if have_this_select_eq_preset_right and not have_this_select_eq_preset_left:
-                raise cv.Invalid("Select eq_preset_left is required with eq_preset_right - add Select eq_preset_left to YAML configuration")
-
         if not is_dac_mode_btl:
             if have_this_select_eq_preset_right:
                 # warn rather than fail, so YAML that was valid in earlier releases still validates
                 _LOGGER.warning("Select eq_preset_right is not used when dac_mode is PBTL - it can be removed from YAML configuration")
 
     # wait to validate until after other validations
-    if have_this_select_eq_mode and (not have_number_left_eq_gain) and (not have_this_select_eq_preset_left):
+    if have_this_select_eq_mode and not have_eq_gains and not have_this_select_eq_preset_left and not have_this_select_eq_preset_right:
         # warn rather than fail, so YAML that was valid in earlier releases still validates
         _LOGGER.warning("Select eq_mode only applies when Select EQ Presets or EQ Gain numbers are configured - it can be removed from YAML configuration")
 
@@ -147,6 +139,7 @@ async def to_code(config):
         await cg.register_parented(s, tas58xx_component)
 
     if eq_preset_right_config := config.get(CONF_EQ_PRESET_RIGHT_CHANNEL):
+        cg.add_define("USE_TAS58XX_EQ_PRESETS")
         s = await select.new_select(
             eq_preset_right_config,
             options=[],
