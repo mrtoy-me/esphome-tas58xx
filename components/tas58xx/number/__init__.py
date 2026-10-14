@@ -46,6 +46,40 @@ EQ_GAIN_CHANNELS = (
     (Channels.RIGHT_CHANNEL, CONF_RIGHT_EQ_GAINS),
 )
 
+# Future (from the sand_box branch): filter type, frequency and Q of each band set in YAML, with the gain number
+# nested under the band, eg left_eq_band_1: {filter_type: Low Shelf, frequency: 100, q_factor: 0.7, gain: {...}}.
+# The C++ side is ready: tas58xx_helpers::FilterType and Tas58xxComponent::config_eq_bands(channel, table).
+# The flat keys (left_eq_gain_20Hz) stay as an Equalizer at the default frequency and Q; a band defined in both
+# forms is an error. sand_box had the High Pass and Low Pass values swapped, corrected here.
+# FilterType = tas58xx_ns.enum("FilterType")
+# EQ_FILTERS = {
+#     "Equalizer": FilterType.FILTER_TYPE_EQUALIZER,
+#     "Peaking Eq": FilterType.FILTER_TYPE_PEAKING,
+#     "Low Shelf": FilterType.FILTER_TYPE_LOW_SHELF,
+#     "High Shelf": FilterType.FILTER_TYPE_HIGH_SHELF,
+#     "Low Pass": FilterType.FILTER_TYPE_LOW_PASS,
+#     "High Pass": FilterType.FILTER_TYPE_HIGH_PASS,
+# }
+# CONF_FILTER_TYPE = "filter_type"
+# CONF_FREQUENCY = "frequency"
+# CONF_Q_FACTOR = "q_factor"
+# CONF_GAIN = "gain"
+#
+# def _eq_band_schema():
+#     return cv.Schema(
+#         {
+#             cv.Optional(CONF_FILTER_TYPE, default="Equalizer"): cv.enum(EQ_FILTERS, upper=False),
+#             # below half the 96 kHz DSP sample rate
+#             cv.Optional(CONF_FREQUENCY, default=1000): cv.All(cv.int_, cv.int_range(1, 20000)),
+#             # not used by Low Pass and High Pass, their Q is fixed
+#             cv.Optional(CONF_Q_FACTOR, default=1.0): cv.float_,
+#             cv.Optional(CONF_GAIN): _eq_gain_schema(),
+#         }
+#     )
+#
+# CONFIG_SCHEMA additions:
+#     **{cv.Optional(f"{side}_eq_band_{band}"): _eq_band_schema() for side in ("left", "right") for band in range(1, 16)},
+
 
 def _final_validate(config):
     full_conf = fv.full_config.get()
@@ -144,6 +178,10 @@ async def to_code(config):
 
     if has_eq_gains(config, CONF_LEFT_EQ_GAINS + CONF_RIGHT_EQ_GAINS):
         cg.add_define("USE_TAS58XX_EQ_GAINS")
+
+    # Future: for each left_eq_band_N / right_eq_band_N in YAML, put its filter_type, frequency and q_factor in a
+    # constant EqBand table for the channel (the default band for bands not in YAML), pass it with
+    # config_eq_bands(channel, table) and create the gain number of the band as below.
 
     # left gains, then right gains
     for channel, gain_keys in EQ_GAIN_CHANNELS:
