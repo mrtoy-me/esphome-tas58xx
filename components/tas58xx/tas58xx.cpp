@@ -751,7 +751,7 @@ bool Tas58xxComponent::write_eq_mode_() {
   const int8_t ganged = eq_mode_is_ganged(new_mode) ? 1 : 0;
   if (ganged != this->eq_ganged_) {
     this->eq_ganged_ = ganged;
-    ESP_LOGD(TAG, "EQ Ganged >> %s", ganged ? LOG_STR_LITERAL("Left=Right") : LOG_STR_LITERAL("Left and Right separate"));
+    ESP_LOGD(TAG, "EQ Ganged >> %s", ganged ? LOG_STR_LITERAL("On") : LOG_STR_LITERAL("Off"));
   }
 #endif
   return true;

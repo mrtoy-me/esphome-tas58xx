@@ -31,7 +31,7 @@ Not yet hardware tested. `dev_update_with_onaudio` itself is unchanged.
      (filters, flat, or any), `write_eq_channels_()` writes the difference. EQ Off and EQ On Left=Right from a mode
      with left filters write only the mode register. A gain or preset change is written only when the channel's
      filters are in the DSP. A rewrite after the clock was lost rewrites the filters in the DSP.
-     Debug log: one "<Left|Right> Channel EQ >> flat" entry for each channel set flat, and "EQ Ganged >> ..."
+     Debug log: one "<Left|Right> Channel EQ >> flat" entry for each channel set flat, and "EQ Ganged >> On" or "EQ Ganged >> Off"
      whenever the ganging written to the DSP changes (`eq_ganged_`). Select index to mode through
      the `config_eq_modes` mask.
    - Right EQ gain numbers with `dac_mode: PBTL` log a warning. Compat cases 19 to 28 added.
