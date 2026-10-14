@@ -269,7 +269,8 @@ The EQ Mode select options (in addition to EQ Off) are determined by the YAML co
 
 The DSP has no per channel EQ switch, so when the selection changes the filters of a channel that is not used are
 set flat and the filters of a channel that becomes used are written again.
-With dac_mode PBTL only the left channel is output, so right channel EQ Gains and Presets are ignored (with a warning).
+With dac_mode PBTL only the left channel is output, so right channel EQ Gains and Presets are ignored (with a warning)
+and the left channel (gains or preset) always gives EQ Left On.
 
 On startup the EQ Mode Select starts at the last option available, ie EQ BIAMP On if both channels are configured.
 

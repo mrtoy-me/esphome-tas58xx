@@ -205,14 +205,15 @@ def validate_eq_channels(eq_channels):
 # EQ On Left=Right shares the left channel gains between both channels (left gains only)
 # EQ Left On, EQ Right On and EQ BIAMP On have separate filters for each channel, the filters of a channel
 # that is not used are set flat. A lone left preset is not shared, it is EQ Left On
-# PBTL has a single output from the left channel, so the right channel is not used
+# PBTL has a single output from the left channel: the right channel is not used and nothing is shared, so the
+# left channel is always EQ Left On
 def derive_eq_modes(eq_channels, is_pbtl):
     left = eq_channels.left_gains or eq_channels.left_preset
     right = not is_pbtl and (eq_channels.right_gains or eq_channels.right_preset)
     if left and right:
         return (EQ_ON, EQ_LEFT_ON, EQ_RIGHT_ON, EQ_BIAMP_ON)
     if left:
-        return (EQ_ON,) if eq_channels.left_gains else (EQ_LEFT_ON,)
+        return (EQ_ON,) if eq_channels.left_gains and not is_pbtl else (EQ_LEFT_ON,)
     if right:
         return (EQ_RIGHT_ON,)
     return ()

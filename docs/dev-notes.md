@@ -23,7 +23,7 @@ hardware tested. `dev_update_with_onaudio` itself is unchanged.
      `derive_eq_modes()` in `audio_dac.py`; per channel checks in `get_eq_channels()` and `validate_eq_channels()`.
    - EQ mode rule (latest): `EqMode` = EQ_OFF, EQ_ON (ganged, shown as "EQ On Left=Right"), EQ_LEFT_ON,
      EQ_RIGHT_ON, EQ_BIAMP_ON. Left gains only: EQ On. Lone left preset: EQ Left On. Right only: EQ Right On.
-     Both channels: all four. PBTL ignores the right channel (datasheet: PBTL input is the left I2S frame; not
+     Both channels: all four. PBTL ignores the right channel and always offers EQ Left On for the left channel (datasheet: PBTL input is the left I2S frame; not
      hardware tested). The three non ganged modes share register values; a channel not used is set flat
      (`write_eq_channels_`, `eq_mode_uses_channel`) and rewritten when used again. Select index to mode through
      the `config_eq_modes` mask. Hardware check needed: right channel flat in non ganged mode, mode switching.
