@@ -6,13 +6,11 @@
 
 #include "esphome/core/helpers.h"
 
-namespace esphome::tas58xx_helpers {
+namespace esphome::tas58xx {
 
 // Double precision is used so coefficient values match TI PurePath Console 3, float precision does not give
 // close matches. Double calculations on the ESP32 are much slower than float, so common terms are calculated
 // once, exp replaces pow and multiplying by an inverse replaces dividing.
-
-namespace {
 
 static constexpr double TWO_PI = 2.0 * std::numbers::pi;
 
@@ -30,7 +28,7 @@ static constexpr double INT32_MAX_DOUBLE = 2147483647.0;
 static constexpr double INT32_MIN_DOUBLE = -2147483648.0;
 
 // 5.27 fixed point in the byte order written to the DSP, saturated to the 32 bit range
-int32_t double_to_fixed_5_27(double x) {
+static int32_t double_to_fixed_5_27(double x) {
   const double scaled = x * FIXED_5_27_SCALE;
 
   int32_t fixed_5_27;
@@ -46,18 +44,18 @@ int32_t double_to_fixed_5_27(double x) {
 }
 
 // 10^(gain / N) with the exp constant ln(10) / N, exp(0) = 1 is not calculated
-double linear_gain(int8_t gain, double ln10_div_n) {
+static double linear_gain(int8_t gain, double ln10_div_n) {
   if (gain == 0) return 1.0;
   return std::exp(static_cast<double>(gain) * ln10_div_n);
 }
 
 // w0 = 2 * pi * f0 / Fs
-double angular_frequency(uint32_t sample_rate, uint16_t frequency) {
+static double angular_frequency(uint32_t sample_rate, uint16_t frequency) {
   return TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
 }
 
 // Derived from biquad.model.js in TI Pure Path Console 3
-BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
+static BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
   const double ag = linear_gain(gain, LN10_DIV_20);
   const double t0 = angular_frequency(sample_rate, frequency);
 
@@ -87,7 +85,8 @@ BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t frequency, in
 
 // Derived from biquad.model.js in TI Pure Path Console 3
 // A high shelf is a low shelf with cos(w0) negated and the signs of b1 and a1 flipped
-BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
+static BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain,
+                                       double q_factor) {
   // sqrt(A) = 10^(gain / 80) and A = sqrt(A) * sqrt(A), which avoids a sqrt
   const double sqrt_ag = linear_gain(gain, LN10_DIV_80);
   const double ag = sqrt_ag * sqrt_ag;
@@ -124,7 +123,7 @@ BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t freque
 // Derived from the Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson,
 // which are easier to optimise. Gives the same coefficients as the Butterworth 2 filters in TI Pure Path Console 3.
 // A high pass is a low pass with cos(w0) negated and the sign of b1 flipped.
-BiquadCoefficients pass_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain) {
+static BiquadCoefficients pass_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain) {
   const double ag = linear_gain(gain, LN10_DIV_20);
   const double w0 = angular_frequency(sample_rate, frequency);
   const double sign = high ? -1.0 : 1.0;
@@ -148,7 +147,7 @@ BiquadCoefficients pass_filter(bool high, uint32_t sample_rate, uint16_t frequen
 }
 
 // Derived from biquad.model.js in TI Pure Path Console 3
-BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
+static BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
   // A = sqrt(10^(gain / 20)) = 10^(gain / 40)
   const double ag = linear_gain(gain, LN10_DIV_40);
   const double w0 = angular_frequency(sample_rate, frequency);
@@ -169,7 +168,6 @@ BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequency, int8
   return result;
 }
 
-}  // namespace
 
 int32_t gain_to_fixed_9_23(int8_t gain) {
   static constexpr float SCALE = 8388608.0f;  // 2^23
@@ -186,7 +184,8 @@ int32_t gain_to_fixed_9_23(int8_t gain) {
   return byteswap(fixed_9_23);
 }
 
-BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
+BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain,
+                               double q_factor) {
   switch (type) {
     case FILTER_TYPE_EQUALIZER:
       return equalizer_filter(sample_rate, frequency, gain, q_factor);
@@ -206,4 +205,4 @@ BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t f
   }
 }
 
-}  // namespace esphome::tas58xx_helpers
+}  // namespace esphome::tas58xx

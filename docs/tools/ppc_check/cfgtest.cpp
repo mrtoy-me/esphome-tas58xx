@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <string>
 #include "tas58xx_helpers.h"
-using namespace esphome::tas58xx_helpers;
+using namespace esphome::tas58xx;
 static uint32_t bs(int32_t v){return __builtin_bswap32((uint32_t)v);}
 int main(int argc, char **argv) {
   // args: type freq gain q   (Q as a double, as the component stores it)

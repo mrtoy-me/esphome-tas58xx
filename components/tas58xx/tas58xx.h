@@ -119,12 +119,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool write_channel_volume_(Channels channel);
    bool write_eq_channel_(Channels channel, bool filters);
    bool write_eq_channels_(bool rewrite_filters);
-   bool write_eq_biquads_(Channels channel, uint8_t biquad_index, const tas58xx_helpers::BiquadCoefficients *biquads,
+   bool write_eq_biquads_(Channels channel, uint8_t biquad_index, const BiquadCoefficients *biquads,
                           uint8_t count);
    bool write_eq_gain_(Channels channel, uint8_t band_index);
 #ifdef USE_TAS58XX_EQ_GAINS
    const EqBand &eq_band_(Channels channel, uint8_t band_index);
-   tas58xx_helpers::BiquadCoefficients eq_gain_biquad_(Channels channel, uint8_t band_index);
+   BiquadCoefficients eq_gain_biquad_(Channels channel, uint8_t band_index);
    void log_eq_gain_(Channels channel, uint8_t band_index);
 #endif
    bool write_eq_mode_();

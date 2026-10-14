@@ -373,7 +373,7 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 bool Tas58xxComponent::write_channel_volume_(Channels channel) {
 #ifdef USE_TAS58XX_CHANNEL_VOLUMES
   const int8_t volume_dB = this->tas58xx_channel_volume_[channel];
-  int32_t little_endian_9_23 = tas58xx_helpers::gain_to_fixed_9_23(volume_dB);
+  int32_t little_endian_9_23 = gain_to_fixed_9_23(volume_dB);
 
   if (!this->dsp_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_CHANNEL_VOLUME_PAGE, TAS58XX_CHANNEL_VOLUME_SUBADDR[channel],
                               reinterpret_cast<const uint8_t *>(&little_endian_9_23), sizeof(little_endian_9_23))) {
@@ -444,9 +444,9 @@ const EqBand &Tas58xxComponent::eq_band_(Channels channel, uint8_t band_index) {
   return (this->eq_bands_[channel] != nullptr ? this->eq_bands_[channel] : EQ_DEFAULT_BANDS)[band_index];
 }
 
-tas58xx_helpers::BiquadCoefficients Tas58xxComponent::eq_gain_biquad_(Channels channel, uint8_t band_index) {
+BiquadCoefficients Tas58xxComponent::eq_gain_biquad_(Channels channel, uint8_t band_index) {
   const EqBand &eq_band = this->eq_band_(channel, band_index);
-  return tas58xx_helpers::make_biquad(eq_band.type, EQ_SAMPLE_RATE, eq_band.frequency,
+  return make_biquad(eq_band.type, EQ_SAMPLE_RATE, eq_band.frequency,
                                       this->tas58xx_eq_gain_[channel][band_index], eq_band.q_factor);
 }
 
@@ -458,7 +458,7 @@ void Tas58xxComponent::log_eq_gain_(Channels channel, uint8_t band_index) {
 
 bool Tas58xxComponent::write_eq_gain_(Channels channel, uint8_t band_index) {
 #ifdef USE_TAS58XX_EQ_GAINS
-  const tas58xx_helpers::BiquadCoefficients biquad = this->eq_gain_biquad_(channel, band_index);
+  const BiquadCoefficients biquad = this->eq_gain_biquad_(channel, band_index);
   if (!this->write_eq_biquads_(channel, band_index, &biquad, 1)) {
     ESP_LOGW(TAG, "%s writing %s Channel %s:%d Gain", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band_index + 1);
     return false;
@@ -496,14 +496,14 @@ bool Tas58xxComponent::write_eq_preset_(Channels channel) {
   const EqPreset &preset = EQ_PRESETS[select_preset];
 
   // BQ1 and BQ2 are the same filter, BQ3 is a high shelf or all pass
-  const tas58xx_helpers::BiquadCoefficients filter =
-      tas58xx_helpers::make_biquad(preset.filter, EQ_SAMPLE_RATE, preset.cutoff_frequency, 0, 0.0);
-  const tas58xx_helpers::BiquadCoefficients shelf =
+  const BiquadCoefficients filter =
+      make_biquad(preset.filter, EQ_SAMPLE_RATE, preset.cutoff_frequency, 0, 0.0);
+  const BiquadCoefficients shelf =
       (preset.shelf_frequency == 0)
-          ? tas58xx_helpers::ALL_PASS
-          : tas58xx_helpers::make_biquad(tas58xx_helpers::FILTER_TYPE_HIGH_SHELF, EQ_SAMPLE_RATE, preset.shelf_frequency,
+          ? ALL_PASS
+          : make_biquad(FILTER_TYPE_HIGH_SHELF, EQ_SAMPLE_RATE, preset.shelf_frequency,
                                          EQ_PRESET_SHELF_GAIN, EQ_PRESET_SHELF_QFACTOR);
-  const tas58xx_helpers::BiquadCoefficients biquads[EQ_PROFILE_BIQUADS] = {filter, filter, shelf};
+  const BiquadCoefficients biquads[EQ_PROFILE_BIQUADS] = {filter, filter, shelf};
 
   if (!this->write_eq_biquads_(channel, 0, biquads, EQ_PROFILE_BIQUADS)) {
     ESP_LOGW(TAG, "%s writing %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
@@ -517,7 +517,7 @@ bool Tas58xxComponent::write_eq_preset_(Channels channel) {
 
 // write consecutive biquads of a channel, starting at biquad_index
 bool Tas58xxComponent::write_eq_biquads_(Channels channel, uint8_t biquad_index,
-                                         const tas58xx_helpers::BiquadCoefficients *biquads, uint8_t count) {
+                                         const BiquadCoefficients *biquads, uint8_t count) {
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
   const AddressSequence address = eq_biquad_address(channel, biquad_index);
   return this->dsp_write_bytes_(TAS58XX_EQ_CTRL_BOOK, address.page, address.sub_addr,
@@ -535,7 +535,7 @@ bool Tas58xxComponent::write_eq_channel_(Channels channel, bool filters) {
 #ifdef USE_TAS58XX_EQ_GAINS
   // only bands with a gain number in YAML are written, the other biquads keep their power on (flat) state
   const uint16_t defined = this->eq_gain_defined_[channel];
-  tas58xx_helpers::BiquadCoefficients biquads[NUMBER_EQ_BANDS];
+  BiquadCoefficients biquads[NUMBER_EQ_BANDS];
   uint8_t band = 0;
   while (band < NUMBER_EQ_BANDS) {
     if (!(defined & (1u << band))) {
@@ -544,7 +544,7 @@ bool Tas58xxComponent::write_eq_channel_(Channels channel, bool filters) {
     }
     const uint8_t first = band;
     for (; band < NUMBER_EQ_BANDS && (defined & (1u << band)); band++) {
-      biquads[band] = filters ? this->eq_gain_biquad_(channel, band) : tas58xx_helpers::ALL_PASS;
+      biquads[band] = filters ? this->eq_gain_biquad_(channel, band) : ALL_PASS;
     }
     if (!this->write_eq_biquads_(channel, first, &biquads[first], band - first)) {
       ESP_LOGW(TAG, "%s writing %s Channel %s:%d to %d", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, first + 1, band);
@@ -559,8 +559,8 @@ bool Tas58xxComponent::write_eq_channel_(Channels channel, bool filters) {
     if (filters) {
       if (!this->write_eq_preset_(channel)) ok = false;
     } else {
-      static constexpr tas58xx_helpers::BiquadCoefficients FLAT_PRESET[EQ_PROFILE_BIQUADS] = {
-          tas58xx_helpers::ALL_PASS, tas58xx_helpers::ALL_PASS, tas58xx_helpers::ALL_PASS};
+      static constexpr BiquadCoefficients FLAT_PRESET[EQ_PROFILE_BIQUADS] = {
+          ALL_PASS, ALL_PASS, ALL_PASS};
       if (!this->write_eq_biquads_(channel, 0, FLAT_PRESET, EQ_PROFILE_BIQUADS)) ok = false;
     }
   }

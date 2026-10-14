@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace esphome::tas58xx_helpers {
+namespace esphome::tas58xx {
 
 // 5 coefficients in 5.27 fixed point, each converted to the byte order written to the DSP (20 bytes)
 struct BiquadCoefficients {
@@ -34,4 +34,4 @@ int32_t gain_to_fixed_9_23(int8_t gain);
 // gain is in dB and is not used by all pass, q_factor is not used by all pass, low pass and high pass
 BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor);
 
-}  // namespace esphome::tas58xx_helpers
+}  // namespace esphome::tas58xx

@@ -8,27 +8,27 @@ namespace esphome::tas58xx {
 // The filter of each EQ gain number band. The gain is set by the number. The hub uses a constant table for each
 // channel, which can be replaced (Tas58xxComponent::config_eq_bands) by a table generated from YAML.
 struct EqBand {
-  tas58xx_helpers::FilterType type;
+  FilterType type;
   uint16_t frequency;
   double q_factor;  // double, so a Q such as 0.9 is the same value TI PurePath Console uses
 };
 
 static constexpr EqBand EQ_DEFAULT_BANDS[NUMBER_EQ_BANDS] = {
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 20,    2.0 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 32,    2.0 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 50,    1.5 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 80,    1.5 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 125,   1.0 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 200,   1.0 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 315,   0.9 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 500,   0.9 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 800,   0.8 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 1250,  0.8 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 2000,  0.7 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 3150,  0.7 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 5000,  0.6 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 8000,  0.6 },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 16000, 0.5 },
+  { FILTER_TYPE_EQUALIZER, 20,    2.0 },
+  { FILTER_TYPE_EQUALIZER, 32,    2.0 },
+  { FILTER_TYPE_EQUALIZER, 50,    1.5 },
+  { FILTER_TYPE_EQUALIZER, 80,    1.5 },
+  { FILTER_TYPE_EQUALIZER, 125,   1.0 },
+  { FILTER_TYPE_EQUALIZER, 200,   1.0 },
+  { FILTER_TYPE_EQUALIZER, 315,   0.9 },
+  { FILTER_TYPE_EQUALIZER, 500,   0.9 },
+  { FILTER_TYPE_EQUALIZER, 800,   0.8 },
+  { FILTER_TYPE_EQUALIZER, 1250,  0.8 },
+  { FILTER_TYPE_EQUALIZER, 2000,  0.7 },
+  { FILTER_TYPE_EQUALIZER, 3150,  0.7 },
+  { FILTER_TYPE_EQUALIZER, 5000,  0.6 },
+  { FILTER_TYPE_EQUALIZER, 8000,  0.6 },
+  { FILTER_TYPE_EQUALIZER, 16000, 0.5 },
 };
 // alternative frequencies {25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000}
 // alternative q factors {2.144908, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5}
@@ -56,33 +56,33 @@ static constexpr int8_t  EQ_PRESET_SHELF_GAIN = 1;
 static constexpr double  EQ_PRESET_SHELF_QFACTOR = 0.5;
 
 struct EqPreset {
-  tas58xx_helpers::FilterType filter;
+  FilterType filter;
   uint16_t cutoff_frequency;
   uint16_t shelf_frequency;
 };
 
 static constexpr EqPreset EQ_PRESETS[EQ_PROFILE_MAXIMUM_INDEX + 1] = {
-  { tas58xx_helpers::FILTER_TYPE_ALL_PASS,  0,   0 },    // Flat
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  60,  0 },    // LF 60Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  70,  0 },    // LF 70Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  80,  0 },    // LF 80Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  90,  0 },    // LF 90Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  100, 0 },    // LF 100Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  110, 0 },    // LF 110Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  120, 0 },    // LF 120Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  130, 0 },    // LF 130Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  140, 0 },    // LF 140Hz
-  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  150, 0 },    // LF 150Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 60,  200 },  // HF 60Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 70,  200 },  // HF 70Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 80,  200 },  // HF 80Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 90,  200 },  // HF 90Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 100, 200 },  // HF 100Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 110, 220 },  // HF 110Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 120, 240 },  // HF 120Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 130, 260 },  // HF 130Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 140, 280 },  // HF 140Hz
-  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 150, 300 },  // HF 150Hz
+  { FILTER_TYPE_ALL_PASS,  0,   0 },    // Flat
+  { FILTER_TYPE_LOW_PASS,  60,  0 },    // LF 60Hz
+  { FILTER_TYPE_LOW_PASS,  70,  0 },    // LF 70Hz
+  { FILTER_TYPE_LOW_PASS,  80,  0 },    // LF 80Hz
+  { FILTER_TYPE_LOW_PASS,  90,  0 },    // LF 90Hz
+  { FILTER_TYPE_LOW_PASS,  100, 0 },    // LF 100Hz
+  { FILTER_TYPE_LOW_PASS,  110, 0 },    // LF 110Hz
+  { FILTER_TYPE_LOW_PASS,  120, 0 },    // LF 120Hz
+  { FILTER_TYPE_LOW_PASS,  130, 0 },    // LF 130Hz
+  { FILTER_TYPE_LOW_PASS,  140, 0 },    // LF 140Hz
+  { FILTER_TYPE_LOW_PASS,  150, 0 },    // LF 150Hz
+  { FILTER_TYPE_HIGH_PASS, 60,  200 },  // HF 60Hz
+  { FILTER_TYPE_HIGH_PASS, 70,  200 },  // HF 70Hz
+  { FILTER_TYPE_HIGH_PASS, 80,  200 },  // HF 80Hz
+  { FILTER_TYPE_HIGH_PASS, 90,  200 },  // HF 90Hz
+  { FILTER_TYPE_HIGH_PASS, 100, 200 },  // HF 100Hz
+  { FILTER_TYPE_HIGH_PASS, 110, 220 },  // HF 110Hz
+  { FILTER_TYPE_HIGH_PASS, 120, 240 },  // HF 120Hz
+  { FILTER_TYPE_HIGH_PASS, 130, 260 },  // HF 130Hz
+  { FILTER_TYPE_HIGH_PASS, 140, 280 },  // HF 140Hz
+  { FILTER_TYPE_HIGH_PASS, 150, 300 },  // HF 150Hz
 };
 #endif
 

@@ -1,7 +1,7 @@
 // dumps every biquad the helpers can produce for a wide parameter space, to compare versions
 #include <cstdio>
 #include "tas58xx_helpers.h"
-using namespace esphome::tas58xx_helpers;
+using namespace esphome::tas58xx;
 int main() {
   const uint16_t freqs[] = {20,32,50,60,70,80,90,100,110,120,125,130,140,150,200,220,240,260,280,300,315,500,800,1250,2000,3150,5000,8000,16000,
                             1,10,25,40,63,160,250,400,630,1000,1600,2500,4000,6300,10000,20000,24000,30000,47999};

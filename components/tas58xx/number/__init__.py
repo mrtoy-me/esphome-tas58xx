@@ -48,7 +48,7 @@ EQ_GAIN_CHANNELS = (
 
 # Future (from the sand_box branch): filter type, frequency and Q of each band set in YAML, with the gain number
 # nested under the band, eg left_eq_band_1: {filter_type: Low Shelf, frequency: 100, q_factor: 0.7, gain: {...}}.
-# The C++ side is ready: tas58xx_helpers::FilterType and Tas58xxComponent::config_eq_bands(channel, table).
+# The C++ side is ready: FilterType and Tas58xxComponent::config_eq_bands(channel, table).
 # The flat keys (left_eq_gain_20Hz) stay as an Equalizer at the default frequency and Q; a band defined in both
 # forms is an error. sand_box had the High Pass and Low Pass values swapped, corrected here.
 # FilterType = tas58xx_ns.enum("FilterType")
