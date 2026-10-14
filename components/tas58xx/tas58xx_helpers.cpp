@@ -22,14 +22,14 @@ static constexpr double LN10_DIV_20 = 0.11512925464970228420;
 static constexpr double LN10_DIV_40 = 0.05756462732485114210;
 static constexpr double LN10_DIV_80 = 0.02878231366242557105;
 
-// the largest and smallest 5.27 values, as doubles
-static constexpr double FIXED_5_27_SCALE = 134217728.0;  // 2^27
-static constexpr double INT32_MAX_DOUBLE = 2147483647.0;
-static constexpr double INT32_MIN_DOUBLE = -2147483648.0;
-
 // 5.27 fixed point in the byte order written to the DSP, saturated to the 32 bit range
 static int32_t double_to_fixed_5_27(double x) {
-  const double scaled = x * FIXED_5_27_SCALE;
+  static constexpr double SCALE = 134217728.0;  // 2^27
+  // the 32 bit limits as doubles
+  static constexpr double INT32_MAX_DOUBLE = 2147483647.0;
+  static constexpr double INT32_MIN_DOUBLE = -2147483648.0;
+
+  const double scaled = x * SCALE;
 
   int32_t fixed_5_27;
   if (scaled >= INT32_MAX_DOUBLE) {
