@@ -4,7 +4,30 @@ Notes from the session of 2026-10-10 so work can continue in a later session, ei
 or in the cloud. Read this first. It covers the goal, the requirements set so far, the current
 branch state, the design, a to-check list and the plan forward.
 
-## Where we stopped (2026-10-12)
+## Where we stopped (2026-10-14)
+- **Single EQ gain number class (`dev_update_with_onaudio` only):** the 30 per-band classes
+  (60 files) are replaced by `number/eq_gain_number.h/.cpp`, `EqGainNumber(Channels channel,
+  uint8_t band)`. Channel and band are constructor parameters because they never change.
+  `number/__init__.py` shrinks from about 650 to about 170 lines: the schema and `to_code` are
+  driven by `CONF_LEFT_EQ_GAINS` / `CONF_RIGHT_EQ_GAINS` from `audio_dac.py`, the position in
+  the tuple being the band index. YAML keys, the 15 required bands per side, the validation
+  messages, the range (+/-15 dB), the defines and the hub are unchanged. `dev_update` is not
+  changed.
+  - **Checked:** generated `main.cpp` for the 4 example YAMLs and 5 EQ test configs is identical
+    to before apart from the class name, the constructor arguments, the auto-generated variable
+    names (`tas58xx_lefteqgain20hz_id` -> `tas58xx_eqgainnumber_id`, `_2`, ...) and the
+    loop-override count, which is now one term per class (`30 * HasLoopOverride<EqGainNumber>`);
+    `main`-compatibility matrix unchanged; the three EQ gain validation errors unchanged;
+    clang-tidy parse in the 5 define sets: 0 diagnostics; ci-custom: 0 findings.
+  - **To check on hardware:** gains saved by the previous build are restored after flashing.
+    Saved values are keyed on the entity name (not the class), so they should be; confirm it.
+    The log lines changed: one line per gain, `Tas58xx Left EQ Gain Number: 31.5Hz Band 'name'`,
+    instead of a header plus indented lines.
+  - **Next for gains:** making the bands optional (drop the all-15 rule, let any band set
+    `USE_TAS58XX_EQ_GAINS` / `USE_TAS58XX_EQ_BIAMP`, decide whether right bands need left bands,
+    update the README).
+
+## Earlier stop (2026-10-12)
 - **Upstream PR branch ready for review:** `add_fault_output` on the fork `mrtoy-me/esphome`
   (commit `ee421f4`, based on upstream `esphome/esphome` `dev` `9acc07a`). It adds the
   `fault_output:` option to ESPHome's own tas58xx. Not yet raised as a PR. Details in
@@ -94,8 +117,8 @@ branch state, the design, a to-check list and the plan forward.
   ESP8266 and RP2040; upstream tas58xx builds for all three.
 - clang-format, ruff and full clang-tidy clean-up are done per upstream PR, not on this
   component.
-- Single `EqGainNumber` class instead of 30 per-band classes: probably soon, but **not**
-  before hardware testing.
+- Single `EqGainNumber` class instead of 30 per-band classes: done on `dev_update_with_onaudio`
+  (2026-10-14), after hardware testing went well. See "Where we stopped".
 
 ### Git
 - `dev_update`: tidied loop design (lint fixes, `main`-compatible YAML). Requires 2026.2.0.
@@ -181,8 +204,8 @@ branch state, the design, a to-check list and the plan forward.
    - Changes while idle, and the `enable_dac` off/on case.
    - Also with the speaker's default `timeout` (remove `timeout: never`).
 2. **Fix anything found, then decide on point 1 and point 5 of the to-check list.**
-3. **Refactor the 30 EQ gain number classes into one parameterised class.** YAML keys stay
-   the same.
+3. ~~Refactor the 30 EQ gain number classes into one parameterised class.~~ Done on
+   `dev_update_with_onaudio`; YAML keys unchanged.
 4. **Bring in the separate EQ redesign branch** (lowercase keys, optional gains, and so on).
 5. **Upstream PRs to `esphome/tas58xx`,** small and targeted. A possible order:
    1. channel volume numbers
