@@ -4,7 +4,50 @@ Notes from the session of 2026-10-10 so work can continue in a later session, ei
 or in the cloud. Read this first. It covers the goal, the requirements set so far, the current
 branch state, the design, a to-check list and the plan forward.
 
-## Where we stopped (2026-10-14)
+## Where we stopped (2026-10-14, branch `dev_update_with_onaudio_plus_eq`)
+Branch `dev_update_with_onaudio_plus_eq` is based on `dev_update_with_onaudio` (`cf23bf0`, hardware testing
+had gone well) and holds the EQ rework, in 4 commits that can be checked or reverted separately. Not yet
+hardware tested. `dev_update_with_onaudio` itself is unchanged.
+1. **`e826a35` EQ gains and presets per channel, only defined biquads written.**
+   - A channel has EQ gain numbers or an EQ preset, not both. Any number of gain bands per channel (not all
+     15), right gains need no left gains, a lone preset on either channel is valid (the other channel keeps
+     the DSP power on state).
+   - Only biquads defined in YAML are written (a per-band bitmask set by `set_eq_gain` and a per channel
+     flag set by `set_eq_preset`). Unwritten biquads are at B0 = 1.0 (`0x08000000` in 5.27), B1, B2, A1, A2 = 0
+     (flat) from the reset that `init_()` does every start: TI memory maps (SLOA263A Table 6 for TAS5805M,
+     SLAA786A Table 9 for TAS5825M) list these defaults for all 30 biquads, RESET_CTRL bit 4 resets the DSP.
+   - `USE_TAS58XX_EQ_BIAMP` is gone: `USE_TAS58XX_EQ_GAINS` for any gain number, `USE_TAS58XX_EQ_PRESETS`
+     for a preset select on either channel.
+   - EQ Mode options are "EQ Off", "EQ On", "EQ BIAMP On" (a second compatibility break against `main`:
+     it was "Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"). Left gains only share one filter set
+     (EQ On), anything else with gains is EQ BIAMP On, presets only are EQ On. `derive_eq_mode()` in
+     `audio_dac.py`; per channel checks in `get_eq_channels()` and `validate_eq_channels()`.
+   - Right EQ gain numbers with `dac_mode: PBTL` log a warning. Compat cases 19 to 28 added.
+2. **`80dd98b` presets calculated with the helpers.** `eq_profiles.h` (42 coefficient tables, 446 lines) is
+   replaced by a 21 row `EQ_PRESETS` table: BQ1 and BQ2 are the same low pass (LF) or high pass (HF) filter at
+   the cutoff, BQ3 is a high shelf (HF: 200 Hz for 60 to 100, 220 to 300 Hz for 110 to 150, +1 dB, Q 0.5) or
+   all pass. `FilterType` and `make_biquad()` added to the helpers. `sand_box` computes presets the same way
+   but its HF branch uses a low pass and the code does not compile, so it was rewritten, not copied.
+3. **`2f51b49` header reorganisation.** `tas58xx_eq_common.h` is split into `tas58xx_defs.h` (enums, counts,
+   text, registers shared with the entities) and `tas58xx_eq.h` (EQ only, included by `tas58xx.cpp` only).
+   Four biquad address tables are replaced by `eq_biquad_address()` (checked against all 60 old entries on both
+   chips). `tas58xx_minimal.h` is renamed `tas58xx_startup.h`.
+4. **`275dae4` EQ band table.** `EqBand` (type, frequency, Q) in a constant table, read through a per channel
+   pointer (`config_eq_bands()`), so per band filter type, frequency and Q can be added later as a generated
+   constant table. Coefficients unchanged.
+- **Future per band filters (from `sand_box`):** `filter_type`, `frequency`, `q_factor` per band. The current
+  keys contain the frequency (`left_eq_gain_20Hz`), so the nested `left_eq_band_N` form `sand_box` comments
+  out is the one that can work; keep the flat keys as "Equalizer at the default frequency and Q" and reject a
+  band defined in both forms. `sand_box`'s commented `EQ_FILTERS` map has High Pass and Low Pass swapped. Low and
+  high pass have a fixed Q, so `q_factor` is not valid for them. Frequency must stay below 48 kHz.
+- **To check on hardware:** audio for left gains with a right preset, a lone preset with the other channel
+  flat, right only gains (left flat), saved gains restored after flashing, and that the presets sound the same
+  as before (the computed coefficients were checked against the old tables by you, not re-run here).
+- **Checks run for each commit:** `cpp_check.sh` clang-tidy parse in 5 define sets (0 diagnostics, 0 fatal
+  include errors), ci-custom (0 findings), compat matrix. For commit 1 the generated `main.cpp` of 16 configs
+  is unchanged apart from the EQ Mode option labels.
+
+## Earlier stop (2026-10-14)
 - **Single EQ gain number class (`dev_update_with_onaudio` only):** the 30 per-band classes
   (60 files) are replaced by `number/eq_gain_number.h/.cpp`, `EqGainNumber(Channels channel,
   uint8_t band)`. Channel and band are constructor parameters because they never change.

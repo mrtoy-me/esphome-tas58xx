@@ -252,13 +252,13 @@ then the last selected Mixer Mode is saved and will be reloaded at next re-boot.
 this will supercede and be used instead of the Mixer Mode defined under audio_dac:
 
 For any configuration with EQ Gains or EQ Presets configured, there are only two possible EQ Modes
-being Off and depending on configuration EQ 15 Band or EQ BIAMP 15 Band or EQ Presets.
-Note: if either EQ Gains or EQ Presets configured is defined then Eq Mode Select must be defined.
+being EQ Off and, depending on configuration, EQ On or EQ BIAMP On.
+Note: if any EQ Gains or EQ Presets are configured then Eq Mode Select must be defined.
 
-The EQ Mode select option (in addition to Off) is determined based on the YAML configuration as follows:
-- 15 x Left EQ Gains configured -> **EQ 15 Band**
-- 15 x Left EQ Gains and 15 x Right EQ Gains configured -> **EQ BIAMP 15 Band**
-- EQ Preset Left Channel and EQ Preset Right Channel frequency cutoffs configured -> **EQ Presets**
+The EQ Mode select option (in addition to EQ Off) is determined based on the YAML configuration as follows:
+- Left EQ Gains only (any number of bands) -> **EQ On**: the left EQ Gains are applied to both channels
+- Right EQ Gains (with or without Left EQ Gains), or EQ Gains on one channel and an EQ Preset on the other channel -> **EQ BIAMP On**: each channel has its own filters
+- EQ Presets only (left channel, right channel or both) -> **EQ On**
 
 On startup the EQ Mode Select is initially selected the relevant Eq Mode.
 
@@ -279,14 +279,16 @@ number:
       name: _Volume Right
 ```
 
-For each channel 15 EQ Band Gain Numbers can be configured for controlling the gain of each EQ Band
+For each channel up to 15 EQ Band Gain Numbers can be configured for controlling the gain of each EQ Band
 in Home Assistant. The number configuration heading for each number is shown below
-with an example name. Defining **number: -platform: tas58xx** requires
-all 15 EQ Gain Band headings for each Channel to be configured.
+with an example name. Any number of bands can be configured on either channel. Only the bands that are
+configured are written to the DAC, the other bands stay at the DAC power on state which is flat (0dB).
 
-If only 15 left EQ Gains are configured then they are applied to both the left and right channels.
-To control left and right channels individually, the 15 left EQ Gains and 15 Right EQ Gains need
-be configured. Configuration of 15 Right EQ Gains requires the 15 left EQ Gains to be configured.
+If only Left EQ Gains are configured then they are applied to both the left and right channels.
+To control left and right channels individually, configure Right EQ Gains as well. Right EQ Gains can
+also be configured without Left EQ Gains, in which case the left channel is flat.
+A channel has either EQ Gains or an EQ Preset, not both. With dac_mode: PBTL only the left channel
+is used, right channel numbers and selects are ignored with a warning.
 For EQ Band Gains to activate correctly requires some addition YAML configuration, refer to the
 "Activation of Mixer mode and EQ Gains" section above.
 
@@ -374,7 +376,9 @@ select:
     eq_preset_right_channel:
       name: EQ Preset Right Cutoff
 ```
-Note: Either EQ Presets OR EQ Gains can be configured not both.
+Note: Each channel can have either an EQ Preset OR EQ Gains, not both. For example, EQ Gains on the left
+channel with an EQ Preset on the right channel (a subwoofer) is valid. An EQ Preset can be configured for
+one channel only, the other channel then stays at the DAC power on state which is flat.
 
 
 ## DAC Enable Switch
