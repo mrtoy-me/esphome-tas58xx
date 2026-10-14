@@ -65,16 +65,16 @@ double angular_frequency(uint32_t sample_rate, uint16_t frequency) {
 }
 
 // Derived from biquad.model.js in TI Pure Path Console 3
-BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
+BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
   const double ag = linear_gain(gain, LN10_DIV_20);
   const double t0 = angular_frequency(sample_rate, frequency);
 
   // the original uses ag >= 1.0, ie gain >= 0
   double beta;
   if (gain < 0) {
-    beta = t0 / (ag * 2.0 * static_cast<double>(q_factor));
+    beta = t0 / (ag * 2.0 * q_factor);
   } else {
-    beta = t0 / (2.0 * static_cast<double>(q_factor));
+    beta = t0 / (2.0 * q_factor);
   }
 
   // simplified from a2 = -0.5 * (1 - beta) / (1 + beta)
@@ -95,7 +95,7 @@ BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t frequency, in
 
 // Derived from biquad.model.js in TI Pure Path Console 3
 // A high shelf is a low shelf with cos(w0) negated and the signs of b1 and a1 flipped
-BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
+BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
   // sqrt(A) = 10^(gain / 80) and A = sqrt(A) * sqrt(A), which avoids a sqrt
   const double sqrt_ag = linear_gain(gain, LN10_DIV_80);
   const double ag = sqrt_ag * sqrt_ag;
@@ -109,7 +109,7 @@ BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t freque
   const double ag_minus1_cosw0 = ag_minus1 * cos_w0;
 
   // the original alpha = sin(w0) / (2 * q_factor) is only used as 2 * sqrt(A) * alpha
-  const double beta = sqrt_ag * std::sin(w0) / static_cast<double>(q_factor);
+  const double beta = sqrt_ag * std::sin(w0) / q_factor;
 
   const double precalc_x = ag_plus1 + ag_minus1_cosw0;
   const double precalc_y = ag_plus1 - ag_minus1_cosw0;
@@ -156,12 +156,12 @@ BiquadCoefficients pass_filter(bool high, uint32_t sample_rate, uint16_t frequen
 }
 
 // Derived from biquad.model.js in TI Pure Path Console 3
-BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
+BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
   // A = sqrt(10^(gain / 20)) = 10^(gain / 40)
   const double ag = linear_gain(gain, LN10_DIV_40);
   const double w0 = angular_frequency(sample_rate, frequency);
 
-  const double alpha = std::sin(w0) / (2.0 * static_cast<double>(q_factor));
+  const double alpha = std::sin(w0) / (2.0 * q_factor);
   const double alpha_divide_ag = alpha / ag;
 
   const double inverse_a0 = 1.0 / (1.0 + alpha_divide_ag);
@@ -198,7 +198,7 @@ int32_t gain_to_fixed_9_23(int8_t gain) {
   return little_endian;
 }
 
-BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
+BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
   switch (type) {
     case FILTER_TYPE_EQUALIZER:
       return equalizer_filter(sample_rate, frequency, gain, q_factor);

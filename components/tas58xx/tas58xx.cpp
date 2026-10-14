@@ -497,7 +497,7 @@ bool Tas58xxComponent::write_eq_preset_(Channels channel) {
 
   // BQ1 and BQ2 are the same filter, BQ3 is a high shelf or all pass
   const tas58xx_helpers::BiquadCoefficients filter =
-      tas58xx_helpers::make_biquad(preset.filter, EQ_SAMPLE_RATE, preset.cutoff_frequency, 0, 0.0f);
+      tas58xx_helpers::make_biquad(preset.filter, EQ_SAMPLE_RATE, preset.cutoff_frequency, 0, 0.0);
   const tas58xx_helpers::BiquadCoefficients shelf =
       (preset.shelf_frequency == 0)
           ? tas58xx_helpers::ALL_PASS

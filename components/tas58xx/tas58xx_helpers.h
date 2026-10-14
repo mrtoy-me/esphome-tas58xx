@@ -32,6 +32,6 @@ enum FilterType : uint8_t {
 int32_t gain_to_fixed_9_23(int8_t gain);
 
 // gain is in dB and is not used by all pass, q_factor is not used by all pass, low pass and high pass
-BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor);
+BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor);
 
 }  // namespace esphome::tas58xx_helpers

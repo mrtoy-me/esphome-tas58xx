@@ -405,13 +405,13 @@ add the docs entry to `esphome/esphome.io`.
   build (x86, IEEE double) gives exactly the same 43 values as the ESP32 run in
   `ESP32_vs_PPC_Fixed527_Differences.xlsx`, so the differences are not ESP32 software double rounding.
 - Cause of most: the Q is stored as a float. 0.9f is 0.89999998..., not 0.9, and PPC uses the decimal. With Q passed
-  as a double (`DOUBLE_Q=1`): 164 of 180 exact, largest 1 LSB. The 2 and 3 LSB differences at 8000 Hz disappear.
+  as a double: 164 of 180 exact, largest 1 LSB. The 2 and 3 LSB differences at 8000 Hz disappear.
 - Left (16 coefficients, all 1 LSB): low and high pass (Q is fixed there), plus single values of the other types. In
   every pass filter case the unrounded value is 0.52 to 0.61 above a whole number and PPC rounds down, so PPC has
   a slightly different intermediate calculation. Not explained by pi precision, division instead of multiplying by
   the inverse, or rounding mode (nearest is best).
-- Idea, not done: store Q as thousandths (`uint16_t`, 900 / 1000.0 is exactly the double 0.9) in `EqBand`, which
-  is also smaller than a float, and pass a `double` to the helpers.
+- Done: Q is a `double` in `EqBand` and in the helpers, so a YAML Q (a Python float, the same IEEE double) reaches the
+  helpers unchanged: 164 of 180 exact, largest 1 LSB. Thousandths would not hold a Q such as 2.144908.
 
 ## Open items for next time (2026-10-14)
 - Hardware test the checklist above on `dev_update_with_onaudio_plus_eq` (pushed). If it passes,

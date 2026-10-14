@@ -10,25 +10,25 @@ namespace esphome::tas58xx {
 struct EqBand {
   tas58xx_helpers::FilterType type;
   uint16_t frequency;
-  float q_factor;
+  double q_factor;  // double, so a Q such as 0.9 is the same value TI PurePath Console uses
 };
 
 static constexpr EqBand EQ_DEFAULT_BANDS[NUMBER_EQ_BANDS] = {
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 20,    2.0f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 32,    2.0f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 50,    1.5f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 80,    1.5f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 125,   1.0f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 200,   1.0f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 315,   0.9f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 500,   0.9f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 800,   0.8f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 1250,  0.8f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 2000,  0.7f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 3150,  0.7f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 5000,  0.6f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 8000,  0.6f },
-  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 16000, 0.5f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 20,    2.0 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 32,    2.0 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 50,    1.5 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 80,    1.5 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 125,   1.0 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 200,   1.0 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 315,   0.9 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 500,   0.9 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 800,   0.8 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 1250,  0.8 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 2000,  0.7 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 3150,  0.7 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 5000,  0.6 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 8000,  0.6 },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 16000, 0.5 },
 };
 // alternative frequencies {25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000}
 // alternative q factors {2.144908, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5}
@@ -53,7 +53,7 @@ static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
 static constexpr uint8_t EQ_PROFILE_MAXIMUM_INDEX = 20;
 static constexpr uint8_t EQ_PROFILE_BIQUADS = 3;
 static constexpr int8_t  EQ_PRESET_SHELF_GAIN = 1;
-static constexpr float   EQ_PRESET_SHELF_QFACTOR = 0.5f;
+static constexpr double  EQ_PRESET_SHELF_QFACTOR = 0.5;
 
 struct EqPreset {
   tas58xx_helpers::FilterType filter;
