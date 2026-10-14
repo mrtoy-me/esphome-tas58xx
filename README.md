@@ -258,6 +258,7 @@ Note: if any EQ Gains or EQ Presets are configured then Eq Mode Select must be d
 The EQ Mode select option (in addition to EQ Off) is determined based on the YAML configuration as follows:
 - Left channel configured (EQ Gains or EQ Preset) -> **EQ On** is available: the left channel filters are applied to both channels
 - Right channel configured (EQ Gains or EQ Preset) -> **EQ BIAMP On** is available: each channel has its own filters
+- A lone left EQ Preset is not shared: only **EQ BIAMP On** is available and the right channel stays flat
 - Both channels configured -> both **EQ On** and **EQ BIAMP On** are available
 
 On startup the EQ Mode Select starts at the highest EQ Mode available (the last option), EQ BIAMP On if available otherwise EQ On.

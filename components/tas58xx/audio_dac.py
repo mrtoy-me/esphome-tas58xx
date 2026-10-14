@@ -202,10 +202,16 @@ def validate_eq_channels(eq_channels):
 # EQ modes that can be selected, in select option order after EQ Off
 # EQ On shares the left channel filters between both channels, so it needs the left channel configured
 # EQ BIAMP On has separate filters for each channel, so it needs the right channel configured
+# a lone left preset is not shared, it is EQ BIAMP On with the right channel left flat
 def derive_eq_modes(eq_channels):
     left = eq_channels.left_gains or eq_channels.left_preset
     right = eq_channels.right_gains or eq_channels.right_preset
-    return tuple(mode for mode, wanted in ((EQ_ON, left), (EQ_BIAMP_ON, right)) if wanted)
+    lone_left_preset = eq_channels.left_preset and not right
+    return tuple(
+        mode
+        for mode, wanted in ((EQ_ON, left and not lone_left_preset), (EQ_BIAMP_ON, right or lone_left_preset))
+        if wanted
+    )
 
 # derive the EQ modes from the tas58xx numbers and selects of this audio_dac
 # saved for audio_dac to_code and select to_code (EQ Mode select options)
