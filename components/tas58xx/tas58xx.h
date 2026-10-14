@@ -116,7 +116,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // write saved settings to the DSP, only called when the I2S clock is running
    bool write_channel_volume_(Channels channel);
-   bool write_eq_channels_();
+   bool write_eq_channel_(Channels channel, bool filters);
+   bool write_eq_channels_(bool rewrite_filters);
    bool write_eq_flat_(Channels channel, uint8_t biquad_index);
    bool write_eq_gain_(Channels channel, uint8_t band_index);
    bool write_eq_mode_();
@@ -190,6 +191,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 #endif
 #ifdef USE_TAS58XX_EQ_PRESETS
    bool eq_preset_defined_[NUMBER_CHANNELS]{false}; // set by an EQ preset select
+#endif
+#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+   // true when the DSP holds the gains or preset of the channel, false when flat (the reset state)
+   bool eq_filters_written_[NUMBER_CHANNELS]{false, false};
 #endif
 
    EqMode tas58xx_eq_mode_{EQ_OFF}; // current selected eq mode

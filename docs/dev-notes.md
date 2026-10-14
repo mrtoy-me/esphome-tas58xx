@@ -26,7 +26,11 @@ Not yet hardware tested. `dev_update_with_onaudio` itself is unchanged.
      EQ_RIGHT_ON, EQ_BIAMP_ON. Left gains only: EQ On. Lone left preset: EQ Left On. Right only: EQ Right On.
      Both channels: all four. PBTL ignores the right channel and always offers EQ Left On for the left channel (datasheets: PBTL input is the left I2S frame, and the crossbar
      defaults route the left output to analog left; TI does not say outright which channel's filters drive PBTL). The three non ganged modes share register values; a channel not used is set flat
-     (`write_eq_channels_`, `eq_mode_uses_channel`) and rewritten when used again. Select index to mode through
+     and rewritten when used again. Mode changes write only what changes: `eq_filters_written_` per channel
+     records whether the DSP holds the channel's filters or is flat, `eq_channel_need()` says what a mode needs
+     (filters, flat, or any), `write_eq_channels_()` writes the difference. EQ Off and EQ On Left=Right from a mode
+     with left filters write only the mode register. A gain or preset change is written only when the channel's
+     filters are in the DSP. A rewrite after the clock was lost rewrites the filters in the DSP. Select index to mode through
      the `config_eq_modes` mask.
    - Right EQ gain numbers with `dac_mode: PBTL` log a warning. Compat cases 19 to 28 added.
 2. **`80dd98b` presets calculated with the helpers.** `eq_profiles.h` (42 coefficient tables, 446 lines) is

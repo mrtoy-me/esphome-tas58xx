@@ -117,16 +117,25 @@ static constexpr EqModeCoefficients TAS5825M_CTRL_EQ[NUMBER_EQ_MODES] = {
 #endif
 
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
-// the channel filters used by an EQ mode, the filters of the other channel are set flat
-constexpr bool eq_mode_uses_channel(EqMode mode, Channels channel) {
+// what an EQ mode needs in the biquads of a channel
+enum EqChannelNeed : uint8_t {
+  EQ_CHANNEL_ANY = 0,  // not used by the EQ mode, left as it is
+  EQ_CHANNEL_FILTERS,  // the gains or preset of the channel
+  EQ_CHANNEL_FLAT,     // flat, so the channel is not filtered
+};
+
+constexpr EqChannelNeed eq_channel_need(EqMode mode, Channels channel) {
   switch (mode) {
     case EQ_ON:
+      return channel == LEFT_CHANNEL ? EQ_CHANNEL_FILTERS : EQ_CHANNEL_ANY;  // ganged, right uses left
     case EQ_LEFT_ON:
-      return channel == LEFT_CHANNEL;
+      return channel == LEFT_CHANNEL ? EQ_CHANNEL_FILTERS : EQ_CHANNEL_FLAT;
     case EQ_RIGHT_ON:
-      return channel == RIGHT_CHANNEL;
+      return channel == RIGHT_CHANNEL ? EQ_CHANNEL_FILTERS : EQ_CHANNEL_FLAT;
+    case EQ_BIAMP_ON:
+      return EQ_CHANNEL_FILTERS;
     default:
-      return true;
+      return EQ_CHANNEL_ANY;  // EQ Off, bypassed
   }
 }
 
