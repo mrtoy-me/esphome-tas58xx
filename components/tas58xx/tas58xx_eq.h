@@ -89,34 +89,20 @@ static constexpr EqPreset EQ_PRESETS[EQ_PROFILE_MAXIMUM_INDEX + 1] = {
 // EQ Modes registers and coefficients
 static constexpr uint8_t TAS58XX_EQ_CTRL_BOOK = 0xAA;
 
-// EQ mode coefficients equivalent to the indexes of the eq_modes
-// EQ Off = bypass EQ; EQ On = ganged (left filters used by both channels)
-// EQ Left On, EQ Right On and EQ BIAMP On = not ganged, the same registers, the filters of a channel that is not
-// used are set flat by the software
+// EQ Off = bypass EQ and ganged; EQ On Left=Right = ganged (the right channel uses the left channel filters);
+// EQ Left On, EQ Right On and EQ BIAMP On = not ganged, the filters of a channel that is not used are set flat
 #ifdef USE_TAS5805M_DAC
 static constexpr uint8_t TAS5805M_DSP_MISC = 0x66;
-static constexpr uint8_t TAS5805M_CTRL_EQ[NUMBER_EQ_MODES] = {0b0111, 0b0110, 0b1110, 0b1110, 0b1110};
+// DSP_MISC bits: 0 bypass EQ, 1 bypass DRC, 2 bypass FIR, 3 separate left and right coefficients (not ganged)
+static constexpr uint8_t TAS5805M_DSP_MISC_BYPASS_EQ = 0x01;
+static constexpr uint8_t TAS5805M_DSP_MISC_BYPASS_DRC_FIR = 0x06;
+static constexpr uint8_t TAS5805M_DSP_MISC_SEPARATE_COEFFICIENTS = 0x08;
 #else
 static constexpr uint8_t TAS5825M_EQ_MODE_CTRL_PAGE = 0x0B;
-static constexpr uint8_t TAS5825M_GANG_EQ = 0x28; // TAS5825M_BYPASS_EQ = 0x2C;
-
-struct EqModeCoefficients {
-  uint32_t gang_eq;
-  uint32_t bypass_eq;
-}__attribute__((packed));
-
+static constexpr uint8_t TAS5825M_GANG_EQ = 0x28;  // followed by Bypass EQ at 0x2C
 // Gang EQ and Bypass EQ are 32.0 flags, 1 = true. The DSP is big endian, so 0x00000001 is stored byte swapped
 // (0x01000000) to be sent as 00 00 00 01, the same as the other DSP values (eg TAS58XX_MIXER_COEFF_0DB)
 static constexpr uint32_t TAS5825M_EQ_FLAG_TRUE = 0x01000000;
-static constexpr uint32_t TAS5825M_EQ_FLAG_FALSE = 0x00000000;
-
-static constexpr EqModeCoefficients TAS5825M_CTRL_EQ[NUMBER_EQ_MODES] = {
-  {TAS5825M_EQ_FLAG_TRUE,  TAS5825M_EQ_FLAG_TRUE},  // EQ Off      = Ganged true  + Bypass EQ true
-  {TAS5825M_EQ_FLAG_TRUE,  TAS5825M_EQ_FLAG_FALSE}, // EQ On       = Ganged true  + Bypass EQ false
-  {TAS5825M_EQ_FLAG_FALSE, TAS5825M_EQ_FLAG_FALSE}, // EQ Left On  = Ganged false + Bypass EQ false
-  {TAS5825M_EQ_FLAG_FALSE, TAS5825M_EQ_FLAG_FALSE}, // EQ Right On = Ganged false + Bypass EQ false
-  {TAS5825M_EQ_FLAG_FALSE, TAS5825M_EQ_FLAG_FALSE}, // EQ BIAMP On = Ganged false + Bypass EQ false
-};
 #endif
 
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)

@@ -6,6 +6,7 @@
 #include "esphome/core/hal.h"
 
 #include "tas58xx_defs.h"
+#include "tas58xx_helpers.h"
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -118,8 +119,14 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool write_channel_volume_(Channels channel);
    bool write_eq_channel_(Channels channel, bool filters);
    bool write_eq_channels_(bool rewrite_filters);
-   bool write_eq_flat_(Channels channel, uint8_t biquad_index);
+   bool write_eq_biquads_(Channels channel, uint8_t biquad_index, const tas58xx_helpers::BiquadCoefficients *biquads,
+                          uint8_t count);
    bool write_eq_gain_(Channels channel, uint8_t band_index);
+#ifdef USE_TAS58XX_EQ_GAINS
+   const EqBand &eq_band_(Channels channel, uint8_t band_index);
+   tas58xx_helpers::BiquadCoefficients eq_gain_biquad_(Channels channel, uint8_t band_index);
+   void log_eq_gain_(Channels channel, uint8_t band_index);
+#endif
    bool write_eq_mode_();
    bool write_eq_preset_(Channels channel);
    bool write_input_mixer_mode_();
@@ -152,11 +159,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    // low level functions
    bool set_book_and_page_(uint8_t book, uint8_t page);
-   bool book_page_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* data, uint8_t number_bytes);
-   bool biquad_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, uint8_t* biquad, uint8_t number_bytes);
+   bool dsp_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, const uint8_t *data, size_t length);
    bool tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes);
    bool tas58xx_write_byte_(uint8_t a_register, uint8_t data);
-   bool tas58xx_write_bytes_(uint8_t a_register, uint8_t *data, uint8_t number_bytes);
+   bool tas58xx_write_bytes_(uint8_t a_register, const uint8_t *data, uint8_t number_bytes);
 
    //// variables
    uint8_t eq_modes_{0}; // derived from YAML: bit mask of selectable EQ modes

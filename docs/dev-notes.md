@@ -374,7 +374,22 @@ add the docs entry to `esphome/esphome.io`.
   `external_components` at a local path for testing.
 
 
-## Open items for next time (2026-10-14)
+## Helper and DSP write rework (2026-10-14, after the EQ mode work)
+- `db3b8a1` helper cleanup: only `make_biquad`, `gain_to_fixed_9_23` and `ALL_PASS` are public; shared shelf and
+  pass filter code; 5.27 conversion without int64; coefficients identical bit for bit
+  (`docs/tools/biquad_check/run.sh`, 642194 biquads, md5 compared with the previous helpers).
+- `2749ff8` TAS5825M Gang EQ and Bypass EQ flags sent as 00 00 00 01 (big endian value 1), was 01 00 00 00.
+- DSP write path: `dsp_write_bytes_` replaces `book_page_write_bytes_` and `biquad_write_bytes_`. It writes any
+  length from book, page and subaddress, continues at subaddress 0x08 on the next page, sends I2C writes of at most
+  16 bytes (I2CDevice::write_register uses a 17 byte stack buffer, a 20 byte biquad write used the heap) and always
+  resets to book 0 page 0, also after an error. Consecutive gain bands and the 3 preset biquads are written as one
+  run: a full 15 band channel takes about 29 I2C transactions instead of about 108. EQ mode registers are
+  calculated from `eq_mode_is_ganged()` and EQ Off with named DSP_MISC bits instead of two 5 entry tables.
+  Checked: `docs/tools/dsp_write_check/run.sh` (480 runs, same DSP memory as the old writer on both chips);
+  biquad addresses checked against the TI memory maps (SLOA263A TAS5805M: 150 coefficients, 5 biquads split over
+  two pages; SLAA786A TAS5825M BasePro 2.0 96k: no biquad split over two pages), no mismatch.
+  Hardware: EQ writes at startup and on gain changes behave as before, no I2C errors in the log.
+
 - Hardware test the checklist above on `dev_update_with_onaudio_plus_eq` (HEAD `78d21c2`, pushed). If it passes,
   decide whether to merge it into `dev_update_with_onaudio`.
 - Legacy comments left in place for you to decide: the commented subwoofer/crossbar enums, text tables and
