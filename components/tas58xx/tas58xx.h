@@ -8,7 +8,6 @@
 #include "tas58xx_defs.h"
 #include "tas58xx_eq_common.h"
 //#include "tas58xx_eq_bands.h"
-#include "tas58xx_eq_profiles.h"
 
 #ifdef USE_TAS58XX_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"

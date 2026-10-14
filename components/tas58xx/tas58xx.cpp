@@ -436,23 +436,24 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
 #endif
 }
 
+#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+// page and subaddress of a biquad of a channel
+static const AddressSequence* eq_biquad_address_(Channels channel, uint8_t biquad_index) {
+#ifdef USE_TAS5805M_DAC
+  return (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[biquad_index] : &TAS5805M_RIGHT_EQ_ADDRESS[biquad_index];
+#else
+  return (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[biquad_index] : &TAS5825M_RIGHT_EQ_ADDRESS[biquad_index];
+#endif
+}
+#endif
+
 bool Tas58xxComponent::write_eq_gain_(Channels channel, uint8_t band_index) {
 #ifdef USE_TAS58XX_EQ_GAINS
   const uint8_t band = band_index + 1;
   const int8_t gain = this->tas58xx_eq_gain_[channel][band_index];
 
-#ifdef USE_TAS5805M_DAC
-  const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[band_index] : &TAS5805M_RIGHT_EQ_ADDRESS[band_index];
-#else
-  const AddressSequence* eq_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[band_index] : &TAS5825M_RIGHT_EQ_ADDRESS[band_index];
-#endif
+  const AddressSequence* eq_address = eq_biquad_address_(channel, band_index);
 
-  if (eq_address == NULL) {
-    ESP_LOGE(TAG, "NULL discovered %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
-    return false;
-  }
-
-  static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
   tas58xx_helpers::BiquadCoefficients biquad =
       tas58xx_helpers::equalizer_qfactor_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
 
@@ -490,45 +491,25 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
 bool Tas58xxComponent::write_eq_preset_(Channels channel) {
 #ifdef USE_TAS58XX_EQ_PRESETS
   const uint8_t select_preset = this->tas58xx_channel_preset_[channel];
+  const EqPreset &preset = EQ_PRESETS[select_preset];
 
-#ifdef USE_TAS5805M_DAC
-  const AddressSequence* biquad1_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[0] : &TAS5805M_RIGHT_EQ_ADDRESS[0];
-  const AddressSequence* biquad2_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[1] : &TAS5805M_RIGHT_EQ_ADDRESS[1];
-  const AddressSequence* biquad3_address = (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[2] : &TAS5805M_RIGHT_EQ_ADDRESS[2];
-#else
-  const AddressSequence* biquad1_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[0] : &TAS5825M_RIGHT_EQ_ADDRESS[0];
-  const AddressSequence* biquad2_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[1] : &TAS5825M_RIGHT_EQ_ADDRESS[1];
-  const AddressSequence* biquad3_address = (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[2] : &TAS5825M_RIGHT_EQ_ADDRESS[2];
-#endif
+  // BQ1 and BQ2 are the same filter, BQ3 is a high shelf or all pass
+  const tas58xx_helpers::BiquadCoefficients filter =
+      tas58xx_helpers::make_biquad(preset.filter, EQ_SAMPLE_RATE, preset.cutoff_frequency, 0, 0.0f);
+  const tas58xx_helpers::BiquadCoefficients shelf =
+      (preset.shelf_frequency == 0)
+          ? tas58xx_helpers::all_pass_()
+          : tas58xx_helpers::make_biquad(tas58xx_helpers::FILTER_TYPE_HIGH_SHELF, EQ_SAMPLE_RATE, preset.shelf_frequency,
+                                         EQ_PRESET_SHELF_GAIN, EQ_PRESET_SHELF_QFACTOR);
+  tas58xx_helpers::BiquadCoefficients biquads[EQ_PROFILE_BIQUADS] = {filter, filter, shelf};
 
-  const BiquadSequence* biquad1 = (channel == LEFT_CHANNEL) ? &EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][0] : &EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][0];
-  const BiquadSequence* biquad2 = (channel == LEFT_CHANNEL) ? &EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][1] : &EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][1];
-  const BiquadSequence* biquad3 = (channel == LEFT_CHANNEL) ? &EQ_PROFILE_LEFT_COEFFICIENTS[select_preset][2] : &EQ_PROFILE_RIGHT_COEFFICIENTS[select_preset][2];
-
-  if ((biquad1_address == NULL) || (biquad2_address == NULL) || (biquad3_address == NULL)) {
-    ESP_LOGE(TAG, "NULL EQ Preset Address pointer");
-    return false;
-  }
-
-  if ((biquad1 == NULL) || (biquad2 == NULL) || (biquad3 == NULL)) {
-    ESP_LOGE(TAG, "NULL EQ Preset Coefficent pointer");
-    return false;
-  }
-
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad1_address->page, biquad1_address->sub_addr,
-                                  reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad1->coefficients)), BIQUAD_SIZE)) {
-    ESP_LOGW(TAG, "%s writing Biquad 1 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-    return false;
-  }
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad2_address->page, biquad2_address->sub_addr,
-                                  reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad2->coefficients)), BIQUAD_SIZE)) {
-    ESP_LOGW(TAG, "%s writing Biquad 2 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-    return false;
-  }
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, biquad3_address->page, biquad3_address->sub_addr,
-                                  reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(biquad3->coefficients)), BIQUAD_SIZE)) {
-    ESP_LOGW(TAG, "%s writing Biquad 3 for %s Channel EQ Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], select_preset);
-    return false;
+  for (uint8_t biquad = 0; biquad < EQ_PROFILE_BIQUADS; biquad++) {
+    const AddressSequence* address = eq_biquad_address_(channel, biquad);
+    if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, address->page, address->sub_addr,
+                                    reinterpret_cast<uint8_t*>(&biquads[biquad]), sizeof(biquads[biquad]))) {
+      ESP_LOGW(TAG, "%s writing Biquad %d for %s Channel EQ Preset index: %d", ERROR, biquad + 1, LR_CHANNEL_TEXT[channel], select_preset);
+      return false;
+    }
   }
 
   ESP_LOGD(TAG, "%s Channel EQ Preset index >> %d", LR_CHANNEL_TEXT[channel], select_preset);

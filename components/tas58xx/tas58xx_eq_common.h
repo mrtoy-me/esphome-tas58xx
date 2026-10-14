@@ -1,5 +1,7 @@
 #pragma once
 
+#include "tas58xx_helpers.h"
+
 namespace esphome::tas58xx {
 
 enum Channels : uint8_t {
@@ -87,10 +89,50 @@ static constexpr int8_t  TAS58XX_EQ_MIN_DB = -TAS58XX_EQ_MAX_DB;
 static constexpr uint8_t COEFFICIENT_SIZE = 4;                // cooefficients = 32 bit
 static constexpr uint8_t BIQUAD_SIZE = COEFFICIENT_SIZE * 5;  // 5 cooefficients per biquad ;
 
-// biquad coefficient structure used by eq_bands.h and eq_presets.h
-struct BiquadSequence {
-  uint8_t coefficients[BIQUAD_SIZE];
-}__attribute__((packed));
+// sample rate the DSP processes at, used to calculate the biquad coefficients
+static constexpr uint32_t EQ_SAMPLE_RATE = 96000;
+
+#ifdef USE_TAS58XX_EQ_PRESETS
+// EQ presets, selected by index: 0 = Flat, 1 to 10 = LF 60Hz to 150Hz, 11 to 20 = HF 60Hz to 150Hz
+// 3 biquads are used, the first 2 are the same filter and together make a 4th order filter
+//   BQ1 and BQ2: low pass (LF presets) or high pass (HF presets) filter at the cutoff frequency
+//   BQ3: high shelf at shelf_frequency, to make up the level lost with the high pass filter (HF presets)
+//        all pass when shelf_frequency is 0 (Flat and LF presets)
+static constexpr uint8_t EQ_PROFILE_MAXIMUM_INDEX = 20;
+static constexpr uint8_t EQ_PROFILE_BIQUADS = 3;
+static constexpr int8_t  EQ_PRESET_SHELF_GAIN = 1;
+static constexpr float   EQ_PRESET_SHELF_QFACTOR = 0.5f;
+
+struct EqPreset {
+  tas58xx_helpers::FilterType filter;
+  uint16_t cutoff_frequency;
+  uint16_t shelf_frequency;
+};
+
+static constexpr EqPreset EQ_PRESETS[EQ_PROFILE_MAXIMUM_INDEX + 1] = {
+  { tas58xx_helpers::FILTER_TYPE_ALL_PASS,  0,   0 },    // Flat
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  60,  0 },    // LF 60Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  70,  0 },    // LF 70Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  80,  0 },    // LF 80Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  90,  0 },    // LF 90Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  100, 0 },    // LF 100Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  110, 0 },    // LF 110Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  120, 0 },    // LF 120Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  130, 0 },    // LF 130Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  140, 0 },    // LF 140Hz
+  { tas58xx_helpers::FILTER_TYPE_LOW_PASS,  150, 0 },    // LF 150Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 60,  200 },  // HF 60Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 70,  200 },  // HF 70Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 80,  200 },  // HF 80Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 90,  200 },  // HF 90Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 100, 200 },  // HF 100Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 110, 220 },  // HF 110Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 120, 240 },  // HF 120Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 130, 260 },  // HF 130Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 140, 280 },  // HF 140Hz
+  { tas58xx_helpers::FILTER_TYPE_HIGH_PASS, 150, 300 },  // HF 150Hz
+};
+#endif
 
 // EQ Modes registers and coefficients
 static constexpr uint8_t TAS58XX_EQ_CTRL_BOOK = 0xAA;
