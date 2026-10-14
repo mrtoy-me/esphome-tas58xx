@@ -251,17 +251,27 @@ The desired Mixer Mode can also be defined under audio_dac: but if Select mixer_
 then the last selected Mixer Mode is saved and will be reloaded at next re-boot. If a Select Mixer Mode has been saved,
 this will supercede and be used instead of the Mixer Mode defined under audio_dac:
 
-For any configuration with EQ Gains or EQ Presets configured, there are only two possible EQ Modes
-being EQ Off and, depending on configuration, EQ On or EQ BIAMP On.
-Note: if any EQ Gains or EQ Presets are configured then Eq Mode Select must be defined.
+If any EQ Gains or EQ Presets are configured then Eq Mode Select must be defined.
 
-The EQ Mode select option (in addition to EQ Off) is determined based on the YAML configuration as follows:
-- Left channel configured (EQ Gains or EQ Preset) -> **EQ On** is available: the left channel filters are applied to both channels
-- Right channel configured (EQ Gains or EQ Preset) -> **EQ BIAMP On** is available: each channel has its own filters
-- A lone left EQ Preset is not shared: only **EQ BIAMP On** is available and the right channel stays flat
-- Both channels configured -> both **EQ On** and **EQ BIAMP On** are available
+The EQ Mode select options (in addition to EQ Off) are determined by the YAML configuration as follows:
 
-On startup the EQ Mode Select starts at the highest EQ Mode available (the last option), EQ BIAMP On if available otherwise EQ On.
+| Config | Select options |
+|---|---|
+| Left EQ Gains only | EQ On Left=Right |
+| Lone left EQ Preset | EQ Left On |
+| Right only (gains or preset) | EQ Right On |
+| Left and Right both configured (any combination of gains or presets) | EQ On Left=Right, EQ Left On, EQ Right On, EQ BIAMP On |
+
+- **EQ On Left=Right**: the left channel filters (gains or preset) are used by both channels
+- **EQ Left On**: only the left channel filters are used, the right channel is flat
+- **EQ Right On**: only the right channel filters are used, the left channel is flat
+- **EQ BIAMP On**: each channel uses its own filters
+
+The DSP has no per channel EQ switch, so when the selection changes the filters of a channel that is not used are
+set flat and the filters of a channel that becomes used are written again.
+With dac_mode PBTL only the left channel is output, so right channel EQ Gains and Presets are ignored (with a warning).
+
+On startup the EQ Mode Select starts at the last option available, ie EQ BIAMP On if both channels are configured.
 
 
 # EQ Control configuration

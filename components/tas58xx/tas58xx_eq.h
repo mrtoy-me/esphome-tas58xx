@@ -90,10 +90,12 @@ static constexpr EqPreset EQ_PRESETS[EQ_PROFILE_MAXIMUM_INDEX + 1] = {
 static constexpr uint8_t TAS58XX_EQ_CTRL_BOOK = 0xAA;
 
 // EQ mode coefficients equivalent to the indexes of the eq_modes
-// EQ Off = bypass EQ; EQ On = EQ ganged (left filters used by both channels); EQ BIAMP On = separate filters for each channel
+// EQ Off = bypass EQ; EQ On = ganged (left filters used by both channels)
+// EQ Left On, EQ Right On and EQ BIAMP On = not ganged, the same registers, the filters of a channel that is not
+// used are set flat by the software
 #ifdef USE_TAS5805M_DAC
 static constexpr uint8_t TAS5805M_DSP_MISC = 0x66;
-static constexpr uint8_t TAS5805M_CTRL_EQ[NUMBER_EQ_MODES] = {0b0111, 0b0110, 0b1110};
+static constexpr uint8_t TAS5805M_CTRL_EQ[NUMBER_EQ_MODES] = {0b0111, 0b0110, 0b1110, 0b1110, 0b1110};
 #else
 static constexpr uint8_t TAS5825M_EQ_MODE_CTRL_PAGE = 0x0B;
 static constexpr uint8_t TAS5825M_GANG_EQ = 0x28; // TAS5825M_BYPASS_EQ = 0x2C;
@@ -108,11 +110,26 @@ struct EqModeCoefficients {
 static constexpr EqModeCoefficients TAS5825M_CTRL_EQ[NUMBER_EQ_MODES] = {
   {0x00000001, 0x00000001}, // EQ Off      = Ganged true  + Bypass EQ true
   {0x00000001, 0x00000000}, // EQ On       = Ganged true  + Bypass EQ false
+  {0x00000000, 0x00000000}, // EQ Left On  = Ganged false + Bypass EQ false
+  {0x00000000, 0x00000000}, // EQ Right On = Ganged false + Bypass EQ false
   {0x00000000, 0x00000000}, // EQ BIAMP On = Ganged false + Bypass EQ false
 };
 #endif
 
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+// the channel filters used by an EQ mode, the filters of the other channel are set flat
+constexpr bool eq_mode_uses_channel(EqMode mode, Channels channel) {
+  switch (mode) {
+    case EQ_ON:
+    case EQ_LEFT_ON:
+      return channel == LEFT_CHANNEL;
+    case EQ_RIGHT_ON:
+      return channel == RIGHT_CHANNEL;
+    default:
+      return true;
+  }
+}
+
 // page and subaddress of a biquad
 struct AddressSequence {
   uint8_t page;

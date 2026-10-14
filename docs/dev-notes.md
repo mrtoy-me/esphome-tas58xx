@@ -21,10 +21,12 @@ hardware tested. `dev_update_with_onaudio` itself is unchanged.
    - EQ Mode options are "EQ Off", "EQ On", "EQ BIAMP On" (a second compatibility break against `main`:
      it was "Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"). Superseded by the EQ mode rule below.
      `derive_eq_modes()` in `audio_dac.py`; per channel checks in `get_eq_channels()` and `validate_eq_channels()`.
-   - EQ mode rule (later change): `EqMode` is EQ_OFF, EQ_ON, EQ_BIAMP_ON (EQ_PRESETS_ON removed, its hardware
-     values were identical to BIAMP). Left channel configured (gains or preset) offers EQ On, right channel
-     configured offers EQ BIAMP On, both offer both. `config_eq_modes(mask)` passes the offered modes, the select
-     starts at its last (highest) option. A lone left preset is not ganged: only EQ BIAMP On is offered, right channel stays flat (as in dev_update).
+   - EQ mode rule (latest): `EqMode` = EQ_OFF, EQ_ON (ganged, shown as "EQ On Left=Right"), EQ_LEFT_ON,
+     EQ_RIGHT_ON, EQ_BIAMP_ON. Left gains only: EQ On. Lone left preset: EQ Left On. Right only: EQ Right On.
+     Both channels: all four. PBTL ignores the right channel (datasheet: PBTL input is the left I2S frame; not
+     hardware tested). The three non ganged modes share register values; a channel not used is set flat
+     (`write_eq_channels_`, `eq_mode_uses_channel`) and rewritten when used again. Select index to mode through
+     the `config_eq_modes` mask. Hardware check needed: right channel flat in non ganged mode, mode switching.
    - Right EQ gain numbers with `dac_mode: PBTL` log a warning. Compat cases 19 to 28 added.
 2. **`80dd98b` presets calculated with the helpers.** `eq_profiles.h` (42 coefficient tables, 446 lines) is
    replaced by a 21 row `EQ_PRESETS` table: BQ1 and BQ2 are the same low pass (LF) or high pass (HF) filter at

@@ -134,29 +134,9 @@ bool Tas58xxComponent::write_dsp_settings_() {
   }
 #endif
 
-#ifdef USE_TAS58XX_EQ_GAINS
-  // only bands with a gain number in YAML are written, the other biquads keep their power on (flat) state
-  for (uint8_t channel = LEFT_CHANNEL; channel < NUMBER_CHANNELS; channel++) {
-    for (uint8_t band = 0; band < NUMBER_EQ_BANDS; band++) {
-      if (!(this->eq_gain_defined_[channel] & (1u << band))) continue;
-      if (!this->write_eq_gain_(static_cast<Channels>(channel), band)) {
-        ESP_LOGW(TAG, "%s setting %s Gain %s: %d", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band + 1);
-        ok = false;
-      }
-    }
-  }
-#endif // USE_TAS58XX_EQ_GAINS
-
-#ifdef USE_TAS58XX_EQ_PRESETS
-  // only channels with an EQ preset select in YAML are written
-  for (uint8_t channel = LEFT_CHANNEL; channel < NUMBER_CHANNELS; channel++) {
-    if (!this->eq_preset_defined_[channel]) continue;
-    if (!this->write_eq_preset_(static_cast<Channels>(channel))) {
-      ESP_LOGW(TAG, "%s setting %s Channel Preset index: %d", ERROR, LR_CHANNEL_TEXT[channel], this->tas58xx_channel_preset_[channel]);
-      ok = false;
-    }
-  }
-#endif // USE_TAS58XX_EQ_PRESETS
+#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+  if (!this->write_eq_channels_()) ok = false;
+#endif
 
   if (!ok) {
     // retried at next audio start or update
@@ -438,6 +418,8 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
     ESP_LOGD(TAG, "Save %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return true;
   }
+  // a channel not used by the EQ mode is written when the EQ mode is selected
+  if (!eq_mode_uses_channel(this->tas58xx_eq_mode_, channel)) return true;
   return this->write_eq_gain_(channel, band_index);
 #else
   return true;
@@ -480,6 +462,7 @@ bool Tas58xxComponent::set_eq_preset(Channels channel, uint8_t select_preset) {
     ESP_LOGD(TAG, "Save %s Channel EQ Preset index: %d", LR_CHANNEL_TEXT[channel], select_preset);
     return true;
   }
+  if (!eq_mode_uses_channel(this->tas58xx_eq_mode_, channel)) return true;
   return this->write_eq_preset_(channel);
 #else
   return true;
@@ -513,6 +496,51 @@ bool Tas58xxComponent::write_eq_preset_(Channels channel) {
   ESP_LOGD(TAG, "%s Channel EQ Preset index >> %d", LR_CHANNEL_TEXT[channel], select_preset);
 #endif
   return true;
+}
+
+// write a flat (all pass) biquad, used for the filters of a channel that the EQ mode does not use
+bool Tas58xxComponent::write_eq_flat_(Channels channel, uint8_t biquad_index) {
+#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+  tas58xx_helpers::BiquadCoefficients flat = tas58xx_helpers::all_pass_();
+  const AddressSequence address = eq_biquad_address(channel, biquad_index);
+  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, address.page, address.sub_addr,
+                                  reinterpret_cast<uint8_t*>(&flat), sizeof(flat))) {
+    ESP_LOGW(TAG, "%s writing flat Biquad %d for %s Channel", ERROR, biquad_index + 1, LR_CHANNEL_TEXT[channel]);
+    return false;
+  }
+#endif
+  return true;
+}
+
+// write the biquads defined in YAML of each channel for the current EQ mode, a channel not used is set flat
+bool Tas58xxComponent::write_eq_channels_() {
+  bool ok = true;
+#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
+  for (uint8_t channel = LEFT_CHANNEL; channel < NUMBER_CHANNELS; channel++) {
+    const Channels ch = static_cast<Channels>(channel);
+    const bool used = eq_mode_uses_channel(this->tas58xx_eq_mode_, ch);
+#ifdef USE_TAS58XX_EQ_GAINS
+    // only bands with a gain number in YAML are written, the other biquads keep their power on (flat) state
+    for (uint8_t band = 0; band < NUMBER_EQ_BANDS; band++) {
+      if (!(this->eq_gain_defined_[channel] & (1u << band))) continue;
+      if (!(used ? this->write_eq_gain_(ch, band) : this->write_eq_flat_(ch, band))) ok = false;
+    }
+#endif
+#ifdef USE_TAS58XX_EQ_PRESETS
+    // only channels with an EQ preset select in YAML are written
+    if (this->eq_preset_defined_[channel]) {
+      if (used) {
+        if (!this->write_eq_preset_(ch)) ok = false;
+      } else {
+        for (uint8_t biquad = 0; biquad < EQ_PROFILE_BIQUADS; biquad++) {
+          if (!this->write_eq_flat_(ch, biquad)) ok = false;
+        }
+      }
+    }
+#endif
+  }
+#endif
+  return ok;
 }
 
 bool Tas58xxComponent::set_mute_off() {
@@ -659,7 +687,7 @@ bool Tas58xxComponent::set_eq_mode_(EqMode new_mode) {
     ESP_LOGD(TAG, "Save EQ Mode: %s", EQ_MODE_TEXT[new_mode]);
     return true;
   }
-  return this->write_eq_mode_();
+  return this->write_eq_mode_() && this->write_eq_channels_();
 #else
   return true;
 #endif
