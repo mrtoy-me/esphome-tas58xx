@@ -1,6 +1,7 @@
 #include "tas58xx.h"
-#include "tas58xx_minimal.h"
+#include "tas58xx_eq.h"
 #include "tas58xx_helpers.h"
+#include "tas58xx_startup.h"
 
 #include "esphome/core/log.h"
 
@@ -436,28 +437,17 @@ bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t 
 #endif
 }
 
-#if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
-// page and subaddress of a biquad of a channel
-static const AddressSequence* eq_biquad_address_(Channels channel, uint8_t biquad_index) {
-#ifdef USE_TAS5805M_DAC
-  return (channel == LEFT_CHANNEL) ? &TAS5805M_LEFT_EQ_ADDRESS[biquad_index] : &TAS5805M_RIGHT_EQ_ADDRESS[biquad_index];
-#else
-  return (channel == LEFT_CHANNEL) ? &TAS5825M_LEFT_EQ_ADDRESS[biquad_index] : &TAS5825M_RIGHT_EQ_ADDRESS[biquad_index];
-#endif
-}
-#endif
-
 bool Tas58xxComponent::write_eq_gain_(Channels channel, uint8_t band_index) {
 #ifdef USE_TAS58XX_EQ_GAINS
   const uint8_t band = band_index + 1;
   const int8_t gain = this->tas58xx_eq_gain_[channel][band_index];
 
-  const AddressSequence* eq_address = eq_biquad_address_(channel, band_index);
+  const AddressSequence eq_address = eq_biquad_address(channel, band_index);
 
   tas58xx_helpers::BiquadCoefficients biquad =
       tas58xx_helpers::equalizer_qfactor_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
 
-  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address->page, eq_address->sub_addr,
+  if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address.page, eq_address.sub_addr,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
     ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
@@ -504,8 +494,8 @@ bool Tas58xxComponent::write_eq_preset_(Channels channel) {
   tas58xx_helpers::BiquadCoefficients biquads[EQ_PROFILE_BIQUADS] = {filter, filter, shelf};
 
   for (uint8_t biquad = 0; biquad < EQ_PROFILE_BIQUADS; biquad++) {
-    const AddressSequence* address = eq_biquad_address_(channel, biquad);
-    if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, address->page, address->sub_addr,
+    const AddressSequence address = eq_biquad_address(channel, biquad);
+    if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, address.page, address.sub_addr,
                                     reinterpret_cast<uint8_t*>(&biquads[biquad]), sizeof(biquads[biquad]))) {
       ESP_LOGW(TAG, "%s writing Biquad %d for %s Channel EQ Preset index: %d", ERROR, biquad + 1, LR_CHANNEL_TEXT[channel], select_preset);
       return false;

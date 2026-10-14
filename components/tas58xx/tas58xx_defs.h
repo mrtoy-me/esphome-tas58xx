@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace esphome::tas58xx {
 
 enum ControlState : uint8_t {
@@ -23,6 +25,49 @@ enum ExcludeIgnoreMode : uint8_t {
     NONE        = 0,
     CLOCK_FAULT = 1,
 };
+
+enum Channels : uint8_t {
+  LEFT_CHANNEL  = 0,
+  RIGHT_CHANNEL,
+};
+
+enum EqMode : uint8_t {
+  EQ_OFF        = 0,
+  EQ_ON         = 1,
+  EQ_15BAND_ON  = 1,
+  EQ_BIAMP_ON   = 2,
+  EQ_PRESETS_ON = 3,
+};
+
+enum InputMixerMode : uint8_t {
+  STEREO = 0,
+  STEREO_INVERSE,
+  MONO,
+  RIGHT,
+  LEFT,
+};
+
+// enum SubchannelMixerMode: uint8_t {
+//   NO_SUB = 0,
+//   LEFT_SUB,
+//   RIGHT_SUB,
+//   STEREO_SUB,
+//   LEFT_EQ_SUB,
+//   RIGHT_EQ_SUB,
+// };
+
+// enum CrossbarOutputs: uint8_t {
+//   ANALOG_LEFT = 0,
+//   ANALOG_RIGHT,
+//   DIGITAL_LEFT,
+//   DIGITAL_RIGHT,
+// };
+
+// enum CrossbarInputs: uint8_t {
+//   FROM_LEFT = 0,
+//   FROM_RIGHT,
+//   FROM_SUB,
+// };
 
 struct Tas58xxFault {
   uint8_t channel_fault{0};                  // individual faults extracted when publishing
@@ -62,5 +107,50 @@ static constexpr uint8_t TAS58XX_POWER_STATE           = 0x68;
 static constexpr uint8_t TAS58XX_CHAN_FAULT            = 0x70;
 static constexpr uint8_t TAS58XX_FAULT_CLEAR           = 0x78;
 static constexpr uint8_t TAS58XX_ANALOG_FAULT_CLEAR    = 0x80;
+
+
+// channels, EQ modes and mixer: counts and text
+static constexpr uint8_t NUMBER_CHANNELS = 2;
+static constexpr uint8_t NUMBER_EQ_BANDS = 15;
+static constexpr uint8_t NUMBER_EQ_MODES = 4;
+// static constexpr uint8_t NUMBER_OUTPUT_CROSSBAR = 4; // Analog Left, Analog Right, Digital Left, Digital Right
+
+static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"};
+static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"};
+static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
+// static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"NO SUB", "LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};
+// static constexpr const char* CROSSBAR_INPUT_TEXT[] = {"FROM LEFT", "FROM RIGHT", "FROM SUB"};
+
+// channel volumes registers and coefficients
+static constexpr int8_t TAS58XX_CHANNEL_VOLUME_MAX_DB = 24;
+static constexpr int8_t TAS58XX_CHANNEL_VOLUME_MIN_DB = -TAS58XX_CHANNEL_VOLUME_MAX_DB;
+
+static constexpr uint8_t TAS58XX_AUDIO_CTRL_BOOK = 0x8C;
+
+#ifdef USE_TAS5805M_DAC
+// TAS5805M
+static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x29;
+static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x18; // Left to Left = 0x18, Right to Left = 0x1c, Left to Right = 0x20, Right to Right = 0x24
+static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_PAGE = 0x2A;
+static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_SUBADDR[NUMBER_CHANNELS] = {0x24 , 0x28};  // Left channel = 0x24, Right Channel = 0x28
+
+// #ifdef USE_SPEAKER_CONFIG
+// static constexpr uint8_t TAS5805M_SUB_CHANNEL_MIXER_GAIN_SUBADDR = 0x28; // Left to Sub = 0x28, Right to Sub = 0x2c, Left EQ to Sub = 0x30, Right EQ to Sub = 0x34
+// static constexpr uint8_t TAS5805M_OUTPUT_CROSSBAR_PAGE = 0x2C;
+// static constexpr uint8_t TAS5805M_OUTPUT_CROSSBAR_SUBADDR[NUMBER_OUTPUT_CROSSBAR] = {0x1C, 0x28, 0x34, 0x4c}; // Analog Left, Analog Right, Digital Left, Digital Right
+// #endif
+
+#else
+// TAS5825M
+static constexpr uint8_t TAS58XX_MIXER_GAIN_PAGE = 0x0B;
+static constexpr uint8_t TAS58XX_MIXER_GAIN_SUBADDR = 0x14; // Left to Left = 0x14, Right to Left = 0x18, Left to Right = 0x1c, Right to Right = 0x20
+static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_PAGE = 0x0B;
+static constexpr uint8_t TAS58XX_CHANNEL_VOLUME_SUBADDR[NUMBER_CHANNELS] = {0x0c, 0x10};  // Left channel = 0x0c, Right Channel = 0x10
+#endif
+
+// mixer gain coefficients converted to little endian
+static constexpr uint32_t TAS58XX_MIXER_COEFF_MUTE = 0x00000000;
+static constexpr uint32_t TAS58XX_MIXER_COEFF_0DB = 0x00008000;
+static constexpr uint32_t TAS58XX_MIXER_COEFF_MINUS6DB = 0x00004000;
 
 }  // namespace esphome::tas58xx
