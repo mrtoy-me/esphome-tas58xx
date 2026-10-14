@@ -61,6 +61,9 @@ Not yet hardware tested. `dev_update_with_onaudio` itself is unchanged.
   4. Saved gains are restored after flashing, and the presets sound the same as before (the computed
      coefficients were checked against the old tables by you, not re-run here).
   PBTL is otherwise the same as `main`, which ran the same EQ writes in PBTL as in BTL.
+  5. TAS5825M only: EQ Off bypasses the EQ and EQ On Left=Right gangs the channels. The Gang EQ and Bypass EQ
+     flags are now sent as 00 00 00 01 (datasheet big endian value 1); before they were sent as 01 00 00 00,
+     which only worked if the DSP treats any non zero value as true.
 - **Checks run for each commit:** `cpp_check.sh` clang-tidy parse in 5 define sets (0 diagnostics, 0 fatal
   include errors), ci-custom (0 findings), compat matrix. For commit 1 the generated `main.cpp` of 16 configs
   is unchanged apart from the EQ Mode option labels.

@@ -105,14 +105,17 @@ struct EqModeCoefficients {
   uint32_t bypass_eq;
 }__attribute__((packed));
 
-// 0x00000001 EQ Ganged ie L/R channel common coefficients
-// 0x00000000 Bypass EQ = false ie EQ enabled
+// Gang EQ and Bypass EQ are 32.0 flags, 1 = true. The DSP is big endian, so 0x00000001 is stored byte swapped
+// (0x01000000) to be sent as 00 00 00 01, the same as the other DSP values (eg TAS58XX_MIXER_COEFF_0DB)
+static constexpr uint32_t TAS5825M_EQ_FLAG_TRUE = 0x01000000;
+static constexpr uint32_t TAS5825M_EQ_FLAG_FALSE = 0x00000000;
+
 static constexpr EqModeCoefficients TAS5825M_CTRL_EQ[NUMBER_EQ_MODES] = {
-  {0x00000001, 0x00000001}, // EQ Off      = Ganged true  + Bypass EQ true
-  {0x00000001, 0x00000000}, // EQ On       = Ganged true  + Bypass EQ false
-  {0x00000000, 0x00000000}, // EQ Left On  = Ganged false + Bypass EQ false
-  {0x00000000, 0x00000000}, // EQ Right On = Ganged false + Bypass EQ false
-  {0x00000000, 0x00000000}, // EQ BIAMP On = Ganged false + Bypass EQ false
+  {TAS5825M_EQ_FLAG_TRUE,  TAS5825M_EQ_FLAG_TRUE},  // EQ Off      = Ganged true  + Bypass EQ true
+  {TAS5825M_EQ_FLAG_TRUE,  TAS5825M_EQ_FLAG_FALSE}, // EQ On       = Ganged true  + Bypass EQ false
+  {TAS5825M_EQ_FLAG_FALSE, TAS5825M_EQ_FLAG_FALSE}, // EQ Left On  = Ganged false + Bypass EQ false
+  {TAS5825M_EQ_FLAG_FALSE, TAS5825M_EQ_FLAG_FALSE}, // EQ Right On = Ganged false + Bypass EQ false
+  {TAS5825M_EQ_FLAG_FALSE, TAS5825M_EQ_FLAG_FALSE}, // EQ BIAMP On = Ganged false + Bypass EQ false
 };
 #endif
 
