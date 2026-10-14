@@ -9,6 +9,12 @@ Branch `dev_update_with_onaudio_plus_eq` is based on `dev_update_with_onaudio` (
 had gone well) and holds the EQ rework, in 4 commits that can be checked or reverted separately, plus follow-up commits
 `7493875` (EQ modes), `f7e75d1`, `712d989` (EQ Left/Right/Left=Right modes), `78d21c2` (PBTL left is always EQ Left On).
 Not yet hardware tested. `dev_update_with_onaudio` itself is unchanged.
+Later on 2026-10-14 (newest first, HEAD `f274aeb`): `f274aeb` Q as a double, `2220468` sand_box future band options
+kept as comments in `number/__init__.py`, `d0e3499` / `926e1c0` PPC reference check, `7801822` I2CDevice functions
+and one I2C write per DSP page segment, `23bfaa1` DSP writes in runs without the heap, `2749ff8` TAS5825M EQ flag byte
+order, `db3b8a1` helper cleanup; before those the EQ mode state tracking (`62d138f`) and logs (`9edb28d`, `8570b14`).
+See the sections "Helper and DSP write rework", "Mixer values checked", "Helpers against the TI PurePath Console
+reference" and "Open items for next time" at the end of this file.
 1. **`e826a35` EQ gains and presets per channel, only defined biquads written.**
    - A channel has EQ gain numbers or an EQ preset, not both. Any number of gain bands per channel (not all
      15), right gains need no left gains, a lone preset on either channel is valid (the other channel keeps
@@ -379,14 +385,14 @@ add the docs entry to `esphome/esphome.io`.
   pass filter code; 5.27 conversion without int64; coefficients identical bit for bit
   (`docs/tools/biquad_check/run.sh`, 642194 biquads, md5 compared with the previous helpers).
 - `2749ff8` TAS5825M Gang EQ and Bypass EQ flags sent as 00 00 00 01 (big endian value 1), was 01 00 00 00.
-- DSP write path: `dsp_write_bytes_` replaces `book_page_write_bytes_` and `biquad_write_bytes_`. It writes any
+- `23bfaa1` + `7801822` DSP write path: `dsp_write_bytes_` replaces `book_page_write_bytes_` and `biquad_write_bytes_`. It writes any
   length from book, page and subaddress, continues at subaddress 0x08 on the next page, sends each page segment in
   one `I2CDevice::write()` of the subaddress followed by up to 120 data bytes (from a 121 byte stack buffer, no heap;
   `write_register` has a 17 byte buffer and a 20 byte biquad write used the heap) and always resets to book 0 page 0,
   also after an error. Consecutive gain bands and the 3 preset biquads are written as one run: a full 15 band
   channel takes about 12 I2C transactions instead of about 108. EQ mode registers are calculated from
   `eq_mode_is_ganged()` and EQ Off with named DSP_MISC bits instead of two 5 entry tables.
-- The `tas58xx_write_byte_`, `tas58xx_write_bytes_` and `tas58xx_read_bytes_` wrappers are gone, the component
+- `7801822` The `tas58xx_write_byte_`, `tas58xx_write_bytes_` and `tas58xx_read_bytes_` wrappers are gone, the component
   uses the `I2CDevice` functions (`write_byte`, `read_byte`, `read_bytes`, `write`) as ESPHome's tas58xx does. The
   wrapper logged every failure with its error code and register; now each call site logs its own failure, so every
   failed I2C read or write logs one error naming what was being read or written (DSP writes also log the I2C error
@@ -395,8 +401,22 @@ add the docs entry to `esphome/esphome.io`.
   Checked: `docs/tools/dsp_write_check/run.sh` (480 runs, same DSP memory as the old writer on both chips);
   biquad addresses checked against the TI memory maps (SLOA263A TAS5805M: 150 coefficients, 5 biquads split over
   two pages; SLAA786A TAS5825M BasePro 2.0 96k: no biquad split over two pages), no mismatch.
-  Hardware: EQ writes at startup and on gain changes behave as before, no I2C errors in the log, and the
-  Power State read in `is_dac_playing_` still works (it is now a single write-read).
+  Hardware: EQ writes at startup and on gain changes behave as before, no I2C errors in the log (TAS5805M has
+  biquads split over two pages), and the Power State read in `is_dac_playing_` still works (now one write-read).
+- EQ mode changes (`62d138f`) write only what changes: `eq_filters_written_` per channel and `eq_channel_need()`.
+  Logs: "<Left|Right> Channel EQ >> flat" for each channel set flat, "EQ Ganged >> On|Off" when ganging changes.
+
+## Mixer values checked (2026-10-14, no change)
+- Mixer registers are 9.23 big endian (TAS5805M book 0x8C page 0x29 from 0x18, TAS5825M book 0x8C page 0x0B from
+  0x14, order left to left, right to left, left to right, right to right). Our constants are stored byte swapped:
+  `0x00008000` = 1.0 (0 dB), `0x00004000` = 0.5 (-6.02 dB), 0 = mute. Same bytes, addresses and mode table as
+  ESPHome's tas58xx (`write_mixer_`, model files).
+- MONO uses exactly 0.5 per input (true average, a full scale mono signal cannot overflow). `gain_to_fixed_9_23(-6)`
+  would give 0x004026E7 (0.501187, +0.02 dB over full scale on identical inputs). Decision: keep 0.5. If it is ever
+  changed, the stored constant is the byte swapped 0xE7264000. Not known what PPC3 writes for "-6 dB" in its mixer
+  (SLOA263A only says the GUI takes dB); a PPC3 export with the mixer set to mono would show it.
+- MONO sounds the same as STEREO for centre panned material; test LEFT, RIGHT and STEREO INVERSE with a stereo
+  test signal. The log shows "Input Mixer Mode >> ..." when the mixer is written.
 
 ## Helpers against the TI PurePath Console reference (2026-10-14)
 `docs/tools/ppc_check/run.sh` compares the helpers with `ppc_reference.cfg` (PPC3 export at 96 kHz: 50, 315, 800,
@@ -410,8 +430,26 @@ add the docs entry to `esphome/esphome.io`.
   every pass filter case the unrounded value is 0.52 to 0.61 above a whole number and PPC rounds down, so PPC has
   a slightly different intermediate calculation. Not explained by pi precision, division instead of multiplying by
   the inverse, or rounding mode (nearest is best).
-- Done: Q is a `double` in `EqBand` and in the helpers, so a YAML Q (a Python float, the same IEEE double) reaches the
-  helpers unchanged: 164 of 180 exact, largest 1 LSB. Thousandths would not hold a Q such as 2.144908.
+- Done (`f274aeb`): Q is a `double` in `EqBand` and in the helpers (`make_biquad(..., double q_factor)`, default
+  table and preset shelf Q as double literals; `EqBand` 16 bytes instead of 8, flash only). A YAML Q (a Python float,
+  the same IEEE double) reaches the helpers unchanged. Thousandths would not hold a Q such as 2.144908; millionths in a
+  `uint32_t` would (8 byte `EqBand`, one division per biquad) if size ever matters.
+
+  | Filter (30 coefficients each) | Q float: different (largest) | Q double: different (largest) |
+  |---|---|---|
+  | Equalizer (Q) | 14 (3) | 5 (1) |
+  | Peaking EQ | 8 (3) | 1 (1) |
+  | Low Shelf | 8 (3) | 2 (1) |
+  | High Shelf | 6 (3) | 1 (1) |
+  | Low Pass BW2 | 2 (1) | 2 (1) |
+  | High Pass BW2 | 5 (1) | 5 (1) |
+  | **Total** | **43 of 180 (3)** | **16 of 180 (1)** |
+
+  Low Shelf 315 Hz b1 and Low and High Shelf 8000 Hz a2 matched before only by luck (the float error pushed them the
+  right way), now they are 1 LSB off. `docs/tools/biquad_check` md5 is unchanged (it feeds float Q values, which
+  convert to double exactly, so the arithmetic itself did not change).
+- The ESP32 vs PPC spreadsheet (`ESP32_vs_PPC_Fixed527_Differences.xlsx`) is not in the repository; the PPC cfg is
+  (`docs/tools/ppc_check/ppc_reference.cfg`).
 
 ## Open items for next time (2026-10-14)
 - Hardware test the checklist above on `dev_update_with_onaudio_plus_eq` (pushed). If it passes,
@@ -419,8 +457,18 @@ add the docs entry to `esphome/esphome.io`.
 - Legacy comments left in place for you to decide: the commented subwoofer/crossbar enums, text tables and
   `USE_SPEAKER_CONFIG` constants in `tas58xx_defs.h` (now labelled "Future speaker configuration, not used yet"),
   and three commented `ESP_LOGD` debug lines in `tas58xx.cpp`.
-- Per band filter YAML (nested `left_eq_band_N`) is still deferred (see "Future per band filters").
+- Per band filter YAML (nested `left_eq_band_N`) is still deferred (see "Future per band filters"). The sand_box
+  schema, filter map (High Pass / Low Pass swap corrected) and to_code notes are now comments in
+  `number/__init__.py` (`2220468`). When it is done: Q goes into the generated `EqBand` table as a double literal,
+  add a range check for Q (Q = 0 divides by zero), frequency below 48 kHz, gain range is ±15 dB here
+  (`TAS58XX_EQ_MAX_DB`) while sand_box allowed ±24 dB, and a band defined in both forms is an error.
+- Hardware checks for today's rework: no I2C errors in the log at startup and on EQ changes (TAS5805M biquads that
+  cross a page), EQ mode switching writes only what changes, TAS5825M EQ Off bypasses and EQ On Left=Right gangs
+  (flag byte order), "DAC not playing" / audio start behaviour (Power State read is now one write-read).
 - Upstream PRs for `add_fault_output` and `add_modulation_option` (branches in `mrtoy-me/esphome`) are not raised;
   each needs an esphome.io docs entry. You delete `dev_update_with_onaudio_split` and `claude/jolly-ramanujan-7zxbba`.
+- Host tools added today (no hardware needed): `docs/tools/biquad_check/run.sh` (helpers bit for bit),
+  `docs/tools/dsp_write_check/run.sh` (DSP memory written by `dsp_write_bytes_`), `docs/tools/ppc_check/run.sh`
+  (helpers against the PPC reference). They need g++ and python3 only.
 - Local checks need ESPHome's Python requirements in a venv; `docs/tools/cpp_check.sh` needs a scratch esphome
   clone and ArduinoJson v7.4.2. `docs/compat/run.sh` cases 01 to 30 (17, 18, 25, 26, 28 are meant to fail).
