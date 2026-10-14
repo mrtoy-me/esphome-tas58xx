@@ -160,9 +160,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    // low level functions
    bool set_book_and_page_(uint8_t book, uint8_t page);
    bool dsp_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, const uint8_t *data, size_t length);
-   bool tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes);
-   bool tas58xx_write_byte_(uint8_t a_register, uint8_t data);
-   bool tas58xx_write_bytes_(uint8_t a_register, const uint8_t *data, uint8_t number_bytes);
 
    //// variables
    uint8_t eq_modes_{0}; // derived from YAML: bit mask of selectable EQ modes
@@ -232,7 +229,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    bool faults_published_{false}; // all binary sensors are published on first update
 
-   uint8_t i2c_error_{0}; // last i2c error
 
    uint16_t number_registers_configured_{0}; // number tas58xx registers configured during 'setup'
 

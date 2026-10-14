@@ -380,15 +380,23 @@ add the docs entry to `esphome/esphome.io`.
   (`docs/tools/biquad_check/run.sh`, 642194 biquads, md5 compared with the previous helpers).
 - `2749ff8` TAS5825M Gang EQ and Bypass EQ flags sent as 00 00 00 01 (big endian value 1), was 01 00 00 00.
 - DSP write path: `dsp_write_bytes_` replaces `book_page_write_bytes_` and `biquad_write_bytes_`. It writes any
-  length from book, page and subaddress, continues at subaddress 0x08 on the next page, sends I2C writes of at most
-  16 bytes (I2CDevice::write_register uses a 17 byte stack buffer, a 20 byte biquad write used the heap) and always
-  resets to book 0 page 0, also after an error. Consecutive gain bands and the 3 preset biquads are written as one
-  run: a full 15 band channel takes about 29 I2C transactions instead of about 108. EQ mode registers are
-  calculated from `eq_mode_is_ganged()` and EQ Off with named DSP_MISC bits instead of two 5 entry tables.
+  length from book, page and subaddress, continues at subaddress 0x08 on the next page, sends each page segment in
+  one `I2CDevice::write()` of the subaddress followed by up to 120 data bytes (from a 121 byte stack buffer, no heap;
+  `write_register` has a 17 byte buffer and a 20 byte biquad write used the heap) and always resets to book 0 page 0,
+  also after an error. Consecutive gain bands and the 3 preset biquads are written as one run: a full 15 band
+  channel takes about 12 I2C transactions instead of about 108. EQ mode registers are calculated from
+  `eq_mode_is_ganged()` and EQ Off with named DSP_MISC bits instead of two 5 entry tables.
+- The `tas58xx_write_byte_`, `tas58xx_write_bytes_` and `tas58xx_read_bytes_` wrappers are gone, the component
+  uses the `I2CDevice` functions (`write_byte`, `read_byte`, `read_bytes`, `write`) as ESPHome's tas58xx does. The
+  wrapper logged every failure with its error code and register; now each call site logs its own failure, so every
+  failed I2C read or write logs one error naming what was being read or written (DSP writes also log the I2C error
+  code, book, page and address; book/page selection logs book and page). `i2c_error_` is removed. The old read
+  wrapper also sent the register address twice (write, then `read_register`), now it is one write-read.
   Checked: `docs/tools/dsp_write_check/run.sh` (480 runs, same DSP memory as the old writer on both chips);
   biquad addresses checked against the TI memory maps (SLOA263A TAS5805M: 150 coefficients, 5 biquads split over
   two pages; SLAA786A TAS5825M BasePro 2.0 96k: no biquad split over two pages), no mismatch.
-  Hardware: EQ writes at startup and on gain changes behave as before, no I2C errors in the log.
+  Hardware: EQ writes at startup and on gain changes behave as before, no I2C errors in the log, and the
+  Power State read in `is_dac_playing_` still works (it is now a single write-read).
 
 - Hardware test the checklist above on `dev_update_with_onaudio_plus_eq` (HEAD `78d21c2`, pushed). If it passes,
   decide whether to merge it into `dev_update_with_onaudio`.

@@ -52,11 +52,17 @@ bool Tas58xxComponent::configure_registers_() {
   while (i < number_configurations) {
     switch (TAS58XX_CONFIG[i].addr) {
       case TAS58XX_CFG_META_DELAY:
-        if (TAS58XX_CONFIG[i].value > ESPHOME_MAXIMUM_DELAY) return false;
+        if (TAS58XX_CONFIG[i].value > ESPHOME_MAXIMUM_DELAY) {
+          ESP_LOGE(TAG, "%s startup delay %d ms is too long", ERROR, TAS58XX_CONFIG[i].value);
+          return false;
+        }
         delay(TAS58XX_CONFIG[i].value);
         break;
       default:
-        if (!this->tas58xx_write_byte_(TAS58XX_CONFIG[i].addr, TAS58XX_CONFIG[i].value)) return false;
+        if (!this->write_byte(TAS58XX_CONFIG[i].addr, TAS58XX_CONFIG[i].value)) {
+          ESP_LOGE(TAG, "%s writing startup register 0x%02X", ERROR, TAS58XX_CONFIG[i].addr);
+          return false;
+        }
         counter++;
         break;
     }
@@ -77,7 +83,7 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_state_(CTRL_PLAY, this->is_muted_)) return false;
 
   // clear any faults latched while the tas58xx was powering up
-  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
+  if (!this->write_byte(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
     ESP_LOGW(TAG, "%s initialising faults", ERROR);
   }
   return true;
@@ -97,7 +103,10 @@ void Tas58xxComponent::on_audio_started() {
 bool Tas58xxComponent::is_dac_playing_() {
   static constexpr uint8_t POWER_STATE_MASK = 0x03;
   uint8_t power_state;
-  if (!this->tas58xx_read_bytes_(TAS58XX_POWER_STATE, &power_state, 1)) return false;
+  if (!this->read_byte(TAS58XX_POWER_STATE, &power_state)) {
+    ESP_LOGW(TAG, "%s reading Power State", ERROR);
+    return false;
+  }
   return (power_state & POWER_STATE_MASK) == CTRL_PLAY;
 }
 
@@ -206,7 +215,7 @@ void Tas58xxComponent::dump_config() {
 
   switch (this->error_code_) {
     case CONFIGURATION_FAILED:
-      ESP_LOGE(TAG, "  %s setup failed: %i", ERROR, this->i2c_error_);
+      ESP_LOGE(TAG, "  %s setup failed", ERROR);
       break;
     case NONE:
       ESP_LOGCONFIG(TAG,
@@ -647,11 +656,17 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
   uint8_t new_again = static_cast<uint8_t>(-gain_db * 2.0);
 
   uint8_t current_again;
-  if (!this->tas58xx_read_bytes_(TAS58XX_AGAIN, &current_again, 1)) return false;
+  if (!this->read_byte(TAS58XX_AGAIN, &current_again)) {
+    ESP_LOGE(TAG, "%s reading Analog Gain", ERROR);
+    return false;
+  }
 
   // keep top 3 reserved bits combine with bottom 5 analog gain bits
   new_again = (current_again & TOP_3BITS_MASK) | new_again;
-  if (!this->tas58xx_write_byte_(TAS58XX_AGAIN, new_again)) return false;
+  if (!this->write_byte(TAS58XX_AGAIN, new_again)) {
+    ESP_LOGE(TAG, "%s writing Analog Gain", ERROR);
+    return false;
+  }
 
   ESP_LOGD(TAG, "Analog Gain >> %fdB", gain_db);
   return true;
@@ -660,7 +675,10 @@ bool Tas58xxComponent::set_analog_gain_(float gain_db) {
 // only runs once from 'setup'
 bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
   uint8_t current_value;
-  if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &current_value, 1)) return false;
+  if (!this->read_byte(TAS58XX_DEVICE_CTRL_1, &current_value)) {
+    ESP_LOGE(TAG, "%s reading DAC mode", ERROR);
+    return false;
+  }
 
   // Update bit 2 based on the mode
   if (mode == PBTL) {
@@ -668,7 +686,10 @@ bool Tas58xxComponent::set_dac_mode_(DacMode mode) {
   } else {
       current_value &= ~(1 << 2); // Clear bit 2 to 0 (BTL mode)
   }
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, current_value)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_1, current_value)) {
+    ESP_LOGE(TAG, "%s writing DAC mode", ERROR);
+    return false;
+  }
 
   // save so 'set_dac_mode_' could be used more generally
   this->tas58xx_dac_mode_ = mode;
@@ -728,7 +749,10 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
 // 11111110: -103 dB
 // 11111111: Mute
 bool Tas58xxComponent::set_digital_volume_(uint8_t raw_volume) {
-  if (!this->tas58xx_write_byte_(TAS58XX_DIG_VOL_CTRL, raw_volume)) return false;
+  if (!this->write_byte(TAS58XX_DIG_VOL_CTRL, raw_volume)) {
+    ESP_LOGW(TAG, "%s writing Digital Volume", ERROR);
+    return false;
+  }
   return true;
 }
 
@@ -757,7 +781,7 @@ bool Tas58xxComponent::write_eq_mode_() {
 #ifdef USE_TAS5805M_DAC
   const uint8_t dsp_misc = TAS5805M_DSP_MISC_BYPASS_DRC_FIR | (bypass ? TAS5805M_DSP_MISC_BYPASS_EQ : 0) |
                            (ganged ? 0 : TAS5805M_DSP_MISC_SEPARATE_COEFFICIENTS);
-  if (!this->tas58xx_write_byte_(TAS5805M_DSP_MISC, dsp_misc)) {
+  if (!this->write_byte(TAS5805M_DSP_MISC, dsp_misc)) {
     ESP_LOGW(TAG, "%s writing Eq Mode: %s", ERROR, EQ_MODE_TEXT[new_mode]);
     return false;
   }
@@ -787,10 +811,16 @@ bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
   static constexpr uint8_t MODULATION_MASK = 0b11111100; // bits 0 and 1 are modulation
 
   uint8_t value;
-  if (!this->tas58xx_read_bytes_(TAS58XX_DEVICE_CTRL_1, &value, 1)) return false;
+  if (!this->read_byte(TAS58XX_DEVICE_CTRL_1, &value)) {
+    ESP_LOGE(TAG, "%s reading Modulation", ERROR);
+    return false;
+  }
 
   value = (value & MODULATION_MASK) | modulation;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_1, value)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_1, value)) {
+    ESP_LOGE(TAG, "%s writing Modulation", ERROR);
+    return false;
+  }
 
   // save, so 'set_modulation_scheme_' could be used more generally
   this->tas58xx_modulation_scheme_ = modulation;
@@ -801,7 +831,10 @@ bool Tas58xxComponent::set_modulation_scheme_(ModulationScheme modulation) {
 // write Control State to DEVICE_CTRL_2 with bit 3 MUTE
 bool Tas58xxComponent::set_state_(ControlState state, bool muted) {
   uint8_t ctrl_value = muted ? (state + TAS58XX_MUTE_CONTROL) : state;
-  if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
+  if (!this->write_byte(TAS58XX_DEVICE_CTRL_2, ctrl_value)) {
+    ESP_LOGW(TAG, "%s writing Control State", ERROR);
+    return false;
+  }
   this->tas58xx_control_state_ = state;
   return true;
 }
@@ -809,7 +842,10 @@ bool Tas58xxComponent::set_state_(ControlState state, bool muted) {
 //// fault processing functions
 
 bool Tas58xxComponent::clear_fault_registers_() {
-  if (!this->tas58xx_write_byte_(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) return false;
+  if (!this->write_byte(TAS58XX_FAULT_CLEAR, TAS58XX_ANALOG_FAULT_CLEAR)) {
+    ESP_LOGW(TAG, "%s clearing faults", ERROR);
+    return false;
+  }
   this->times_faults_cleared_++;
   ESP_LOGD(TAG, "Faults cleared");
   return true;
@@ -896,7 +932,10 @@ bool Tas58xxComponent::read_fault_registers_() {
   uint8_t current_faults[4];
 
   // read all faults registers
-  if (!this->tas58xx_read_bytes_(TAS58XX_CHAN_FAULT, current_faults, sizeof(current_faults))) return false;
+  if (!this->read_bytes(TAS58XX_CHAN_FAULT, current_faults, sizeof(current_faults))) {
+    ESP_LOGW(TAG, "%s reading faults", ERROR);
+    return false;
+  }
 
   // note: new state is saved regardless as it is not worth conditionally saving state based on whether state has changed
 
@@ -942,29 +981,35 @@ bool Tas58xxComponent::read_fault_registers_() {
 //// low level functions
 
 // Write bytes to consecutive DSP addresses from book, page and sub_addr. When a page ends the write continues
-// on the next page at subaddress 0x08. Each I2C write is at most 16 bytes, which I2CDevice::write_register
-// sends from a stack buffer (longer writes use the heap).
+// on the next page at subaddress 0x08. Each page is written in one I2C write of the subaddress and the data.
 bool Tas58xxComponent::dsp_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_addr, const uint8_t *data,
                                         size_t length) {
   static constexpr uint8_t PAGE_END = 0x80;
   static constexpr uint8_t PAGE_FIRST_SUBADDR = 0x08;
-  static constexpr size_t MAX_WRITE_BYTES = 16;
+  static constexpr size_t PAGE_BYTES = PAGE_END - PAGE_FIRST_SUBADDR;
 
   if (!this->set_book_and_page_(book, page)) return false;
 
+  uint8_t buffer[1 + PAGE_BYTES];
   bool ok = true;
   while (length > 0) {
     if (sub_addr >= PAGE_END) {
       // the book is already set, only change to the next page
       page++;
       sub_addr = PAGE_FIRST_SUBADDR;
-      if (!this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
+      if (!this->write_byte(TAS58XX_PAGE_SET, page)) {
+        ESP_LOGE(TAG, "%s setting page:0x%02X", ERROR, page);
         ok = false;
         break;
       }
     }
-    const uint8_t bytes = static_cast<uint8_t>(std::min({length, static_cast<size_t>(PAGE_END - sub_addr), MAX_WRITE_BYTES}));
-    if (!this->tas58xx_write_bytes_(sub_addr, data, bytes)) {
+    const size_t bytes = std::min(length, static_cast<size_t>(PAGE_END - sub_addr));
+    buffer[0] = sub_addr;
+    std::copy(data, data + bytes, buffer + 1);
+    const i2c::ErrorCode error_code = this->write(buffer, bytes + 1);
+    if (error_code != i2c::ERROR_OK) {
+      ESP_LOGE(TAG, "%s code:%d writing %d bytes to book:0x%02X page:0x%02X address:0x%02X", ERROR, error_code,
+               static_cast<int>(bytes), book, page, sub_addr);
       ok = false;
       break;
     }
@@ -978,55 +1023,12 @@ bool Tas58xxComponent::dsp_write_bytes_(uint8_t book, uint8_t page, uint8_t sub_
 }
 
 bool Tas58xxComponent::set_book_and_page_(uint8_t book, uint8_t page) {
-  //ESP_LOGD(TAG, "Writing book:0x%02X page:0x%02X", book, page);
-
-  if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO)) {
-    if (this->tas58xx_write_byte_(TAS58XX_BOOK_SET, book)) {
-      if (this->tas58xx_write_byte_(TAS58XX_PAGE_SET, page)) {
-        return true;
-      }
-    }
+  if (this->write_byte(TAS58XX_PAGE_SET, TAS58XX_PAGE_ZERO) && this->write_byte(TAS58XX_BOOK_SET, book) &&
+      this->write_byte(TAS58XX_PAGE_SET, page)) {
+    return true;
   }
-  ESP_LOGD(TAG, "%s setting book:0x%02X page:0x%02X", ERROR, book, page);
+  ESP_LOGE(TAG, "%s setting book:0x%02X page:0x%02X", ERROR, book, page);
   return false;
-}
-
-bool Tas58xxComponent::tas58xx_read_bytes_(uint8_t a_register, uint8_t* data, uint8_t number_bytes) {
-  i2c::ErrorCode error_code;
-  error_code = this->write(&a_register, 1);
-  if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d writing address:0x%02X to start read", ERROR, error_code, a_register);
-    this->i2c_error_ = (uint8_t)error_code;
-    return false;
-  }
-  error_code = this->read_register(a_register, data, number_bytes);
-  if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d reading %d bytes from address:0x%02X", ERROR, error_code, number_bytes, a_register);
-    this->i2c_error_ = (uint8_t)error_code;
-    return false;
-  }
-  return true;
-}
-
-bool Tas58xxComponent::tas58xx_write_byte_(uint8_t a_register, uint8_t data) {
-  i2c::ErrorCode error_code = this->write_register(a_register, &data, 1);
-  if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d writing to address:0x%02X", ERROR, error_code, a_register);
-    this->i2c_error_ = (uint8_t)error_code;
-    return false;
-  }
-  return true;
-}
-
-bool Tas58xxComponent::tas58xx_write_bytes_(uint8_t a_register, const uint8_t *data, uint8_t number_bytes) {
-  i2c::ErrorCode error_code = this->write_register(a_register, data, number_bytes);
-  if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "%s code:%d writing address:0x%02X bytes:%d ", ERROR, error_code, a_register, number_bytes);
-    this->i2c_error_ = (uint8_t)error_code;
-    return false;
-  }
-  //ESP_LOGD(TAG, "Writing address:0x%02X bytes:%d", a_register, number_bytes);
-  return true;
 }
 
 }  // namespace esphome::tas58xx

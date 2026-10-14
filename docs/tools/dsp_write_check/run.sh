@@ -2,8 +2,8 @@
 # Simulates the DSP memory (book, page, subaddress) and checks dsp_write_bytes_ in tas58xx.cpp against the
 # per biquad writer it replaced (biquad_write_bytes_ at 2749ff8): every run of consecutive biquads on both
 # channels, at the TAS5805M (page 0x24 subaddress 0x18) and TAS5825M (page 0x01 subaddress 0x30) start
-# addresses, must leave the same memory, end on book 0 page 0, use I2C writes of at most 16 bytes that start
-# on a coefficient boundary and never run past the end of a page.
+# addresses, must leave the same memory, end on book 0 page 0, and use one I2C write for each page segment that
+# starts and ends on a coefficient boundary and never runs past the end of a page.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$HERE/../../.."

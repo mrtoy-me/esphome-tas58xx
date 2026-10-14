@@ -1,4 +1,5 @@
 // simulated DSP memory: compares the old per biquad writer with dsp_write_bytes_ for every run of biquads
+// (one I2C write for each page segment of a run)
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -12,6 +13,7 @@
 [[maybe_unused]] static const char *ERROR = "e";
 static constexpr uint8_t TAS58XX_PAGE_SET = 0x00, TAS58XX_BOOK_SET = 0x7F, TAS58XX_BOOK_ZERO = 0, TAS58XX_PAGE_ZERO = 0;
 static constexpr uint8_t BIQUAD_SIZE = 20;
+namespace i2c { enum ErrorCode { ERROR_OK = 0, ERROR_UNKNOWN = 7 }; }
 struct Tas58xxComponent {
   uint8_t book{0}, page{0};
   std::map<uint32_t, uint8_t> mem;
@@ -24,12 +26,20 @@ struct Tas58xxComponent {
     if (reg == TAS58XX_BOOK_SET && page == 0) { book = v; return true; }
     mem[(book << 16) | (page << 8) | reg] = v; return true;
   }
+  bool write_byte(uint8_t reg, uint8_t v) { return tas58xx_write_byte_(reg, v); }
+  // one I2C write: register (subaddress) followed by the data
+  i2c::ErrorCode write(const uint8_t *buf, size_t len) {
+    txns++; max_chunk = std::max<size_t>(max_chunk, len - 1);
+    const uint8_t reg = buf[0]; const size_t n = len - 1;
+    if (reg + n > 0x80 || reg < 0x08) { printf("write past page: reg %02x n %zu\n", reg, n); return i2c::ERROR_UNKNOWN; }
+    if ((reg - 0x08) % 4 || n % 4) bad_align = true;
+    for (size_t i = 0; i < n; i++) mem[(book << 16) | (page << 8) | (reg + i)] = buf[1 + i];
+    return i2c::ERROR_OK;
+  }
+  // used by the old writer
   bool tas58xx_write_bytes_(uint8_t reg, const uint8_t *d, uint8_t n) {
-    txns++; max_chunk = std::max<size_t>(max_chunk, n);
-    if (reg + n > 0x80 || reg < 0x08) { printf("write past page: reg %02x n %d\n", reg, n); return false; }
-    if ((reg - 0x08) % 4) bad_align = true;
-    for (int i = 0; i < n; i++) mem[(book << 16) | (page << 8) | (reg + i)] = d[i];
-    return true;
+    uint8_t buf[32]; buf[0] = reg; for (int i = 0; i < n; i++) buf[1 + i] = d[i];
+    max_chunk = 0; return write(buf, n + 1) == i2c::ERROR_OK;
   }
   bool set_book_and_page_(uint8_t b, uint8_t p) {
     return tas58xx_write_byte_(TAS58XX_PAGE_SET, 0) && tas58xx_write_byte_(TAS58XX_BOOK_SET, b) && tas58xx_write_byte_(TAS58XX_PAGE_SET, p);
@@ -65,7 +75,7 @@ int main() {
           if (count == 15 && start == 0) { old_tx += o.txns; new_tx += n.txns; }
           maxc = std::max(maxc, n.max_chunk);
         }
-  printf("runs %d fails %d, max chunk %zu bytes, full channel transactions old %zu new %zu (2 chips x 2 channels)\n", runs, fails, maxc, old_tx, new_tx);
+  printf("runs %d fails %d, largest I2C write %zu data bytes, full 15 band channel transactions old %zu new %zu (2 chips x 2 channels)\n", runs, fails, maxc, old_tx, new_tx);
   // single biquad (runtime gain change), preset run of 3, 8 byte and 16 byte writes
   Tas58xxComponent s; auto a = addr(firsts[0], 0, 0); uint8_t d[20] = {};
   s.dsp_write_bytes_(0xAA, a.page, a.sub_addr, d, 20); printf("one biquad: %zu transactions\n", s.txns);
