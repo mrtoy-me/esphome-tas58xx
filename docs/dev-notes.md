@@ -6,8 +6,9 @@ branch state, the design, a to-check list and the plan forward.
 
 ## Where we stopped (2026-10-14, branch `dev_update_with_onaudio_plus_eq`)
 Branch `dev_update_with_onaudio_plus_eq` is based on `dev_update_with_onaudio` (`cf23bf0`, hardware testing
-had gone well) and holds the EQ rework, in 4 commits that can be checked or reverted separately. Not yet
-hardware tested. `dev_update_with_onaudio` itself is unchanged.
+had gone well) and holds the EQ rework, in 4 commits that can be checked or reverted separately, plus follow-up commits
+`7493875` (EQ modes), `f7e75d1`, `712d989` (EQ Left/Right/Left=Right modes), `78d21c2` (PBTL left is always EQ Left On).
+Not yet hardware tested. `dev_update_with_onaudio` itself is unchanged.
 1. **`e826a35` EQ gains and presets per channel, only defined biquads written.**
    - A channel has EQ gain numbers or an EQ preset, not both. Any number of gain bands per channel (not all
      15), right gains need no left gains, a lone preset on either channel is valid (the other channel keeps
@@ -23,10 +24,10 @@ hardware tested. `dev_update_with_onaudio` itself is unchanged.
      `derive_eq_modes()` in `audio_dac.py`; per channel checks in `get_eq_channels()` and `validate_eq_channels()`.
    - EQ mode rule (latest): `EqMode` = EQ_OFF, EQ_ON (ganged, shown as "EQ On Left=Right"), EQ_LEFT_ON,
      EQ_RIGHT_ON, EQ_BIAMP_ON. Left gains only: EQ On. Lone left preset: EQ Left On. Right only: EQ Right On.
-     Both channels: all four. PBTL ignores the right channel and always offers EQ Left On for the left channel (datasheet: PBTL input is the left I2S frame; not
-     hardware tested). The three non ganged modes share register values; a channel not used is set flat
+     Both channels: all four. PBTL ignores the right channel and always offers EQ Left On for the left channel (datasheets: PBTL input is the left I2S frame, and the crossbar
+     defaults route the left output to analog left; TI does not say outright which channel's filters drive PBTL). The three non ganged modes share register values; a channel not used is set flat
      (`write_eq_channels_`, `eq_mode_uses_channel`) and rewritten when used again. Select index to mode through
-     the `config_eq_modes` mask. Hardware check needed: right channel flat in non ganged mode, mode switching.
+     the `config_eq_modes` mask.
    - Right EQ gain numbers with `dac_mode: PBTL` log a warning. Compat cases 19 to 28 added.
 2. **`80dd98b` presets calculated with the helpers.** `eq_profiles.h` (42 coefficient tables, 446 lines) is
    replaced by a 21 row `EQ_PRESETS` table: BQ1 and BQ2 are the same low pass (LF) or high pass (HF) filter at
@@ -45,9 +46,15 @@ hardware tested. `dev_update_with_onaudio` itself is unchanged.
   out is the one that can work; keep the flat keys as "Equalizer at the default frequency and Q" and reject a
   band defined in both forms. `sand_box`'s commented `EQ_FILTERS` map has High Pass and Low Pass swapped. Low and
   high pass have a fixed Q, so `q_factor` is not valid for them. Frequency must stay below 48 kHz.
-- **To check on hardware:** audio for left gains with a right preset, a lone preset with the other channel
-  flat, right only gains (left flat), saved gains restored after flashing, and that the presets sound the same
-  as before (the computed coefficients were checked against the old tables by you, not re-run here).
+- **To check on hardware** (only what the datasheets and `main` cannot settle; non ganged biquad behaviour and
+  reset defaults are settled from the datasheets: DSP_MISC bit 3 / Gang EQ flag, flat reset coefficients):
+  1. Mode switching in BTL: EQ Left On, EQ Right On, EQ BIAMP On, EQ On Left=Right, EQ Off. Each channel
+     should be filtered or flat as the mode says, and returning to a mode restores that channel's filters.
+  2. Any audible click while biquads are rewritten on a mode change (the code does not mute around the writes).
+  3. PBTL: select EQ Left On and confirm a left gain change is audible (`main` only ever ran ganged there).
+  4. Saved gains are restored after flashing, and the presets sound the same as before (the computed
+     coefficients were checked against the old tables by you, not re-run here).
+  PBTL is otherwise the same as `main`, which ran the same EQ writes in PBTL as in BTL.
 - **Checks run for each commit:** `cpp_check.sh` clang-tidy parse in 5 define sets (0 diagnostics, 0 fatal
   include errors), ci-custom (0 findings), compat matrix. For commit 1 the generated `main.cpp` of 16 configs
   is unchanged apart from the EQ Mode option labels.
@@ -356,3 +363,16 @@ add the docs entry to `esphome/esphome.io`.
   `esphome compile` on an example YAML is the better check.
 - **Examples:** `esphome config` on each file in `components/tas58xx/Example YAML/`. Point
   `external_components` at a local path for testing.
+
+
+## Open items for next time (2026-10-14)
+- Hardware test the checklist above on `dev_update_with_onaudio_plus_eq` (HEAD `78d21c2`, pushed). If it passes,
+  decide whether to merge it into `dev_update_with_onaudio`.
+- Legacy comments left in place for you to decide: the commented subwoofer/crossbar enums, text tables and
+  `USE_SPEAKER_CONFIG` constants in `tas58xx_defs.h` (now labelled "Future speaker configuration, not used yet"),
+  and three commented `ESP_LOGD` debug lines in `tas58xx.cpp`.
+- Per band filter YAML (nested `left_eq_band_N`) is still deferred (see "Future per band filters").
+- Upstream PRs for `add_fault_output` and `add_modulation_option` (branches in `mrtoy-me/esphome`) are not raised;
+  each needs an esphome.io docs entry. You delete `dev_update_with_onaudio_split` and `claude/jolly-ramanujan-7zxbba`.
+- Local checks need ESPHome's Python requirements in a venv; `docs/tools/cpp_check.sh` needs a scratch esphome
+  clone and ArduinoJson v7.4.2. `docs/compat/run.sh` cases 01 to 30 (17, 18, 25, 26, 28 are meant to fail).
