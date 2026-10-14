@@ -7,7 +7,7 @@ branch state, the design, a to-check list and the plan forward.
 ## Where we stopped (2026-10-14, branch `dev_update_with_onaudio_plus_eq`)
 Branch `dev_update_with_onaudio_plus_eq` is based on `dev_update_with_onaudio` (`cf23bf0`, hardware testing
 had gone well) and holds the EQ rework, in 4 commits that can be checked or reverted separately, plus follow-up commits
-`7493875` (EQ modes), `f7e75d1`, `712d989` (EQ Left/Right/Left=Right modes), `78d21c2` (PBTL left is always EQ Left On).
+`7493875` (EQ modes), `f7e75d1`, `712d989` (EQ Left/Right/Right=Left modes), `78d21c2` (PBTL left is always EQ Left On).
 Not yet hardware tested. `dev_update_with_onaudio` itself is unchanged.
 Later on 2026-10-14 (newest first, HEAD `0653923`): `0653923` 5.27 constants inside `double_to_fixed_5_27`, `20c886b`
 mixer select offset per instance (two DACs), `12b34f0` helpers in `esphome::tas58xx` with `static` file local
@@ -30,13 +30,13 @@ reference" and "Open items for next time" at the end of this file.
    - EQ Mode options are "EQ Off", "EQ On", "EQ BIAMP On" (a second compatibility break against `main`:
      it was "Off", "EQ 15 Band", "EQ BIAMP 15 Band", "EQ Presets"). Superseded by the EQ mode rule below.
      `derive_eq_modes()` in `audio_dac.py`; per channel checks in `get_eq_channels()` and `validate_eq_channels()`.
-   - EQ mode rule (latest): `EqMode` = EQ_OFF, EQ_ON (ganged, shown as "EQ On Left=Right"), EQ_LEFT_ON,
+   - EQ mode rule (latest): `EqMode` = EQ_OFF, EQ_ON (ganged, shown as "EQ On Right=Left"), EQ_LEFT_ON,
      EQ_RIGHT_ON, EQ_BIAMP_ON. Left gains only: EQ On. Lone left preset: EQ Left On. Right only: EQ Right On.
      Both channels: all four. PBTL ignores the right channel and always offers EQ Left On for the left channel (datasheets: PBTL input is the left I2S frame, and the crossbar
      defaults route the left output to analog left; TI does not say outright which channel's filters drive PBTL). The three non ganged modes share register values; a channel not used is set flat
      and rewritten when used again. Mode changes write only what changes: `eq_filters_written_` per channel
      records whether the DSP holds the channel's filters or is flat, `eq_channel_need()` says what a mode needs
-     (filters, flat, or any), `write_eq_channels_()` writes the difference. EQ Off and EQ On Left=Right from a mode
+     (filters, flat, or any), `write_eq_channels_()` writes the difference. EQ Off and EQ On Right=Left from a mode
      with left filters write only the mode register. A gain or preset change is written only when the channel's
      filters are in the DSP. A rewrite after the clock was lost rewrites the filters in the DSP.
      Debug log: one "<Left|Right> Channel EQ >> flat" entry for each channel set flat, and "EQ Ganged >> On" or "EQ Ganged >> Off"
@@ -62,14 +62,14 @@ reference" and "Open items for next time" at the end of this file.
   high pass have a fixed Q, so `q_factor` is not valid for them. Frequency must stay below 48 kHz.
 - **To check on hardware** (only what the datasheets and `main` cannot settle; non ganged biquad behaviour and
   reset defaults are settled from the datasheets: DSP_MISC bit 3 / Gang EQ flag, flat reset coefficients):
-  1. Mode switching in BTL: EQ Left On, EQ Right On, EQ BIAMP On, EQ On Left=Right, EQ Off. Each channel
+  1. Mode switching in BTL: EQ Left On, EQ Right On, EQ BIAMP On, EQ On Right=Left, EQ Off. Each channel
      should be filtered or flat as the mode says, and returning to a mode restores that channel's filters.
   2. Any audible click while biquads are rewritten on a mode change (the code does not mute around the writes).
   3. PBTL: select EQ Left On and confirm a left gain change is audible (`main` only ever ran ganged there).
   4. Saved gains are restored after flashing, and the presets sound the same as before (the computed
      coefficients were checked against the old tables by you, not re-run here).
   PBTL is otherwise the same as `main`, which ran the same EQ writes in PBTL as in BTL.
-  5. TAS5825M only: EQ Off bypasses the EQ and EQ On Left=Right gangs the channels. The Gang EQ and Bypass EQ
+  5. TAS5825M only: EQ Off bypasses the EQ and EQ On Right=Left gangs the channels. The Gang EQ and Bypass EQ
      flags are now sent as 00 00 00 01 (datasheet big endian value 1); before they were sent as 01 00 00 00,
      which only worked if the DSP treats any non zero value as true.
 - **Checks run for each commit:** `cpp_check.sh` clang-tidy parse in 5 define sets (0 diagnostics, 0 fatal
@@ -481,7 +481,7 @@ add the docs entry to `esphome/esphome.io`.
   add a range check for Q (Q = 0 divides by zero), frequency below 48 kHz, gain range is ±15 dB here
   (`TAS58XX_EQ_MAX_DB`) while sand_box allowed ±24 dB, and a band defined in both forms is an error.
 - Hardware checks for today's rework (also: mixer select still maps its options correctly in BTL and PBTL): no I2C errors in the log at startup and on EQ changes (TAS5805M biquads that
-  cross a page), EQ mode switching writes only what changes, TAS5825M EQ Off bypasses and EQ On Left=Right gangs
+  cross a page), EQ mode switching writes only what changes, TAS5825M EQ Off bypasses and EQ On Right=Left gangs
   (flag byte order), "DAC not playing" / audio start behaviour (Power State read is now one write-read).
 - Upstream PRs for `add_fault_output` and `add_modulation_option` (branches in `mrtoy-me/esphome`) are not raised;
   each needs an esphome.io docs entry. You delete `dev_update_with_onaudio_split` and `claude/jolly-ramanujan-7zxbba`.

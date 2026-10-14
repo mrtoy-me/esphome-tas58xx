@@ -58,7 +58,7 @@ EQ_ON = 1
 EQ_LEFT_ON = 2
 EQ_RIGHT_ON = 3
 EQ_BIAMP_ON = 4
-EQ_MODE_OPTIONS = ("EQ Off", "EQ On Left=Right", "EQ Left On", "EQ Right On", "EQ BIAMP On")
+EQ_MODE_OPTIONS = ("EQ Off", "EQ On Right=Left", "EQ Left On", "EQ Right On", "EQ BIAMP On")
 
 # dac names
 TAS5805M_DAC = "TAS5805M"
@@ -202,7 +202,7 @@ def validate_eq_channels(eq_channels):
         raise cv.Invalid("Right EQ Gain numbers are not allowed with Select eq_preset_right_channel - remove one of those configurations")
 
 # EQ modes that can be selected, in select option order after EQ Off
-# EQ On Left=Right shares the left channel gains between both channels (left gains only)
+# EQ On Right=Left shares the left channel gains between both channels (left gains only)
 # EQ Left On, EQ Right On and EQ BIAMP On have separate filters for each channel, the filters of a channel
 # that is not used are set flat. A lone left preset is not shared, it is EQ Left On
 # PBTL has a single output from the left channel: the right channel is not used and nothing is shared, so the

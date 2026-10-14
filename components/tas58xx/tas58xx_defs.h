@@ -33,7 +33,7 @@ enum Channels : uint8_t {
 
 enum EqMode : uint8_t {
   EQ_OFF      = 0,
-  EQ_ON       = 1,  // Left=Right: left channel filters shared by both channels (ganged)
+  EQ_ON       = 1,  // Right=Left: left channel filters shared by both channels (ganged)
   EQ_LEFT_ON  = 2,  // separate filters for each channel, only the left channel filters are used
   EQ_RIGHT_ON = 3,  // separate filters for each channel, only the right channel filters are used
   EQ_BIAMP_ON = 4,  // separate filters for each channel, both are used
@@ -116,7 +116,7 @@ static constexpr uint8_t NUMBER_EQ_BANDS = 15;
 static constexpr uint8_t NUMBER_EQ_MODES = 5;
 // static constexpr uint8_t NUMBER_OUTPUT_CROSSBAR = 4; // Analog Left, Analog Right, Digital Left, Digital Right
 
-static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"EQ Off", "EQ On Left=Right", "EQ Left On", "EQ Right On", "EQ BIAMP On"};
+static constexpr const char* EQ_MODE_TEXT[NUMBER_EQ_MODES]   = {"EQ Off", "EQ On Right=Left", "EQ Left On", "EQ Right On", "EQ BIAMP On"};
 static constexpr const char* LR_CHANNEL_TEXT[NUMBER_CHANNELS] = {"Left", "Right"};
 static constexpr const char* INPUT_MIXER_MODE_TEXT[] = {"STEREO", "STEREO INVERSE", "MONO", "RIGHT", "LEFT"};
 // static constexpr const char* SUBCHANNEL_MIXER_MODE_TEXT[] = {"NO SUB", "LEFT SUB", "RIGHT SUB", "STEREO SUB", "LEFT EQ SUB", "RIGHT EQ SUB"};

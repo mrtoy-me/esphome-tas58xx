@@ -257,12 +257,12 @@ The EQ Mode select options (in addition to EQ Off) are determined by the YAML co
 
 | Config | Select options |
 |---|---|
-| Left EQ Gains only | EQ On Left=Right |
+| Left EQ Gains only | EQ On Right=Left |
 | Lone left EQ Preset | EQ Left On |
 | Right only (gains or preset) | EQ Right On |
-| Left and Right both configured (any combination of gains or presets) | EQ On Left=Right, EQ Left On, EQ Right On, EQ BIAMP On |
+| Left and Right both configured (any combination of gains or presets) | EQ On Right=Left, EQ Left On, EQ Right On, EQ BIAMP On |
 
-- **EQ On Left=Right**: the left channel filters (gains or preset) are used by both channels
+- **EQ On Right=Left**: the left channel filters (gains or preset) are used by both channels
 - **EQ Left On**: only the left channel filters are used, the right channel is flat
 - **EQ Right On**: only the right channel filters are used, the left channel is flat
 - **EQ BIAMP On**: each channel uses its own filters

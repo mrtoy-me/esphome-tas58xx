@@ -89,7 +89,7 @@ static constexpr EqPreset EQ_PRESETS[EQ_PROFILE_MAXIMUM_INDEX + 1] = {
 // EQ Modes registers and coefficients
 static constexpr uint8_t TAS58XX_EQ_CTRL_BOOK = 0xAA;
 
-// EQ Off = bypass EQ and ganged; EQ On Left=Right = ganged (the right channel uses the left channel filters);
+// EQ Off = bypass EQ and ganged; EQ On Right=Left = ganged (the right channel uses the left channel filters);
 // EQ Left On, EQ Right On and EQ BIAMP On = not ganged, the filters of a channel that is not used are set flat
 #ifdef USE_TAS5805M_DAC
 static constexpr uint8_t TAS5805M_DSP_MISC = 0x66;
@@ -106,7 +106,7 @@ static constexpr uint32_t TAS5825M_EQ_FLAG_TRUE = 0x01000000;
 #endif
 
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
-// the registers gang the EQ (right channel uses the left channel filters) for EQ Off and EQ On Left=Right
+// the registers gang the EQ (right channel uses the left channel filters) for EQ Off and EQ On Right=Left
 constexpr bool eq_mode_is_ganged(EqMode mode) { return mode == EQ_OFF || mode == EQ_ON; }
 
 // what an EQ mode needs in the biquads of a channel
