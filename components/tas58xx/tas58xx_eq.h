@@ -5,10 +5,33 @@
 
 namespace esphome::tas58xx {
 
-static constexpr const uint16_t EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {20, 32, 50, 80, 125, 200, 315, 500, 800, 1250, 2000, 3150, 5000, 8000, 16000};
-//static constexpr const uint16_t EQ_BAND_FREQUENCY[NUMBER_EQ_BANDS] = {25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000};
-static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.0, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
-//static constexpr const float EQ_BAND_QFACTOR[NUMBER_EQ_BANDS] = {2.144908, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5};
+// The filter of each EQ gain number band. The gain is set by the number. The hub uses a constant table for each
+// channel, which can be replaced (Tas58xxComponent::config_eq_bands) by a table generated from YAML.
+struct EqBand {
+  tas58xx_helpers::FilterType type;
+  uint16_t frequency;
+  float q_factor;
+};
+
+static constexpr EqBand EQ_DEFAULT_BANDS[NUMBER_EQ_BANDS] = {
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 20,    2.0f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 32,    2.0f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 50,    1.5f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 80,    1.5f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 125,   1.0f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 200,   1.0f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 315,   0.9f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 500,   0.9f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 800,   0.8f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 1250,  0.8f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 2000,  0.7f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 3150,  0.7f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 5000,  0.6f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 8000,  0.6f },
+  { tas58xx_helpers::FILTER_TYPE_EQUALIZER, 16000, 0.5f },
+};
+// alternative frequencies {25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000}
+// alternative q factors {2.144908, 2.0, 1.5, 1.5, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5}
 
 // EQ Gain constants
 static constexpr int8_t  TAS58XX_EQ_MAX_DB = 15;

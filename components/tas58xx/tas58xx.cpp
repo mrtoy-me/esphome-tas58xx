@@ -444,15 +444,16 @@ bool Tas58xxComponent::write_eq_gain_(Channels channel, uint8_t band_index) {
 
   const AddressSequence eq_address = eq_biquad_address(channel, band_index);
 
+  const EqBand &eq_band = (this->eq_bands_[channel] != nullptr ? this->eq_bands_[channel] : EQ_DEFAULT_BANDS)[band_index];
   tas58xx_helpers::BiquadCoefficients biquad =
-      tas58xx_helpers::equalizer_qfactor_(EQ_SAMPLE_RATE, EQ_BAND_FREQUENCY[band_index], gain, EQ_BAND_QFACTOR[band_index]);
+      tas58xx_helpers::make_biquad(eq_band.type, EQ_SAMPLE_RATE, eq_band.frequency, gain, eq_band.q_factor);
 
   if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, eq_address.page, eq_address.sub_addr,
                                   reinterpret_cast<uint8_t*>(&biquad), sizeof(biquad))) {
     ESP_LOGW(TAG, "%s writing Biquad %s Channel %s:%d Gain: %ddB", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
     return false;
   }
-  ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, EQ_BAND_FREQUENCY[band_index], gain);
+  ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, eq_band.frequency, gain);
 #endif
   return true;
 }

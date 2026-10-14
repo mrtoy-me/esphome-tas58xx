@@ -13,6 +13,8 @@
 
 namespace esphome::tas58xx {
 
+struct EqBand;  // tas58xx_eq.h
+
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
   void setup() override;
@@ -84,6 +86,12 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   void select_eq_mode(uint8_t select_index);
 
   bool set_eq_gain(Channels channel, uint8_t band_index, int8_t gain);
+
+#ifdef USE_TAS58XX_EQ_GAINS
+  // the filter of each EQ gain number band, a constant table of NUMBER_EQ_BANDS bands for the channel
+  // when not set, EQ_DEFAULT_BANDS is used
+  void config_eq_bands(Channels channel, const EqBand *bands) { this->eq_bands_[channel] = bands; }
+#endif
 
   bool set_eq_preset(Channels channel, uint8_t select_preset);
 
@@ -182,6 +190,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 #ifdef USE_TAS58XX_EQ_GAINS
    // only the biquads defined in YAML are written, the others stay at their power on (flat) state
    uint16_t eq_gain_defined_[NUMBER_CHANNELS]{0}; // one bit per band, set by an EQ gain number
+   const EqBand *eq_bands_[NUMBER_CHANNELS]{nullptr, nullptr};
 #endif
 #ifdef USE_TAS58XX_EQ_PRESETS
    bool eq_preset_defined_[NUMBER_CHANNELS]{false}; // set by an EQ preset select
