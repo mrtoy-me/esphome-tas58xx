@@ -1,343 +1,221 @@
 #include "tas58xx_helpers.h"
+
+#include <climits>
+#include <cmath>
+#include <numbers>
+
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 namespace esphome::tas58xx_helpers {
 
-ESPHOME_LOG_TAG(TAG, "tas58xx.helper");
+// only used by verbose logging
+[[maybe_unused]] ESPHOME_LOG_TAG(TAG, "tas58xx.helper");
 
-  // double precision used so coefficent values match well with TI Pure Path Console 3
-  // whereas using float precision does not give close matches
-  // speed optimisations are utilised where possible since double precision calculations on esp32 are much slower than float
+// Double precision is used so coefficient values match TI PurePath Console 3, float precision does not give
+// close matches. Double calculations on the ESP32 are much slower than float, so common terms are calculated
+// once, exp replaces pow and multiplying by an inverse replaces dividing.
 
+namespace {
 
-  // b0 = 1.0 and all other coefficients 0.0 as 5.27 fixed point, already converted to the byte order written to the DSP
-  constexpr BiquadCoefficients ALL_PASS = {0x00000008, 0x00000000, 0x00000000, 0x00000000, 0x00000000};
+static constexpr double TWO_PI = 2.0 * std::numbers::pi;
 
-  constexpr double TWO_PI = 2.0 * std::numbers::pi;
+// Q of the low pass and high pass filters = 1 / sqrt(2)
+static constexpr double INVERSE_SQRT2 = 0.7071067811865475244;
 
-  // used in low and high pass fileters where Q is fixed = 1 / sqrt(2)
-  constexpr double INVERSE_SQRT2 = 0.7071067811865475244;
+// 10^(gain / N) = exp(gain * ln(10) / N)
+static constexpr double LN10_DIV_20 = 0.11512925464970228420;
+static constexpr double LN10_DIV_40 = 0.05756462732485114210;
+static constexpr double LN10_DIV_80 = 0.02878231366242557105;
 
-  // used in exp calculations which replaces pow function calls
-  constexpr double LN10_DIV_20 = 0.11512925464970228420;  // ln(10) / 20
-  constexpr double LN10_DIV_40 = 0.05756462732485114210;  // ln(10) / 40
-  constexpr double LN10_DIV_80 = 0.02878231366242557105;  // ln(10) / 80
+// the largest and smallest 5.27 values, as doubles
+static constexpr double FIXED_5_27_SCALE = 134217728.0;  // 2^27
+static constexpr double INT32_MAX_DOUBLE = 2147483647.0;
+static constexpr double INT32_MIN_DOUBLE = -2147483648.0;
 
-  int32_t gain_to_f9_23_(int8_t gain) {
-    static constexpr uint8_t FRACTIONAL_BITS = 23;
-    static constexpr uint32_t SCALE = 1u << FRACTIONAL_BITS;
+// 5.27 fixed point in the byte order written to the DSP, saturated to the 32 bit range
+int32_t double_to_fixed_5_27(double x) {
+  const double scaled = x * FIXED_5_27_SCALE;
 
-    // valid 9.23 range
-    static constexpr float MAX_VALUE =  256.0f - 1.0 / SCALE;
-    static constexpr float MIN_VALUE = -256.0f;
-
-    //float linear = powf(10.0f, (gain) / 20.0f);
-    float linear = std::exp(gain * static_cast<float>(LN10_DIV_20));
-
-    if (linear > MAX_VALUE) linear = MAX_VALUE;
-    if (linear < MIN_VALUE) linear = MIN_VALUE;
-
-    // scale to fixed 9.23
-    int32_t fixed_9_23 = static_cast<int32_t>(linear * static_cast<float>(SCALE));
-
-    // convert to 32 bit little endian
-    int32_t little_endian = byteswap(fixed_9_23);
-
-    ESP_LOGV(TAG, "Gain:%ddb >> Fixed 9.23: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, gain, fixed_9_23, little_endian);
-    return little_endian;
+  int32_t fixed_5_27;
+  if (scaled >= INT32_MAX_DOUBLE) {
+    fixed_5_27 = INT32_MAX;
+  } else if (scaled > INT32_MIN_DOUBLE) {
+    fixed_5_27 = static_cast<int32_t>(std::round(scaled));
+  } else {
+    fixed_5_27 = INT32_MIN;
   }
 
-  inline int32_t double_to_5_27(double x) {
-    static constexpr uint8_t FRACTIONAL_BITS = 27;
-    static constexpr int64_t SCALE = 1LL << FRACTIONAL_BITS;
+  const int32_t little_endian = byteswap(fixed_5_27);
 
-    // valid 5.27 range
-    static constexpr double MAX_VALUE =  256.0 - (1.0 / SCALE);
-    static constexpr double MIN_VALUE = -256.0;
+  ESP_LOGV(TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, x,
+           fixed_5_27, little_endian);
+  return little_endian;
+}
 
-    // clamp to valid 5.27 range
-    if (x > MAX_VALUE) x = MAX_VALUE;
-    if (x < MIN_VALUE) x = MIN_VALUE;
+// 10^(gain / N) with the exp constant ln(10) / N, exp(0) = 1 is not calculated
+double linear_gain(int8_t gain, double ln10_div_n) {
+  if (gain == 0) return 1.0;
+  return std::exp(static_cast<double>(gain) * ln10_div_n);
+}
 
-    // scale to fixed 5.27
-    const double scaled =  x * static_cast<double>(SCALE);
+// w0 = 2 * pi * f0 / Fs
+double angular_frequency(uint32_t sample_rate, uint16_t frequency) {
+  return TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
+}
 
-    // saturate to 32 bit
-    int64_t long_fixed_5_27 = static_cast<int64_t>(std::round(scaled));
-    if (long_fixed_5_27 >  INT_MAX) long_fixed_5_27 =  INT_MAX;
-    if (long_fixed_5_27 <  INT_MIN) long_fixed_5_27 =  INT_MIN;
+// Derived from biquad.model.js in TI Pure Path Console 3
+BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
+  const double ag = linear_gain(gain, LN10_DIV_20);
+  const double t0 = angular_frequency(sample_rate, frequency);
 
-    const int32_t fixed_5_27 = static_cast<int32_t>(long_fixed_5_27);
-
-    // convert to 32 bit little endian
-    const int32_t little_endian = byteswap(fixed_5_27);
-
-    ESP_LOGV(TAG, "Biquad Coefficient >> Raw Double: %.16f  Fixed 5.27: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, x, fixed_5_27, little_endian);
-    return little_endian;
+  // the original uses ag >= 1.0, ie gain >= 0
+  double beta;
+  if (gain < 0) {
+    beta = t0 / (ag * 2.0 * static_cast<double>(q_factor));
+  } else {
+    beta = t0 / (2.0 * static_cast<double>(q_factor));
   }
 
-  BiquadCoefficients all_pass_() {
-    return ALL_PASS;
-  }
+  // simplified from a2 = -0.5 * (1 - beta) / (1 + beta)
+  const double a2 = 0.5 - (1.0 / (1.0 + beta));
+  const double precalc = (ag - 1.0) * (0.25 + (0.5 * a2));
+  const double a1 = (0.5 - a2) * std::cos(t0);
 
-  BiquadCoefficients equalizer_qfactor_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-    // derived from biquad.model.js in TI Pure Path Console 3
+  // the original calculates b0, b1, b2 then doubles every coefficient and negates a1 and a2,
+  // all of that is applied here directly
+  BiquadCoefficients result{};
+  result.b0 = double_to_fixed_5_27(1.0 + (2.0 * precalc));
+  result.b1 = double_to_fixed_5_27(-2.0 * a1);
+  result.b2 = double_to_fixed_5_27(-2.0 * (precalc + a2));
+  result.a1 = double_to_fixed_5_27(2.0 * a1);
+  result.a2 = double_to_fixed_5_27(2.0 * a2);
+  return result;
+}
 
-    // originally A = pow(10, gain / 20)
-    // pow(10, gain / 20) <=> exp(gain * (ln(10) / 20)
-    const double ag = std::exp(static_cast<double>(gain) * LN10_DIV_20);
+// Derived from biquad.model.js in TI Pure Path Console 3
+// A high shelf is a low shelf with cos(w0) negated and the signs of b1 and a1 flipped
+BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
+  // sqrt(A) = 10^(gain / 80) and A = sqrt(A) * sqrt(A), which avoids a sqrt
+  const double sqrt_ag = linear_gain(gain, LN10_DIV_80);
+  const double ag = sqrt_ag * sqrt_ag;
+  const double ag_plus1 = ag + 1.0;
+  const double ag_minus1 = ag - 1.0;
 
-    const double t0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
+  const double w0 = angular_frequency(sample_rate, frequency);
+  const double sign = high ? -1.0 : 1.0;
+  const double cos_w0 = sign * std::cos(w0);
+  const double ag_plus1_cosw0 = ag_plus1 * cos_w0;
+  const double ag_minus1_cosw0 = ag_minus1 * cos_w0;
 
-    double beta;
-    // original ag >= 1.0 <=> gain >= 0
-    if (gain < 0) {
-      beta = t0 / (ag * 2.0 * static_cast<double>(q_factor));
-    } else {
-      beta = t0 / (2.0 * static_cast<double>(q_factor));
-    }
+  // the original alpha = sin(w0) / (2 * q_factor) is only used as 2 * sqrt(A) * alpha
+  const double beta = sqrt_ag * std::sin(w0) / static_cast<double>(q_factor);
 
-    // simpify original <=> a2 = -0.5 * (1 - beta) / (1 + beta)
-    // flip the sign into the numerator <=> 0.5 * (beta − 1) / (1 + beta)
-    // rewrite (beta - 1) as (1 + beta - 2) <=> 0.5 * ((1 + beta) − 2) / (1 + beta)
-    // split the fraction <=> (0.5 * (1 + beta)) / (1 + beta) − (1 / (1 + beta))
-    // (1 + beta) cancels in the left term <=> 0.5 − (1 / (1 + beta))
-    const double a2 = 0.5 - (1.0 / (1.0 + beta)); // simpified equivalent
+  const double precalc_x = ag_plus1 + ag_minus1_cosw0;
+  const double precalc_y = ag_plus1 - ag_minus1_cosw0;
 
-    const double precalc = (ag - 1.0) * (0.25 + (0.5 * a2));
+  const double inverse_a0 = 1.0 / (precalc_x + beta);
 
-    const double a1 = (0.5 - a2) * std::cos(t0);
-
-    // original initially
-    // b0 = "expression" + 0.5;
-    // b1 = -a1;
-    // b2 = -x - a2;
-    // then later
-    // b0 = 2.0 * b0;
-    // b1 = 2.0 * b1;
-    // b2 = 2.0 * b2;
-    // a1 = -2.0 * a1; then -a1 passed to result
-    // a2 = -2.0 * a2; then -a1 passed to result
-    // simpify and pass direct to double_to_5_27
-
-    BiquadCoefficients result{};
-
-    result.b0 = double_to_5_27( 1.0 + (2.0 * precalc) );
-    result.b1 = double_to_5_27( -2.0 * a1 );
-    result.b2 = double_to_5_27( -2.0 * (precalc + a2) );
-    result.a1 = double_to_5_27( 2.0 * a1 );
-    result.a2 = double_to_5_27( 2.0 * a2 );
-
-    return result;
-  }
-
-BiquadCoefficients low_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-    // derived from biquad.model.js in TI Pure Path Console 3
-
-    // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) <=> exp(ln(10) * gain / 40)
-    // sqrt(a) = pow(10, gain / 80) <=> exp(gain * ln(10) / 80)
-    // calculating ag using multiplication sqrt_ag * sqrt_ag eliminates performing sqrt
-    const double sqrt_ag = std::exp(static_cast<double>(gain) * LN10_DIV_80);
-    const double ag = sqrt_ag * sqrt_ag;
-
-    // used multple times - precompute once
-    const double ag_plus1 = ag + 1.0;
-    const double ag_minus1 = ag - 1.0;
-
-    const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
-
-    const double cos_w0 = std::cos(w0);
-    // used multple times - precompute once
-    const double ag_plus1_cosw0 = ag_plus1 * cos_w0;
-    const double ag_minus1_cosw0 = ag_minus1 * cos_w0;
-
-    // originally
-    // alpha = sin(w0) / (2 * q_factor);
-    // coefficients use common calculation = 2 * (Math.sqrt(A)) * alpha
-    // use beta = 2 * sqrt(A) * sin(w0) / (2 * q_factor) and simplify
-    const double beta = sqrt_ag * std::sin(w0) / static_cast<double>(q_factor);
-
-    // used multple times - precompute once
-    const double precalc_x = ag_plus1 + ag_minus1_cosw0;
-    const double precalc_y = ag_plus1 - ag_minus1_cosw0;
-
-    // multiply is faster than divide
-    const double inverse_a0 = 1.0 / (precalc_x + beta);
-
-    // used multple times - precompute once
-    const double ag_inv = ag * inverse_a0;       // saves re-calculating for b0, b1, b2
-    const double ag_inv_y = ag_inv * precalc_y;  // saves re-calculating for b0 and b2
-    const double ag_inv_beta = ag_inv * beta;    // saves re-calculating for b0 and b2
-
-    BiquadCoefficients result{};
-    result.b0 = double_to_5_27( ag_inv_y + ag_inv_beta );
-    result.b1 = double_to_5_27(  2.0 * ag_inv * (ag_minus1 - ag_plus1_cosw0) );
-    result.b2 = double_to_5_27( ag_inv_y - ag_inv_beta );
-    result.a1 = double_to_5_27(  2.0 * (ag_minus1 + ag_plus1_cosw0) * inverse_a0 );
-    result.a2 = double_to_5_27( (beta - precalc_x) * inverse_a0 );
-    return result;
-};
-
-BiquadCoefficients high_shelf_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-    // derived from biquad.model.js in TI Pure Path Console 3
-
-    // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) <=> exp(ln(10) * gain / 40)
-    // sqrt(a) = pow(10, gain / 80) <=> exp(gain * ln(10) / 80)
-    // calculating ag using multiplication sqrt_ag * sqrt_ag eliminates performing sqrt
-    const double sqrt_ag = std::exp(static_cast<double>(gain) * LN10_DIV_80);
-    const double ag = sqrt_ag * sqrt_ag;
-
-    // used multple times - precompute once
-    const double ag_plus1 = ag + 1.0;
-    const double ag_minus1 = ag - 1.0;
-
-    const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
-
-    const double cos_w0 = std::cos(w0);
-    // used multple times - precompute once
-    const double ag_plus1_cosw0 = ag_plus1 * cos_w0;
-    const double ag_minus1_cosw0 = ag_minus1 * cos_w0;
-
-    // originally
-    // alpha = sin(w0) / (2 * q_factor);
-    // coefficients use common calculation = 2 * (Math.sqrt(A)) * alpha
-    // use beta = 2 * sqrt(A) * sin(w0) / (2 * q_factor) and simplify
-    const double beta = sqrt_ag * std::sin(w0) / static_cast<double>(q_factor);
-
-    // used multple times - precompute once
-    const double precalc_x = ag_plus1 + ag_minus1_cosw0;
-    const double precalc_y = ag_plus1 - ag_minus1_cosw0;
-
-    // multiply is faster than divide
-    const double inverse_a0 = 1.0 / (precalc_y + beta);
-
-    // used multple times - precompute once
-    const double ag_inv = ag * inverse_a0;       // saves re-calculating for b0, b1, b2
-    const double ag_inv_x = ag_inv * precalc_x;  // saves re-calculating for b0 and b2
-    const double ag_inv_beta = ag_inv * beta;    // saves re-calculating for b0 and b2
-
-    BiquadCoefficients result{};
-    result.b0 = double_to_5_27( ag_inv_x + ag_inv_beta );
-    result.b1 = double_to_5_27( -2.0 * ag_inv * (ag_minus1 + ag_plus1_cosw0) );
-    result.b2 = double_to_5_27(  ag_inv_x - ag_inv_beta );
-    result.a1 = double_to_5_27( -2.0 * (ag_minus1 - ag_plus1_cosw0) * inverse_a0 );
-    result.a2 = double_to_5_27( (beta - precalc_y) * inverse_a0 );
-    return result;
-};
-
-BiquadCoefficients low_pass_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain) {
-// derived from Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson
-// easier to optimise
-// gives same coefficient values as low pass butterworth 2 filter in TI Pure Path Console 3
-
-  // originally A = pow(10, gain / 20))
-  // pow(10, gain / 20) <=> exp(gain * (ln(10) / 20)
-  const double ag = std::exp(static_cast<double>(gain) * LN10_DIV_20);
-
-  // w0 = 2 * pi * f0 / Fs
-  const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
-
-  // Q = 1 / sqrt(2)
-  // alpha = sin(w0) / (2 * Q) <=> sin_w0 * sqrt(2) / 2 <=> sin_w0 / sqrt(2)
-  const double alpha = std::sin(w0) * INVERSE_SQRT2;
-
-  // multiply is faster than divide
-  const double inverse_a0 =   1.0 / (1.0 + alpha);              // a0 =   1 + alpha
-
-  const double cos_w0 = std::cos(w0);
-  const double b0 = (1.0 - cos_w0) * 0.5 * ag * inverse_a0;     // b0 =  (1 - cos(w0))/2 then gain adjustment and normalise
+  const double ag_inv = ag * inverse_a0;
+  const double ag_inv_y = ag_inv * precalc_y;
+  const double ag_inv_beta = ag_inv * beta;
 
   BiquadCoefficients result{};
-
-  result.b0 = double_to_5_27( b0 );
-  result.b1 = double_to_5_27( 2.0 * b0 );                       // b1 = 1 - cos(w0)
-  result.b2 = double_to_5_27( b0 );                             // b2 = (1 - cos(w0))/2
-  result.a1 = double_to_5_27( (2.0 * cos_w0) * inverse_a0 );    // a1 =  2*cos(w0) then normalise and final multiply by -1 applied
-  result.a2 = double_to_5_27( (-1.0 + alpha) * inverse_a0 );    // a2 =  1 - alpha then normalise and final multiply by -1 applied
-
+  result.b0 = double_to_fixed_5_27(ag_inv_y + ag_inv_beta);
+  result.b1 = double_to_fixed_5_27(sign * (2.0 * ag_inv * (ag_minus1 - ag_plus1_cosw0)));
+  result.b2 = double_to_fixed_5_27(ag_inv_y - ag_inv_beta);
+  result.a1 = double_to_fixed_5_27(sign * (2.0 * (ag_minus1 + ag_plus1_cosw0) * inverse_a0));
+  result.a2 = double_to_fixed_5_27((beta - precalc_x) * inverse_a0);
   return result;
-};
+}
 
-BiquadCoefficients high_pass_filter_(uint32_t sample_rate, uint16_t frequency, int8_t gain) {
-// derived from Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson
-// easier to optimise
-// gives same coefficient values as low pass butterworth 2 filter in TI Pure Path Console 3
+// Derived from the Cookbook formulae for audio EQ biquad filter coefficients by Robert Bristow-Johnson,
+// which are easier to optimise. Gives the same coefficients as the Butterworth 2 filters in TI Pure Path Console 3.
+// A high pass is a low pass with cos(w0) negated and the sign of b1 flipped.
+BiquadCoefficients pass_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain) {
+  const double ag = linear_gain(gain, LN10_DIV_20);
+  const double w0 = angular_frequency(sample_rate, frequency);
+  const double sign = high ? -1.0 : 1.0;
 
-  // originally A = pow(10, gain / 20))
-  // pow(10, gain / 20) <=> exp(gain * (ln(10) / 20)
-  const double ag = std::exp(static_cast<double>(gain) * LN10_DIV_20);
-
-  // w0 = 2 * pi * f0 / Fs
-  const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
-
-  // Q = 1 / sqrt(2)
-  // alpha = sin(w0) / (2 * Q) <=> sin_w0 * sqrt(2) / 2 <=> sin_w0 / sqrt(2)
+  // alpha = sin(w0) / (2 * Q) with Q = 1 / sqrt(2)
   const double alpha = std::sin(w0) * INVERSE_SQRT2;
-
-  // multiply is faster than divide
-  const double inverse_a0 =   1.0 / (1.0 + alpha);              // a0 =   1 + alpha
-
+  const double inverse_a0 = 1.0 / (1.0 + alpha);
   const double cos_w0 = std::cos(w0);
-  const double b0 = (1.0 + cos_w0) * 0.5 * ag * inverse_a0;     // b0 =  (1 + cos(w0))/2 then gain adjustment and normalise
 
+  // b0 = (1 -/+ cos(w0)) / 2, then the gain and normalised by a0
+  const double b0 = (1.0 - sign * cos_w0) * 0.5 * ag * inverse_a0;
+
+  // a1 and a2 are multiplied by -1 as the DSP expects them
   BiquadCoefficients result{};
-
-  result.b0 = double_to_5_27( b0 );
-  result.b1 = double_to_5_27( -2.0 * b0 );                      // b1 = -(1 + cos(w0))
-  result.b2 = double_to_5_27( b0 );                             // b2 =  (1 + cos(w0))/2
-  result.a1 = double_to_5_27( (2.0 * cos_w0) * inverse_a0 );    // a1 =  -2*cos(w0) then normalise and final multiply by -1 applied
-  result.a2 = double_to_5_27( (-1.0 + alpha) * inverse_a0 );    // a2 =   1 - alpha then normalise and final multiply by -1 applied
-
+  result.b0 = double_to_fixed_5_27(b0);
+  result.b1 = double_to_fixed_5_27(sign * 2.0 * b0);
+  result.b2 = double_to_fixed_5_27(b0);
+  result.a1 = double_to_fixed_5_27((2.0 * cos_w0) * inverse_a0);
+  result.a2 = double_to_fixed_5_27((-1.0 + alpha) * inverse_a0);
   return result;
-};
+}
 
-BiquadCoefficients peaking_eq_(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-  // derived from biquad.model.js in TI Pure Path Console 3
+// Derived from biquad.model.js in TI Pure Path Console 3
+BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
+  // A = sqrt(10^(gain / 20)) = 10^(gain / 40)
+  const double ag = linear_gain(gain, LN10_DIV_40);
+  const double w0 = angular_frequency(sample_rate, frequency);
 
-  // A = sqrt(pow(10, (gain / 20)) = pow(10, (gain / 40)) = exp(ln(10) * gain / 40)
-  const double ag = std::exp(static_cast<double>(gain) * LN10_DIV_40);
-
-  const double w0 = TWO_PI * static_cast<double>(frequency) / static_cast<double>(sample_rate);
-
-  // used multiple times - precompute once
   const double alpha = std::sin(w0) / (2.0 * static_cast<double>(q_factor));
   const double alpha_divide_ag = alpha / ag;
 
-  // multiply is faster than divide
-  const double inverse_a0 = 1.0 / (1.0 +  alpha_divide_ag);            // a0 = 1 + alpha / A
-
-  // used multiple times - precompute once
-  const double aag_inverse_a0 = alpha * ag * inverse_a0;               // saves re-calculating for b0 and b2
-
-  const double b1 = -2.0 * std::cos(w0) * inverse_a0;                  // b1 = -2 * cos(w0) then normalise
+  const double inverse_a0 = 1.0 / (1.0 + alpha_divide_ag);
+  const double aag_inverse_a0 = alpha * ag * inverse_a0;
+  const double b1 = -2.0 * std::cos(w0) * inverse_a0;
 
   BiquadCoefficients result{};
-
-  result.b0 = double_to_5_27( inverse_a0 + aag_inverse_a0);            // b0 = 1 + alpha * A then normalise
-  result.b1 = double_to_5_27( b1 );
-  result.b2 = double_to_5_27( inverse_a0 - aag_inverse_a0 );           // b2 = 1 - alpha * A then normalise
-  result.a1 = double_to_5_27( -b1 );                                   // a1 = -b1
-  result.a2 = double_to_5_27( (-1.0 + alpha_divide_ag) * inverse_a0 ); // a2 = 1 - alpha / A then normalise and apply multiply by -1
-
+  result.b0 = double_to_fixed_5_27(inverse_a0 + aag_inverse_a0);
+  result.b1 = double_to_fixed_5_27(b1);
+  result.b2 = double_to_fixed_5_27(inverse_a0 - aag_inverse_a0);
+  result.a1 = double_to_fixed_5_27(-b1);
+  result.a2 = double_to_fixed_5_27((-1.0 + alpha_divide_ag) * inverse_a0);
   return result;
-};
+}
+
+}  // namespace
+
+int32_t gain_to_fixed_9_23(int8_t gain) {
+  static constexpr float SCALE = 8388608.0f;  // 2^23
+
+  // 9.23 range is -256 to just under 256, float cannot hold the upper limit so the largest value below 256 is used
+  static constexpr float MAX_VALUE = 255.99998f;
+  static constexpr float MIN_VALUE = -256.0f;
+
+  float linear = std::exp(static_cast<float>(gain) * static_cast<float>(LN10_DIV_20));
+  if (linear > MAX_VALUE) linear = MAX_VALUE;
+  if (linear < MIN_VALUE) linear = MIN_VALUE;
+
+  const int32_t fixed_9_23 = static_cast<int32_t>(linear * SCALE);
+  const int32_t little_endian = byteswap(fixed_9_23);
+
+  ESP_LOGV(TAG, "Gain:%ddb >> Fixed 9.23: 0x%08" PRIX32 " Little Endian: 0x%08" PRIX32, gain, fixed_9_23,
+           little_endian);
+  return little_endian;
+}
 
 BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, float q_factor) {
-  if (type == FILTER_TYPE_EQUALIZER)
-    return equalizer_qfactor_(sample_rate, frequency, gain, q_factor);
-  if (type == FILTER_TYPE_PEAKING)
-    return peaking_eq_(sample_rate, frequency, gain, q_factor);
-  if (type == FILTER_TYPE_LOW_SHELF)
-    return low_shelf_filter_(sample_rate, frequency, gain, q_factor);
-  if (type == FILTER_TYPE_HIGH_SHELF)
-    return high_shelf_filter_(sample_rate, frequency, gain, q_factor);
-  if (type == FILTER_TYPE_LOW_PASS)
-    return low_pass_filter_(sample_rate, frequency, gain);
-  if (type == FILTER_TYPE_HIGH_PASS)
-    return high_pass_filter_(sample_rate, frequency, gain);
-  return all_pass_();
+  switch (type) {
+    case FILTER_TYPE_EQUALIZER:
+      return equalizer_filter(sample_rate, frequency, gain, q_factor);
+    case FILTER_TYPE_PEAKING:
+      return peaking_filter(sample_rate, frequency, gain, q_factor);
+    case FILTER_TYPE_LOW_SHELF:
+      return shelf_filter(false, sample_rate, frequency, gain, q_factor);
+    case FILTER_TYPE_HIGH_SHELF:
+      return shelf_filter(true, sample_rate, frequency, gain, q_factor);
+    case FILTER_TYPE_LOW_PASS:
+      return pass_filter(false, sample_rate, frequency, gain);
+    case FILTER_TYPE_HIGH_PASS:
+      return pass_filter(true, sample_rate, frequency, gain);
+    case FILTER_TYPE_ALL_PASS:
+    default:
+      return ALL_PASS;
+  }
 }
 
 }  // namespace esphome::tas58xx_helpers
-

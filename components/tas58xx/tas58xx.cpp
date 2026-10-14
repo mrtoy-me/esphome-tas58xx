@@ -362,7 +362,7 @@ bool Tas58xxComponent::set_channel_volume(Channels channel, int8_t volume_dB) {
 bool Tas58xxComponent::write_channel_volume_(Channels channel) {
 #ifdef USE_TAS58XX_CHANNEL_VOLUMES
   const int8_t volume_dB = this->tas58xx_channel_volume_[channel];
-  int32_t little_endian_9_23 = tas58xx_helpers::gain_to_f9_23_(volume_dB);
+  int32_t little_endian_9_23 = tas58xx_helpers::gain_to_fixed_9_23(volume_dB);
 
   if (!this-> book_page_write_bytes_(TAS58XX_AUDIO_CTRL_BOOK, TAS58XX_CHANNEL_VOLUME_PAGE, TAS58XX_CHANNEL_VOLUME_SUBADDR[channel],
                                       reinterpret_cast<uint8_t*>(&little_endian_9_23), sizeof(little_endian_9_23))) {
@@ -481,7 +481,7 @@ bool Tas58xxComponent::write_eq_preset_(Channels channel) {
       tas58xx_helpers::make_biquad(preset.filter, EQ_SAMPLE_RATE, preset.cutoff_frequency, 0, 0.0f);
   const tas58xx_helpers::BiquadCoefficients shelf =
       (preset.shelf_frequency == 0)
-          ? tas58xx_helpers::all_pass_()
+          ? tas58xx_helpers::ALL_PASS
           : tas58xx_helpers::make_biquad(tas58xx_helpers::FILTER_TYPE_HIGH_SHELF, EQ_SAMPLE_RATE, preset.shelf_frequency,
                                          EQ_PRESET_SHELF_GAIN, EQ_PRESET_SHELF_QFACTOR);
   tas58xx_helpers::BiquadCoefficients biquads[EQ_PROFILE_BIQUADS] = {filter, filter, shelf};
@@ -503,7 +503,7 @@ bool Tas58xxComponent::write_eq_preset_(Channels channel) {
 // write a flat (all pass) biquad
 bool Tas58xxComponent::write_eq_flat_(Channels channel, uint8_t biquad_index) {
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
-  tas58xx_helpers::BiquadCoefficients flat = tas58xx_helpers::all_pass_();
+  tas58xx_helpers::BiquadCoefficients flat = tas58xx_helpers::ALL_PASS;
   const AddressSequence address = eq_biquad_address(channel, biquad_index);
   if (!this->biquad_write_bytes_(TAS58XX_EQ_CTRL_BOOK, address.page, address.sub_addr,
                                   reinterpret_cast<uint8_t*>(&flat), sizeof(flat))) {
