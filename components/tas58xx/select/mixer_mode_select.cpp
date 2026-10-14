@@ -5,19 +5,14 @@ namespace esphome::tas58xx {
 
 ESPHOME_LOG_TAG(TAG, "tas58xx.select");
 
-uint8_t MAX_SELECT_INDEX;
-uint8_t MIN_MIXER_MODE;
-
 void MixerModeSelect::setup() {
   if (this->parent_->get_configured_dac_mode()) {
     // PBTL
-    MAX_SELECT_INDEX = 2;
-    MIN_MIXER_MODE = 2; // index in parent for Mono
+    this->min_mixer_mode_ = MONO;
     this->traits.set_options({"MONO", "RIGHT", "LEFT"});
   } else {
     // BTL
-    MAX_SELECT_INDEX = 4;
-    MIN_MIXER_MODE = 0; // index in parent for Stereo
+    this->min_mixer_mode_ = STEREO;
     this->traits.set_options({"STEREO", "STEREO_INVERSE", "MONO", "RIGHT", "LEFT"});
   }
 
@@ -27,15 +22,15 @@ void MixerModeSelect::setup() {
   // mixed mode index saved is always the index of the all 5 MixerModes
   // even if the reduced number of valid MixerModes is used in this select for PBTL mode
   this->pref_ = this->make_entity_preference<size_t>();
-  if (!this->pref_.load(&restored_index)) {
+  if (!this->pref_.load(&restored_index) || restored_index > LEFT) {
     restored_index = this->parent_->get_mixer_mode();
   }
 
-  if (restored_index < MIN_MIXER_MODE) {
-    restored_index = MIN_MIXER_MODE;
+  if (restored_index < this->min_mixer_mode_) {
+    restored_index = this->min_mixer_mode_;
   }
 
-  this->publish_state(restored_index -  MIN_MIXER_MODE);
+  this->publish_state(restored_index - this->min_mixer_mode_);
   this->parent_->set_input_mixer_mode(static_cast<InputMixerMode>(restored_index));
 }
 
@@ -46,7 +41,7 @@ void MixerModeSelect::dump_config() {
 
 void MixerModeSelect::control(size_t index) {
   this->publish_state(index);
-  index = index + MIN_MIXER_MODE;
+  index = index + this->min_mixer_mode_;
   this->pref_.save(&index);
   this->parent_->set_input_mixer_mode(static_cast<InputMixerMode>(index));
 }
