@@ -485,6 +485,11 @@ add the docs entry to `esphome/esphome.io`.
   (flag byte order), "DAC not playing" / audio start behaviour (Power State read is now one write-read).
 - Upstream PRs for `add_fault_output` and `add_modulation_option` (branches in `mrtoy-me/esphome`) are not raised;
   each needs an esphome.io docs entry. You delete `dev_update_with_onaudio_split` and `claude/jolly-ramanujan-7zxbba`.
+- TAS5825M PPC dump to come (you): check 0x46 (expect 0x11, DSP_CTRL §9.6.1.16: 96 kHz processing, default
+  coefficients), DSP_MISC/Gang EQ and Bypass EQ flag bytes (expect 00 00 00 01 for true), mixer bytes at book 0x8C
+  page 0x0B from 0x14, and the biquads with `docs/tools/ppc_check`. The TAS5805M 50 Hz dump (2026-10-15) matched:
+  Equalizer Q 0.71 exact, High Pass exact, Low Shelf a1 1 LSB; it writes DSP_MISC 0x86 (bit 7 reserved) where we
+  write 0x06. The startup comment "0x46 not documented" is only true for the TAS5805M (same in ESPHome beta).
 - Host tools added today (no hardware needed): `docs/tools/biquad_check/run.sh` (helpers bit for bit),
   `docs/tools/dsp_write_check/run.sh` (DSP memory written by `dsp_write_bytes_`), `docs/tools/ppc_check/run.sh`
   (helpers against the PPC reference). They need g++ and python3 only.
