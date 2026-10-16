@@ -4,6 +4,114 @@ Notes from the session of 2026-10-10 so work can continue in a later session, ei
 or in the cloud. Read this first. It covers the goal, the requirements set so far, the current
 branch state, the design, a to-check list and the plan forward.
 
+## EQ band and fixed filter YAML rework (plan, 2026-10-16, branch `dev_update_eq_test`)
+Branch `dev_update_eq_test` is based on `dev_update_with_onaudio_plus_eq` (`0a1bd72`). **Breaking YAML changes
+against `main` are accepted on this branch only.** Not yet implemented.
+
+### Final YAML
+```yaml
+audio_dac:
+  - platform: tas58xx
+    id: tas58xx_dac
+    # ...existing options...
+    left_fixed_filters:              # optional, notch and band_pass only (no gain input)
+      - eq_filter: notch             # required
+        frequency: 50Hz              # required
+        q_factor: 5                  # required, bandwidth = frequency / q_factor
+    right_fixed_filters:
+      - eq_filter: notch
+        frequency: 3150Hz
+        q_factor: 10
+
+number:
+  - platform: tas58xx
+    tas58xx_id: tas58xx_dac
+    left_bands:                      # optional, one gain number (slider) per entry
+      - name: "Left Subsonic"
+        eq_filter: high_pass
+        frequency: 30Hz              # q_factor not used by low_pass / high_pass (warning if given)
+      - name: "Left Bass"
+        eq_filter: low_shelf
+        frequency: 80Hz
+      - name: "Left Mid"
+        frequency: 1kHz              # eq_filter defaults to equalizer
+        q_factor: 1.4                # defaults to 0.707
+      - name: "Left Treble"
+        eq_filter: high_shelf
+        frequency: 8kHz
+    right_bands:
+      - name: "Right Bass"
+        eq_filter: low_shelf
+        frequency: 80Hz
+
+select:
+  - platform: tas58xx
+    tas58xx_id: tas58xx_dac
+    eq_mode:                         # required with any bands, preset or fixed filters
+      name: "EQ Mode"
+```
+
+### Number bands (`left_bands` / `right_bands`, number platform)
+- Lists (ESPHome precedent: `kamstrup_kmp` and `vbus` `custom:` lists of entities extended with options).
+  Each entry is the gain number (`EqGainNumber` schema) plus:
+  - `eq_filter`: `equalizer` (default), `peaking`, `low_shelf`, `high_shelf`, `low_pass`, `high_pass`.
+    `all_pass` is not offered (used internally for flat biquads).
+  - `frequency`: required, ESPHome frequency (`80Hz`, `1.25kHz`), rounded to whole Hz, 10 Hz to 20 kHz.
+  - `q_factor`: default 0.707, > 0, at most 20. Warning if given for `low_pass` / `high_pass` (fixed Q 0.707).
+- Gain ±24 dB (was ±15). Starts at 0 dB on first boot, then the saved value is restored. Saved values are tied to
+  the number's name, not its biquad. On `low_pass` / `high_pass` the gain sets the passband level (PPC does the same).
+- Any filter with a gain input is defined only here, so always has a slider. No fixed gain, no initial gain.
+- The `left_eq_gain_<freq>Hz` / `right_eq_gain_<freq>Hz` keys are removed.
+
+### Fixed filters (`left_fixed_filters` / `right_fixed_filters`, audio_dac)
+- Gain-less filters only: `notch`, `band_pass`. `eq_filter`, `frequency` and `q_factor` are all required
+  (0.707 is a poor default for a notch). Q > 0.5 and frequency × (1 + 1 / (2Q)) ≤ 20 kHz.
+- The component works out bandwidth = frequency / q_factor (as a double). PPC takes a bandwidth and ignores its
+  QVal field for these filters: to copy a PPC design use q_factor = frequency / bandwidth.
+
+### Biquad allocation and order
+- The 15 biquads of a channel run in series, so order does not change the response, only the level between
+  biquads. Filters are sorted at compile time by type (stable, YAML order kept within a group):
+  1. `high_pass`
+  2. `low_pass`, `notch`, `band_pass`
+  3. `low_shelf`, `high_shelf`, `equalizer`, `peaking`
+- Bands and fixed filters are packed together from biquad 1 upward, so each channel is written in one run.
+  A channel with a preset keeps the preset in biquads 1 to 3, fixed filters follow.
+- More than 15 filters on a channel (12 with a preset) is an error. Bands and a preset on the same channel is
+  still an error.
+
+### EQ modes
+- A channel with bands, a preset or fixed filters counts as having EQ: the `eq_mode` select is required and the
+  EQ modes are derived as now. EQ mode changes affect fixed filters (document this).
+- EQ Off bypasses every biquad, fixed filters included.
+- A channel set flat by a mode (right in EQ Left On, left in EQ Right On) has its band biquads set to all pass;
+  its fixed filters stay.
+- EQ On Right=Left: the right channel uses the left channel's biquads. Right bands and right_fixed_filters are
+  not used; only left bands and left_fixed_filters are used, for both channels.
+- PBTL: right bands and right_fixed_filters log a "not used" warning.
+
+### C++
+- Helpers: `FILTER_TYPE_BAND_PASS`, `FILTER_TYPE_NOTCH`, a shared `bandwidth_filter()` and
+  `make_bandwidth_biquad(type, sample_rate, frequency, bandwidth)`. Old helpers are in `c1dbeac`; the optimised
+  form drops TI's C = tan(Wc / 2), which cancels, and uses 1 / cos(pi * bw / Fs) = sqrt(1 + t * t).
+  Checked (2026-10-16): original, optimised and TI's formula are identical in 5.27 for the 12 band pass and notch
+  cases in "filters PPC tests results Claude sorted.cfg", all within 1 LSB of PPC (PPC's own rounding: 19 of
+  240 coefficients across all filters in that file differ by 1 LSB, nearest rounding is clearly what PPC uses).
+- One generated constant table per channel describing each used biquad (filter type, frequency, Q or bandwidth,
+  band or fixed), replacing `EQ_DEFAULT_BANDS`. Each `EqGainNumber` gets its biquad index.
+- `write_eq_channels_()`: filters state writes every used biquad; flat writes all pass to the band biquads only.
+- Dump: each number logs its biquad, filter, frequency and Q, defaulted values included; the hub logs the fixed
+  filters. Only filters in YAML are listed; the docs note that unlisted biquads keep their power-on (flat) values.
+
+### Docs, examples and checks
+- README EQ section: the YAML above, filters and what each uses, defaults, ordering, flat and mode behaviour,
+  PPC Q conversion, unlisted biquads flat.
+- Convert the 4 example YAMLs and the `docs/compat` cases; add cases for: q_factor warning, Q out of range,
+  more than 15 filters, fixed filters with a preset, fixed filters only, PBTL right.
+- `docs/tools/ppc_check`: add the notch and band pass cases from the PPC reference file.
+- Hardware: EQ modes with fixed filters (flat keeps them, EQ Off removes them, Right=Left uses left only),
+  saved gains restored, no I2C errors.
+
 ## Where we stopped (2026-10-14, branch `dev_update_with_onaudio_plus_eq`)
 Branch `dev_update_with_onaudio_plus_eq` is based on `dev_update_with_onaudio` (`cf23bf0`, hardware testing
 had gone well) and holds the EQ rework, in 4 commits that can be checked or reverted separately, plus follow-up commits
