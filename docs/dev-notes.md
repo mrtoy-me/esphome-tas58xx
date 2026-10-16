@@ -285,6 +285,10 @@ reference" and "Open items for next time" at the end of this file.
    3. EQ mode plus 15-band gains
    4. biamp
    5. presets
+   6. register 0x46 comments in `model_tas5805m.cpp` and `model_tas5825m.cpp`: both say 0x46 is not
+      documented, which is only true for TAS5805M. TAS5825M 0x46 is DSP_CTRL (datasheet 9.6.1.16), 0x11 =
+      96 kHz processing with default coefficients. Checked against PPC 2.0 dumps at 96 and 48 kHz (2026-10-16);
+      the esphome-tas58xx startup tables already carry the corrected comments.
 
    Each PR reuses beta's activation mechanism plus the `can_write_dsp_()` rule, and needs:
    - upstream structure (`ModelInfo`, EQ addresses per model)
@@ -485,7 +489,7 @@ add the docs entry to `esphome/esphome.io`.
   (flag byte order), "DAC not playing" / audio start behaviour (Power State read is now one write-read).
 - Upstream PRs for `add_fault_output` and `add_modulation_option` (branches in `mrtoy-me/esphome`) are not raised;
   each needs an esphome.io docs entry. You delete `dev_update_with_onaudio_split` and `claude/jolly-ramanujan-7zxbba`.
-- TAS5825M PPC dump to come (you): check 0x46 (expect 0x11, DSP_CTRL §9.6.1.16: 96 kHz processing, default
+- Done 2026-10-16 (TAS5825M PPC dumps checked, 0x46 = 0x11 confirmed, startup comments updated): check 0x46 (expect 0x11, DSP_CTRL §9.6.1.16: 96 kHz processing, default
   coefficients), DSP_MISC/Gang EQ and Bypass EQ flag bytes (expect 00 00 00 01 for true), mixer bytes at book 0x8C
   page 0x0B from 0x14, and the biquads with `docs/tools/ppc_check`. The TAS5805M 50 Hz dump (2026-10-15) matched:
   Equalizer Q 0.71 exact, High Pass exact, Low Shelf a1 1 LSB; it writes DSP_MISC 0x86 (bit 7 reserved) where we
