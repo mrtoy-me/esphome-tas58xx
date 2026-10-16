@@ -17,12 +17,13 @@ audio_dac:
     dac_mode: BTL
 number:
   - platform: tas58xx
-    left_eq_gain_31.5Hz:
-      name: left 31.5
-    left_eq_gain_315Hz:
-      name: left 315
-    left_eq_gain_8000Hz:
-      name: left 8000
+    left_bands:
+      - name: left 31.5
+        frequency: 32Hz
+      - name: left 315
+        frequency: 315Hz
+      - name: left 8000
+        frequency: 8000Hz
 select:
   - platform: tas58xx
     eq_mode: {name: m}

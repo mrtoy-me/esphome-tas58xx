@@ -19,36 +19,37 @@ number:
   - platform: tas58xx
     channel_volume_left: {name: L}
     channel_volume_right: {name: R}
-    left_eq_gain_20Hz:
-      name: left 20
-    left_eq_gain_31.5Hz:
-      name: left 31.5
-    left_eq_gain_50Hz:
-      name: left 50
-    left_eq_gain_80Hz:
-      name: left 80
-    left_eq_gain_125Hz:
-      name: left 125
-    left_eq_gain_200Hz:
-      name: left 200
-    left_eq_gain_315Hz:
-      name: left 315
-    left_eq_gain_500Hz:
-      name: left 500
-    left_eq_gain_800Hz:
-      name: left 800
-    left_eq_gain_1250Hz:
-      name: left 1250
-    left_eq_gain_2000Hz:
-      name: left 2000
-    left_eq_gain_3150Hz:
-      name: left 3150
-    left_eq_gain_5000Hz:
-      name: left 5000
-    left_eq_gain_8000Hz:
-      name: left 8000
-    left_eq_gain_16000Hz:
-      name: left 16000
+    left_bands:
+      - name: left 20
+        frequency: 20Hz
+      - name: left 31.5
+        frequency: 32Hz
+      - name: left 50
+        frequency: 50Hz
+      - name: left 80
+        frequency: 80Hz
+      - name: left 125
+        frequency: 125Hz
+      - name: left 200
+        frequency: 200Hz
+      - name: left 315
+        frequency: 315Hz
+      - name: left 500
+        frequency: 500Hz
+      - name: left 800
+        frequency: 800Hz
+      - name: left 1250
+        frequency: 1250Hz
+      - name: left 2000
+        frequency: 2000Hz
+      - name: left 3150
+        frequency: 3150Hz
+      - name: left 5000
+        frequency: 5000Hz
+      - name: left 8000
+        frequency: 8000Hz
+      - name: left 16000
+        frequency: 16000Hz
 select:
   - platform: tas58xx
     eq_mode: {name: m}

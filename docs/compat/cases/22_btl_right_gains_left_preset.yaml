@@ -17,10 +17,11 @@ audio_dac:
     dac_mode: BTL
 number:
   - platform: tas58xx
-    right_eq_gain_20Hz:
-      name: right 20
-    right_eq_gain_31.5Hz:
-      name: right 31.5
+    right_bands:
+      - name: right 20
+        frequency: 20Hz
+      - name: right 31.5
+        frequency: 32Hz
 select:
   - platform: tas58xx
     eq_mode: {name: m}

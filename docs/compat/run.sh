@@ -7,7 +7,8 @@
 #   git worktree add /tmp/tas58xx-main main && docs/compat/run.sh /tmp/tas58xx-main/components
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
-COMPDIR="$(cd "${1:-$HERE/../../components}" && pwd)"
+# pwd -W gives a C:/... path on Windows Git Bash, which a Windows esphome can read
+COMPDIR="$(cd "${1:-$HERE/../../components}" && (pwd -W 2>/dev/null || pwd))"
 WORK="$(mktemp -d)"
 for f in "$HERE"/cases/*.yaml; do
   name="$(basename "$f" .yaml)"

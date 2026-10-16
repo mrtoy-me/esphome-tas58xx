@@ -18,8 +18,9 @@ audio_dac:
     mixer_mode: MONO
 number:
   - platform: tas58xx
-    right_eq_gain_20Hz:
-      name: right 20
+    right_bands:
+      - name: right 20
+        frequency: 20Hz
 select:
   - platform: tas58xx
     eq_mode: {name: m}
