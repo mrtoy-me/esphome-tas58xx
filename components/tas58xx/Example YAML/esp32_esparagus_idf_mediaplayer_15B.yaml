@@ -229,34 +229,35 @@ number:
     channel_volume_right:
       name: _Volume Right
 
-    left_eq_gain_20Hz:
-      name: Left ---20Hz
-    left_eq_gain_31.5Hz:
-      name: Left ---31.5Hz
-    left_eq_gain_50Hz:
-      name: Left ---50Hz
-    left_eq_gain_80Hz:
-      name: Left ---80Hz
-    left_eq_gain_125Hz:
-      name: Left --125Hz
-    left_eq_gain_200Hz:
-      name: Left --200Hz
-    left_eq_gain_315Hz:
-      name: Left --315Hz
-    left_eq_gain_500Hz:
-      name: Left --500Hz
-    left_eq_gain_800Hz:
-      name: Left --800Hz
-    left_eq_gain_1250Hz:
-      name: Left -1250Hz
-    left_eq_gain_2000Hz:
-      name: Left -2000Hz
-    left_eq_gain_3150Hz:
-      name: Left -3150Hz
-    left_eq_gain_5000Hz:
-      name: Left -5000Hz
-    left_eq_gain_8000Hz:
-      name: Left -8000Hz
-    left_eq_gain_16000Hz:
-      name: Left 16000Hz
+    left_bands:   # ISO 2/3-octave centres, equalizer with the default Q 2.144908
+      - name: Left ---25Hz
+        frequency: 25Hz
+      - name: Left ---40Hz
+        frequency: 40Hz
+      - name: Left ---63Hz
+        frequency: 63Hz
+      - name: Left --100Hz
+        frequency: 100Hz
+      - name: Left --160Hz
+        frequency: 160Hz
+      - name: Left --250Hz
+        frequency: 250Hz
+      - name: Left --400Hz
+        frequency: 400Hz
+      - name: Left --630Hz
+        frequency: 630Hz
+      - name: Left -1000Hz
+        frequency: 1000Hz
+      - name: Left -1600Hz
+        frequency: 1600Hz
+      - name: Left -2500Hz
+        frequency: 2500Hz
+      - name: Left -4000Hz
+        frequency: 4000Hz
+      - name: Left -6300Hz
+        frequency: 6300Hz
+      - name: Left 10000Hz
+        frequency: 10000Hz
+      - name: Left 16000Hz
+        frequency: 16000Hz
 
