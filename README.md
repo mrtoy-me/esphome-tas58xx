@@ -15,6 +15,10 @@ external_components:
     refresh: 0s
 ```
 
+**Breaking change on this branch:** the EQ gain number keys `left_eq_gain_<frequency>Hz` and
+`right_eq_gain_<frequency>Hz` are replaced by the `left_bands:` and `right_bands:` lists described in
+"EQ Bands and Fixed Filters" below, so EQ YAML from `main` must be converted.
+
 # Overview
 This component uses the Esphome ESP_IDF framwork and must be configured accordingly.
 While this component works with board having ESP32, the ESP32-S3
@@ -41,7 +45,7 @@ The component communicates with DAC by I2C and provides the following features:
 - adjust  maximum and minimum volume level
 - set DAC mode
 - set Mixer mode
-- set EQ Control state and EQ gains
+- set EQ Mode, EQ bands (filter type, frequency, Q factor and an adjustable gain) and fixed notch / band pass filters
 - get fault states
 - automatically clear fault states
 - set Analog Gain
@@ -50,7 +54,8 @@ The component communicates with DAC by I2C and provides the following features:
 
 YAML configuration includes:
 - 1 optional Switch configuration - Enable DAC
-- 30 optional EQ Gain Numbers to control EQ gains
+- up to 15 EQ filters per channel: optional EQ band gain Numbers (`left_bands:` / `right_bands:`) and optional
+  fixed filters (`left_fixed_filters:` / `right_fixed_filters:` under `audio_dac:`)
 - 2 optional Channel Volume Numbers to individually control the Channel Volumes
 - 2 optional Select for setting Mixer Mode and EQ Mode
 - 2 optional Select for each channel to set EQ High-pass and Low-pass filter presets
@@ -94,29 +99,79 @@ In BTL Dac Mode, the mixer mode can be set to STEREO, INVERSE_STEREO, MONO, LEFT
 in PBTL Dac Mode, the mixer mode can be set to MONO, LEFT or RIGHT.
 
 
-## EQ Band Gains
-These DACs have a powerful 15-channel EQ that allows defining each channel's transfer function
-using BQ coefficients. For practical purposes, the audio range is split into 15 bands,
-defining for each a -15 to +15 dB gain adjustment range and appropriate bandwidth to
-cause mild overlap. This keeps the curve flat enough to not cause distortions
-even in extreme settings, but also allows a wide range of transfer characteristics.
+## EQ Bands and Fixed Filters
+These DACs have 15 biquad filters (BQs) per channel, run one after the other. The component calculates the
+biquad coefficients on the ESP32 from the filter type, frequency, Q factor and gain set in YAML. The
+coefficients match TI PurePath Console to within 1 LSB of the DSP's 5.27 fixed point format, which is inaudible.
 
-| Band | Center Frequency (Hz) | Frequency Range (Hz) | Q-Factor (Approx.) |
-|------|-----------------------|----------------------|--------------------|
-| 1    | 20                    | 10–30                | 2                  |
-| 2    | 31.5                  | 20–45                | 2                  |
-| 3    | 50                    | 35–70                | 1.5                |
-| 4    | 80                    | 55–110               | 1.5                |
-| 5    | 125                   | 85–175               | 1                  |
-| 6    | 200                   | 140–280              | 1                  |
-| 7    | 315                   | 220–440              | 0.9                |
-| 8    | 500                   | 350–700              | 0.9                |
-| 9    | 800                   | 560–1120             | 0.8                |
-| 10   | 1250                  | 875–1750             | 0.8                |
-| 11   | 2000                  | 1400–2800            | 0.7                |
-| 12   | 3150                  | 2200–4400            | 0.7                |
-| 13   | 5000                  | 3500–7000            | 0.6                |
-| 14   | 8000                  | 5600–11200           | 0.6                |
+There are two kinds of EQ filter:
+- **EQ bands** (`left_bands:` / `right_bands:` under the tas58xx **number:** platform): each band has a gain
+  Number (slider) in Home Assistant. Any filter with a gain input is an EQ band.
+- **Fixed filters** (`left_fixed_filters:` / `right_fixed_filters:` under **audio_dac:**): notch and band pass
+  filters, which have no gain input, so no slider. They are set in YAML only.
+
+| eq_filter | Kind | Uses gain | Uses frequency | Uses q_factor | Default q_factor |
+|---|---|---|---|---|---|
+| `equalizer` (default) | EQ band | boost / cut around the frequency | yes | yes | 2.144908 |
+| `peaking` | EQ band | boost / cut around the frequency | yes | yes | 2.144908 |
+| `low_shelf` | EQ band | boost / cut below the frequency | yes | yes | 0.707 |
+| `high_shelf` | EQ band | boost / cut above the frequency | yes | yes | 0.707 |
+| `low_pass` | EQ band | level of the frequencies passed | yes | no, fixed at 0.707 (2nd order Butterworth) | - |
+| `high_pass` | EQ band | level of the frequencies passed | yes | no, fixed at 0.707 (2nd order Butterworth) | - |
+| `notch` | fixed filter | no | yes | yes, bandwidth = frequency / q_factor | required |
+| `band_pass` | fixed filter | no | yes | yes, bandwidth = frequency / q_factor | required |
+
+- `equalizer` is the TI PurePath Console "Equalizer (Q Factor)" filter; `peaking` is its "Peaking EQ" filter
+  (the Audio EQ Cookbook form). Both are bell shaped, the curves differ slightly at the same Q.
+- On `low_pass` and `high_pass` the gain sets the level of the frequencies the filter passes, as TI PurePath
+  Console does. At 0 dB they are pure filters.
+- All pass is not offered: it is used internally for flat (unused) biquads.
+
+### Default Q factor and a standard 15 band graphic EQ
+The default `q_factor` of `equalizer` and `peaking` is 2.144908, the constant Q of a 2/3-octave graphic
+equalizer, Q = √(2ᴺ) / (2ᴺ − 1) with N = 2/3. Bands at the ISO 2/3-octave centre frequencies
+(ISO 266:1997 Acoustics, Preferred frequencies) with this Q make a standard constant-Q 15 band graphic EQ, as used by
+commercial 15 band equalizers (eg the dbx 3215, "15 ISO standard center, 2/3 octave constant Q frequency bands"):
+
+25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000 Hz
+
+For such a graphic EQ only `name:` and `frequency:` are needed for each band. The shelves default to 0.707, a shelf
+with no overshoot.
+
+### Limits
+| | EQ bands | Fixed filters (`notch`, `band_pass`) |
+|---|---|---|
+| `frequency` | required, 20 Hz to 16000 Hz, whole Hz (eg `80Hz`, `1.25kHz`; `31.5Hz` is an error) | required, 20 Hz to 16000 Hz, whole Hz |
+| `q_factor` | 0.1 to 20, default by filter (table above); a warning if given for `low_pass` / `high_pass` | required, 0.6 to 30 |
+| gain | -24 dB to +24 dB; `high_shelf` and `high_pass` -24 dB to +18 dB | none |
+| count | EQ bands + fixed filters at most 15 per channel, at most 12 with an EQ Preset on that channel (more is an error) | |
+
+- `high_shelf` and `high_pass` are limited to +18 dB because above that one of their coefficients
+  (about -2 × the linear gain) overflows the DSP's 5.27 coefficient range (just under +16).
+- Fixed filter Q is at least 0.6 because close to Q 0.5 the band pass lower edge (frequency − bandwidth / 2)
+  reaches 0 Hz and the filter is no longer stable in 5.27 fixed point.
+- Copying a notch or band pass from TI PurePath Console: PPC sets these filters by bandwidth (its QVal is not used
+  for them), so use `q_factor` = frequency / bandwidth, eg 50 Hz with a 23 Hz bandwidth is `q_factor: 2.1739`.
+  A rounded Q gives a slightly different bandwidth.
+
+### Biquad order
+Biquads are allocated by the component, so no band or biquad numbers are needed in YAML. Filters in series give the
+same overall response in any order, only the signal level between biquads changes, so the component places the
+cuts first:
+1. `high_pass`
+2. `low_pass`, `notch`, `band_pass`
+3. `low_shelf`, `high_shelf`, `equalizer`, `peaking`
+
+Within each group the YAML order is kept. EQ bands and fixed filters of a channel are packed from biquad 1
+(after the 3 biquads of an EQ Preset, if the channel has one). The biquad given to each filter is shown in the log
+at startup (dump config). Only the filters in YAML are listed and written; biquads not listed keep their power
+on values, typically termed "flat" (all pass).
+
+### Sample rate
+The biquads are calculated for the 96 kHz rate the DSP processes at. With the TAS5805M the 96 kHz process flow
+converts the I2S input to 96 kHz; with the TAS5825M register 0x46 (DSP_CTRL) sets 96 kHz processing. A 48 kHz I2S
+`sample_rate:` (as in the example YAMLs) is recommended. With 44.1 kHz family input the TAS5805M may process at
+88.2 kHz, which would move every filter about 8% lower in frequency.
 
 
 ## EQ Presets - High-pass and Low-pass filter
@@ -156,9 +211,9 @@ power, data signal, short circuits, overheating etc. The general pattern for
 fault detection is periodic check of fault registers, and when there are any
 faults, provide notification through sensor/s and clear any fault afterwards.
 
-# Activation of Mixer mode and EQ Gains or EQ Presets
+# Activation of Mixer mode and EQ settings
 The TAS5805M and TAS5825M only accept the Mixer Mode, Left/Right Channel Volumes,
-EQ Mode and EQ Gains or EQ Presets settings once they are receiving an I2S signal.
+EQ Mode, EQ bands, fixed filters and EQ Presets settings once they are receiving an I2S signal.
 Until then, these settings are saved and the component writes them to the DAC
 the first time audio is played. No boot sound or additional YAML is required.
 
@@ -201,6 +256,10 @@ audio_dac:
     volume_min: -60db
     ignore_fault: CLOCK_FAULT # default can be omitted
     update_interval: 1s
+    right_fixed_filters:       # optional, notch and band_pass only (left_fixed_filters for the left channel)
+      - eq_filter: notch
+        frequency: 3150Hz
+        q_factor: 10           # bandwidth 315 Hz
 ```
 Configuration variables:
 - **tas58xx_dac:** (*Optional*): valid values TAS5805M or TAS5825M. Defaults to TAS5805M.
@@ -228,7 +287,17 @@ Configuration variables:
   That is, by default clock faults are ignored when determining if fault registers require clearing. To trigger clearing of fault registers on any fault condition, specify **ignore_fault: NONE**
 
 - **refresh_eq:** (*Optional*): no longer used and can be removed. It is still accepted, so existing
-  configurations remain valid. See "Activation of Mixer mode and EQ Gains" section above.
+  configurations remain valid. See "Activation of Mixer mode and EQ settings" section above.
+
+- **left_fixed_filters:** / **right_fixed_filters:** (*Optional*): a list of fixed filters for each channel, with no
+  gain and no Number in Home Assistant. Each entry:
+  - **eq_filter:** (*Required*): `notch` or `band_pass`
+  - **frequency:** (*Required*): 20 Hz to 16000 Hz, whole Hz
+  - **q_factor:** (*Required*): 0.6 to 30, bandwidth = frequency / q_factor
+
+  A channel with fixed filters counts as having EQ, so Select **eq_mode:** is required and EQ Mode changes apply to
+  the fixed filters too (see "Selects for Mixer Mode and EQ Mode"). With dac_mode PBTL right_fixed_filters are not
+  used (a warning is given). See "EQ Bands and Fixed Filters" above for limits and biquad order.
 
 - **update_interval:** (*Optional*): defines the interval (seconds) at which faults will be
   checked and then if detected, the clearing of the fault registers will occur at next interval. Defaults to 1s. **Note:** update interval cannot be reduced below 1s.
@@ -251,33 +320,44 @@ The desired Mixer Mode can also be defined under audio_dac: but if Select mixer_
 then the last selected Mixer Mode is saved and will be reloaded at next re-boot. If a Select Mixer Mode has been saved,
 this will supercede and be used instead of the Mixer Mode defined under audio_dac:
 
-If any EQ Gains or EQ Presets are configured then Eq Mode Select must be defined.
+If any EQ bands, fixed filters or EQ Presets are configured then Eq Mode Select must be defined.
 
 The EQ Mode select options (in addition to EQ Off) are determined by the YAML configuration as follows:
 
 | Config | Select options |
 |---|---|
-| Left EQ Gains only | EQ On Right=Left |
+| Left EQ bands and/or left fixed filters only | EQ On Right=Left |
 | Lone left EQ Preset | EQ Left On |
-| Right only (gains or preset) | EQ Right On |
-| Left and Right both configured (any combination of gains or presets) | EQ On Right=Left, EQ Left On, EQ Right On, EQ BIAMP On |
+| Right only (bands, fixed filters or preset) | EQ Right On |
+| Left and Right both configured (any combination of bands, fixed filters or presets) | EQ On Right=Left, EQ Left On, EQ Right On, EQ BIAMP On |
 
-- **EQ On Right=Left**: the left channel filters (gains or preset) are used by both channels
+- **EQ On Right=Left**: the right channel uses the left channel biquads. Right bands and right_fixed_filters are
+  not used; only the left bands, left_fixed_filters (or left preset) are used, for both channels
 - **EQ Left On**: only the left channel filters are used, the right channel is flat
 - **EQ Right On**: only the right channel filters are used, the left channel is flat
 - **EQ BIAMP On**: each channel uses its own filters
+- **EQ Off**: the DSP bypasses all EQ biquads of both channels, fixed filters included
 
-The DSP has no per channel EQ switch, so when the selection changes the filters of a channel that is not used are
+A channel set flat has its EQ bands (and preset) set to all pass; its fixed filters stay. So fixed filters are
+affected by EQ Mode as follows:
+
+| EQ Mode | Fixed filters |
+|---|---|
+| EQ BIAMP On, EQ Left On, EQ Right On | stay, including on the channel the mode makes flat |
+| EQ On Right=Left | right fixed filters not used; left fixed filters apply to both channels |
+| EQ Off | bypassed, with everything else |
+
+The DSP has no per channel EQ switch, so when the selection changes the bands of a channel that is not used are
 set flat and the filters of a channel that becomes used are written again.
-With dac_mode PBTL only the left channel is output, so right channel EQ Gains and Presets are ignored (with a warning)
-and the left channel (gains or preset) always gives EQ Left On.
+With dac_mode PBTL only the left channel is output, so right channel EQ bands, fixed filters and Presets are ignored
+(with a warning) and the left channel always gives EQ Left On.
 
 On startup the EQ Mode Select starts at the last option available, ie EQ BIAMP On if both channels are configured.
 
 
 # EQ Control configuration
 
-## Left/Right Channel Volume and EQ Band Gain Numbers
+## Left/Right Channel Volume and EQ Band Numbers
 
 Left and Right Channel Volume control can be optionally configured.
 If configured, both channels must be configured as follows:
@@ -291,83 +371,86 @@ number:
       name: _Volume Right
 ```
 
-For each channel up to 15 EQ Band Gain Numbers can be configured for controlling the gain of each EQ Band
-in Home Assistant. The number configuration heading for each number is shown below
-with an example name. Any number of bands can be configured on either channel. Only the bands that are
-configured are written to the DAC, the other bands stay at the DAC power on state which is flat (0dB).
+EQ bands are configured as a list for each channel, `left_bands:` and `right_bands:`. Each entry is a gain Number
+in Home Assistant (with the usual Number options such as `name:`) plus its filter:
 
-If only Left EQ Gains are configured then they are applied to both the left and right channels.
-To control left and right channels individually, configure Right EQ Gains as well. Right EQ Gains can
-also be configured without Left EQ Gains, in which case the left channel is flat.
-A channel has either EQ Gains or an EQ Preset, not both. With dac_mode: PBTL only the left channel
-is used, right channel numbers and selects are ignored with a warning.
-For EQ Band Gains to activate correctly requires some addition YAML configuration, refer to the
-"Activation of Mixer mode and EQ Gains" section above.
+- **eq_filter:** (*Optional*): `equalizer`, `peaking`, `low_shelf`, `high_shelf`, `low_pass` or `high_pass`.
+  Defaults to `equalizer`.
+- **frequency:** (*Required*): 20 Hz to 16000 Hz, whole Hz, eg `80Hz` or `1.25kHz`.
+- **q_factor:** (*Optional*): 0.1 to 20. Defaults to 2.144908 for `equalizer` and `peaking` and 0.707 for the
+  shelves. Not used by `low_pass` and `high_pass` (fixed Q 0.707), a warning is given if it is set for them.
 
-Example configuration of tas58xx platform (Band Gain) Numbers for each channel:
+The gain of each band is -24 dB to +24 dB (`high_shelf` and `high_pass`: -24 dB to +18 dB) in 1 dB steps. A band
+starts at 0 dB the first time, after that its last value is saved and restored at reboot. Saved values belong to
+the Number's name, so keep a band's name when editing the YAML to keep its saved gain.
+
+Any number of bands can be configured on either channel, up to 15 per channel together with that channel's fixed
+filters (12 with an EQ Preset). The component allocates the biquads (see "Biquad order" above); only the filters
+configured are written to the DAC, the other biquads stay at the DAC power on state which is flat. Each band's
+filter, frequency, Q factor (defaulted values included) and biquad are listed in the log at startup.
+
+If only Left EQ bands are configured then EQ On Right=Left applies them to both the left and right channels.
+To control left and right channels individually, configure Right EQ bands as well. Right EQ bands can
+also be configured without Left EQ bands, in which case the left channel is flat.
+A channel has either EQ bands or an EQ Preset, not both (fixed filters can be used with either).
+With dac_mode: PBTL only the left channel is used, right channel numbers and selects are ignored with a warning.
+For EQ bands to activate correctly see the "Activation of Mixer mode and EQ settings" section above.
+
+Example of a standard 15 band graphic EQ (ISO 2/3-octave centres with the default Q 2.144908) on the left
+channel, and a few bands with other filters on the right channel:
 ```
 number:
   - platform: tas58xx
-    left_eq_gain_20Hz:
-      name: Left Gain ---20Hz
-    left_eq_gain_31.5Hz:
-      name: Left Gain ---31.5Hz
-    left_eq_gain_50Hz:
-      name: Left Gain ---50Hz
-    left_eq_gain_80Hz:
-      name: Left Gain ---80Hz
-    left_eq_gain_125Hz:
-      name: Left Gain --125Hz
-    left_eq_gain_200Hz:
-      name: Left Gain --200Hz
-    left_eq_gain_315Hz:
-      name: Left Gain --315Hz
-    left_eq_gain_500Hz:
-      name: Left Gain --500Hz
-    left_eq_gain_800Hz:
-      name: Left Gain --800Hz
-    left_eq_gain_1250Hz:
-      name: Left Gain -1250Hz
-    left_eq_gain_2000Hz:
-      name: Left Gain -2000Hz
-    left_eq_gain_3150Hz:
-      name: Left Gain -3150Hz
-    left_eq_gain_5000Hz:
-      name: Left Gain -5000Hz
-    left_eq_gain_8000Hz:
-      name: Left Gain -8000Hz
-    left_eq_gain_16000Hz:
-      name: Left Gain 16000Hz
+    left_bands:
+      - name: Left ---25Hz
+        frequency: 25Hz
+      - name: Left ---40Hz
+        frequency: 40Hz
+      - name: Left ---63Hz
+        frequency: 63Hz
+      - name: Left --100Hz
+        frequency: 100Hz
+      - name: Left --160Hz
+        frequency: 160Hz
+      - name: Left --250Hz
+        frequency: 250Hz
+      - name: Left --400Hz
+        frequency: 400Hz
+      - name: Left --630Hz
+        frequency: 630Hz
+      - name: Left -1000Hz
+        frequency: 1000Hz
+      - name: Left -1600Hz
+        frequency: 1600Hz
+      - name: Left -2500Hz
+        frequency: 2500Hz
+      - name: Left -4000Hz
+        frequency: 4000Hz
+      - name: Left -6300Hz
+        frequency: 6300Hz
+      - name: Left 10000Hz
+        frequency: 10000Hz
+      - name: Left 16000Hz
+        frequency: 16000Hz
 
-    right_eq_gain_31.5Hz:
-      name: Right ---31.5Hz
-    right_eq_gain_50Hz:
-      name: Right ---50Hz
-    right_eq_gain_80Hz:
-      name: Right ---80Hz
-    right_eq_gain_125Hz:
-      name: Right --125Hz
-    right_eq_gain_200Hz:
-      name: Right --200Hz
-    right_eq_gain_315Hz:
-      name: Right --315Hz
-    right_eq_gain_500Hz:
-      name: Right --500Hz
-    right_eq_gain_800Hz:
-      name: Right --800Hz
-    right_eq_gain_1250Hz:
-      name: Right -1250Hz
-    right_eq_gain_2000Hz:
-      name: Right -2000Hz
-    right_eq_gain_3150Hz:
-      name: Right -3150Hz
-    right_eq_gain_5000Hz:
-      name: Right -5000Hz
-    right_eq_gain_8000Hz:
-      name: Right -8000Hz
-    right_eq_gain_16000Hz:
-      name: Right 16000Hz
+    right_bands:
+      - name: Right Subsonic
+        eq_filter: high_pass
+        frequency: 30Hz
+      - name: Right Bass
+        eq_filter: low_shelf
+        frequency: 80Hz
+      - name: Right Mid
+        frequency: 1kHz       # equalizer
+        q_factor: 1.4
+      - name: Right Treble
+        eq_filter: high_shelf
+        frequency: 8kHz
 ```
+
+With this example and the 3150 Hz right notch from the audio_dac example above, the right channel's biquads are:
+1 Right Subsonic (high pass), 2 the 3150 Hz notch (a cut), then 3 Right Bass, 4 Right Mid and 5 Right Treble in YAML
+order. Biquads 6 to 15 stay flat.
 
 All Numbers configured in Homeassistant are saved every minute and restored at next reboot.
 
@@ -388,9 +471,11 @@ select:
     eq_preset_right_channel:
       name: EQ Preset Right Cutoff
 ```
-Note: Each channel can have either an EQ Preset OR EQ Gains, not both. For example, EQ Gains on the left
+Note: Each channel can have either an EQ Preset OR EQ bands, not both. For example, EQ bands on the left
 channel with an EQ Preset on the right channel (a subwoofer) is valid. An EQ Preset can be configured for
 one channel only, the other channel then stays at the DAC power on state which is flat.
+An EQ Preset uses biquads 1 to 3 of its channel; fixed filters on the same channel follow from biquad 4
+(at most 12 fixed filters on a channel with a preset).
 
 
 ## DAC Enable Switch

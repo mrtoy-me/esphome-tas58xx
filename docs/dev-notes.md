@@ -6,7 +6,11 @@ branch state, the design, a to-check list and the plan forward.
 
 ## EQ band and fixed filter YAML rework (plan, 2026-10-16, branch `dev_update_eq_test`)
 Branch `dev_update_eq_test` is based on `dev_update_with_onaudio_plus_eq` (`0a1bd72`). **Breaking YAML changes
-against `main` are accepted on this branch only.** Not yet implemented.
+against `main` are accepted on this branch only.**
+Status (2026-10-16): implemented (`d4b104f` code, `a350fbd` range fixes, `2a38076` examples, `bf66b5f` compat, then
+README). Checked with ESPHome 2026.10.0b4 `config` and `compile --only-generate` (all 41 compat cases, the 4 example
+YAMLs and the README examples); helpers checked in a Python port against PPC and TI's formulas. **Not yet compiled
+for ESP32 or hardware tested** (no host or ESP-IDF toolchain on the PC used).
 
 ### Final YAML
 ```yaml
