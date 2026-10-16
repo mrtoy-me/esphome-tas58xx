@@ -19,10 +19,6 @@ CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
 
 ICON_VOLUME_SOURCE = "mdi:volume-source"
 
-# gain range of an EQ band, in dB
-EQ_BAND_MAX_GAIN = 24
-EQ_BAND_MIN_GAIN = -EQ_BAND_MAX_GAIN
-
 from ..audio_dac import (
     CHANNEL_ENUMS,
     CONF_DAC_MODE,
@@ -34,9 +30,13 @@ from ..audio_dac import (
     DAC_MODE_BTL,
     EQ_BAND_DEFAULT_Q,
     EQ_BAND_FILTERS,
+    EQ_BAND_MAX_GAIN,
+    EQ_BAND_MAX_GAIN_LIMITED,
     EQ_BAND_MAX_Q,
+    EQ_BAND_MIN_GAIN,
     EQ_BAND_MIN_Q,
     EQ_FIXED_Q_FILTERS,
+    EQ_GAIN_LIMITED_FILTERS,
     EQ_SHELF_Q,
     LEFT,
     RIGHT,
@@ -170,9 +170,11 @@ async def to_code(config):
         for list_index, band_config in enumerate(config.get(key, [])):
             cg.add_define("USE_TAS58XX_EQ_GAINS")
             biquad_index = get_band_biquad(config[CONF_TAS58XX_ID], channel, list_index)
+            max_gain = (EQ_BAND_MAX_GAIN_LIMITED if band_config[CONF_EQ_FILTER] in EQ_GAIN_LIMITED_FILTERS
+                        else EQ_BAND_MAX_GAIN)
             n = await number.new_number(
                 band_config, CHANNEL_ENUMS[channel], biquad_index,
-                min_value=EQ_BAND_MIN_GAIN, max_value=EQ_BAND_MAX_GAIN, step=1
+                min_value=EQ_BAND_MIN_GAIN, max_value=max_gain, step=1
             )
             await cg.register_component(n, band_config)
             await cg.register_parented(n, tas58xx_component)

@@ -70,9 +70,11 @@ EQ_GRAPHIC_Q = 2.144908
 EQ_SHELF_Q = 0.707
 EQ_BAND_MIN_Q = 0.1
 EQ_BAND_MAX_Q = 20.0
-# notch and band_pass: Q above 0.5 keeps the lower edge (frequency - frequency / (2Q)) above 0 Hz,
-# Q at most 30 as 5.27 rounding detunes very narrow low frequency filters (a 20 Hz notch is -49 dB at Q 30)
-EQ_FIXED_MIN_Q = 0.5
+# notch and band_pass: Q at least 0.6. Near Q 0.5 the band pass lower edge (frequency - frequency / (2Q)) reaches
+# 0 Hz and its pole reaches the unit circle (0.99999974 at Q 0.5001, exactly 1 after 5.27 rounding); at Q 0.6 the
+# largest pole radius from 20 Hz to 16 kHz is 0.99973. Q at most 30 is a practical limit: 5.27 rounding is not a
+# limit there (a 20 Hz notch is still over 72 dB deep at Q 100, its null moved by under 0.03 Hz)
+EQ_FIXED_MIN_Q = 0.6
 EQ_FIXED_MAX_Q = 30.0
 
 DAC_MODE_BTL = "BTL"
@@ -152,6 +154,13 @@ EQ_BAND_DEFAULT_Q = {
     "high_shelf": EQ_SHELF_Q,
 }
 EQ_FIXED_Q_FILTERS = ("low_pass", "high_pass")
+# gain range of the EQ bands in dB. A 5.27 coefficient holds just under +16: high_shelf and high_pass have
+# b1 = about -2 x the linear gain, which overflows above +18 dB (equalizer, peaking, low_shelf and low_pass do not
+# overflow up to +24 dB, from 20 Hz to 16 kHz and Q 0.1 to 20)
+EQ_BAND_MAX_GAIN = 24
+EQ_BAND_MIN_GAIN = -24
+EQ_BAND_MAX_GAIN_LIMITED = 18
+EQ_GAIN_LIMITED_FILTERS = ("high_shelf", "high_pass")
 # filters with no gain input, used by the audio_dac fixed filters
 EQ_FIXED_FILTERS = {
     "notch": FilterType.FILTER_TYPE_NOTCH,
@@ -180,8 +189,8 @@ def eq_frequency(value):
 
 def _validate_fixed_q(value):
     value = cv.positive_float(value)
-    if not EQ_FIXED_MIN_Q < value <= EQ_FIXED_MAX_Q:
-        raise cv.Invalid(f"q_factor must be above {EQ_FIXED_MIN_Q} and at most {EQ_FIXED_MAX_Q:g}, got {value:g}")
+    if not EQ_FIXED_MIN_Q <= value <= EQ_FIXED_MAX_Q:
+        raise cv.Invalid(f"q_factor must be from {EQ_FIXED_MIN_Q:g} to {EQ_FIXED_MAX_Q:g}, got {value:g}")
     return value
 
 

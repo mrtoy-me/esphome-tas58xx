@@ -66,7 +66,10 @@ select:
     1600, 2500, 4000, 6300, 10000, 16000 Hz with only `name` and `frequency` given.
   - History: `6b98ca4` (2026-04-10) tested these centres with Q 2.144908 for every band (`EQ_BAND_QFACTOR[0]`);
     the descending 2.0 to 0.5 table is not a standard.
-- Gain ±24 dB (was ±15). Starts at 0 dB on first boot, then the saved value is restored. Saved values are tied to
+- Gain ±24 dB (was ±15), except `high_shelf` and `high_pass`: -24 to +18 dB. A 5.27 coefficient holds just under
+  +16 and for those two filters b1 is about -2 x the linear gain, which overflows above +18 dB (checked 2026-10-16
+  from 20 Hz to 16 kHz and Q 0.1 to 20; the other filters do not overflow at +24 dB; all filters stable). The hub
+  also clamps the gain of those filters to +18 dB. Starts at 0 dB on first boot, then the saved value is restored. Saved values are tied to
   the number's name, not its biquad. On `low_pass` / `high_pass` the gain sets the passband level (PPC does the same).
 - Any filter with a gain input is defined only here, so always has a slider. No fixed gain, no initial gain.
 - The `left_eq_gain_<freq>Hz` / `right_eq_gain_<freq>Hz` keys are removed.
@@ -74,10 +77,14 @@ select:
 ### Fixed filters (`left_fixed_filters` / `right_fixed_filters`, audio_dac)
 - Gain-less filters only: `notch`, `band_pass`. `eq_filter`, `frequency` and `q_factor` are all required
   (0.707 is a poor default for a notch). Frequency 20 Hz to 16 kHz, whole Hz.
-- `q_factor` above 0.5 and at most 30. Q > 0.5 keeps TI's band pass lower edge (frequency - bandwidth / 2) above
-  0 Hz. With frequency at most 16 kHz the upper edge is at most 32 kHz, under the 48 kHz limit, so no upper edge
-  check is needed. Q at most 30 because 5.27 rounding detunes very narrow low frequency filters: a 20 Hz notch is
-  -49 dB deep at Q 30 but only -7 dB at Q 100 (checked 2026-10-16).
+- `q_factor` 0.6 to 30. Near Q 0.5 TI's band pass lower edge (frequency - bandwidth / 2) reaches 0 Hz and its pole
+  reaches the unit circle: 0.99999974 at Q 0.5001 from the formula itself, exactly 1 after 5.27 rounding (not
+  stable). At Q 0.6 the largest pole radius from 20 Hz to 16 kHz is 0.99973 (a 38 ms time constant). Notch has no
+  such problem but uses the same limit. With frequency at most 16 kHz the upper edge stays under 48 kHz, so no
+  upper edge check is needed. Q at most 30 is a practical limit, not a precision one: measured at the real null,
+  a 20 Hz notch is still over 72 dB deep at Q 100, the null moved by under 0.03 Hz (checked 2026-10-16).
+- C++ notch and band pass checked against TI's formula over 85 frequencies from 20 Hz to 16 kHz and 16 Q values
+  (2720 filters): 0 LSB difference everywhere.
 - The component works out bandwidth = frequency / q_factor (as a double). PPC takes a bandwidth and ignores its
   QVal field for these filters: to copy a PPC design use q_factor = frequency / bandwidth.
 
@@ -130,7 +137,7 @@ select:
   | | Number bands | Fixed filters (`notch`, `band_pass`) |
   |---|---|---|
   | `frequency` | required, 20 to 16000 Hz, whole Hz | required, 20 to 16000 Hz, whole Hz |
-  | `q_factor` | 0.1 to 20; default 2.144908 (equalizer, peaking) or 0.707 (shelves); warning if given for low/high pass | required, above 0.5 and at most 30 |
+  | `q_factor` | 0.1 to 20; default 2.144908 (equalizer, peaking) or 0.707 (shelves); warning if given for low/high pass | required, 0.6 to 30 |
   | count | bands + fixed filters at most 15 per channel (12 with a preset), else an error | |
 - Convert the 4 example YAMLs and the `docs/compat` cases; add cases for: q_factor warning, Q out of range,
   more than 15 filters, fixed filters with a preset, fixed filters only, PBTL right.
