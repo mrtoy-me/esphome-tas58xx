@@ -13,7 +13,8 @@ struct Tas58xxConfiguration {
 static constexpr uint8_t TAS58XX_CFG_META_DELAY = 254;
 
 // Startup sequences are derived from TI PurePath Console (PPC) register dumps. Register 0x00 selects the page.
-// Registers 0x46, 0x7D, 0x7E, page 1 register 0x51 and page 2 registers 0x1D, 0x19 are not documented in datasheet.
+// Registers 0x7D, 0x7E, page 1 register 0x51 and page 2 registers 0x1D, 0x19 are not documented in datasheet.
+// Register 0x46 is documented for TAS5825M only (DSP_CTRL); it is not documented for TAS5805M.
 
 static constexpr Tas58xxConfiguration TAS58XX_CONFIG[] = {
 // Header of every TI PurePath Console export: select book 0 in case the MCU restarted without a PDN toggle,
@@ -29,7 +30,7 @@ static constexpr Tas58xxConfiguration TAS58XX_CONFIG[] = {
 // Remainder of the startup sequence from TI PurePath Console, run after the reset.
 // Derived from the PPC "TAS5805M 3-Band DRC 2.0 96k" startup sequence.
     {0x03, 0x00},  // DEVICE_CTRL_2: deep sleep
-    {0x46, 0x01},
+    {0x46, 0x01},  // undocumented; PPC 96kHz process flow value (48kHz FIR flows write 0x11)
     {0x03, 0x02},  // DEVICE_CTRL_2: Hi-Z
     // The I2C address is latched at power up, after which the ADR pin can report faults
     {0x61, 0x0B},  // ADR_PIN_CONFIG: FAULTZ
@@ -61,7 +62,7 @@ static constexpr Tas58xxConfiguration TAS58XX_CONFIG[] = {
     {0x1D, 0x00},
     {0x19, 0x80},
     {0x00, 0x00},  // Page 0
-    {0x46, 0x11},
+    {0x46, 0x11},  // DSP_CTRL: USER_DEFINED_PROCESSING_RATE = 96k (bits 4-3 = 10), USE_DEFAULT_COEFFS
     // {0x02, 0x00} written here by PPC; but omitted as setup later writes DEVICE_CTRL_1 using YAML dac_mode
     {0x53, 0x01},  // ANA_CTRL: PWM phase control in phase, 100kHz high performance
     // {0x54, 0x00} written here by PPC; but omitted as setup later writes AGAIN using YAML analog_gain
