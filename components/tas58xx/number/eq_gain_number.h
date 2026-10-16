@@ -7,10 +7,11 @@
 
 namespace esphome::tas58xx {
 
-// One EQ gain number, for one band of one channel. Channel and band do not change, so are constructor parameters.
+// One EQ gain number, for one band of one channel. The channel and the biquad allocated to the band from YAML do
+// not change, so are constructor parameters.
 class EqGainNumber : public number::Number, public Component, public Parented<Tas58xxComponent> {
  public:
-  EqGainNumber(Channels channel, uint8_t band) : channel_(channel), band_(band) {}
+  EqGainNumber(Channels channel, uint8_t biquad_index) : channel_(channel), biquad_index_(biquad_index) {}
 
   void setup() override;
   void dump_config() override;
@@ -21,7 +22,7 @@ class EqGainNumber : public number::Number, public Component, public Parented<Ta
 
   ESPPreferenceObject pref_;
   Channels channel_;
-  uint8_t band_;
+  uint8_t biquad_index_;
 };
 
 }  // namespace esphome::tas58xx

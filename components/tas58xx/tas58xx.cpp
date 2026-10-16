@@ -238,6 +238,18 @@ void Tas58xxComponent::dump_config() {
       break;
   }
 
+#ifdef USE_TAS58XX_EQ_GAINS
+  // fixed filters from YAML; EQ bands are listed by their numbers, biquads not listed keep their power on (flat) state
+  for (uint8_t channel = LEFT_CHANNEL; channel < NUMBER_CHANNELS; channel++) {
+    for (uint8_t index = 0; index < NUMBER_EQ_BANDS; index++) {
+      if (!(this->eq_biquad_fixed_[channel] & (1u << index))) continue;
+      const EqBiquad &biquad = this->eq_biquads_[channel][index];
+      ESP_LOGCONFIG(TAG, "  %s Fixed Filter (biquad %d): %s %dHz Q %.3f", LR_CHANNEL_TEXT[channel], index + 1,
+                    FILTER_TYPE_TEXT[biquad.type], biquad.frequency, biquad.q_factor);
+    }
+  }
+#endif
+
 #ifdef USE_TAS58XX_BINARY_SENSOR
   ESP_LOGCONFIG(TAG, "Tas58xx Binary Sensors:");
   LOG_BINARY_SENSOR("  ", "Any Faults", this->have_fault_binary_sensor_);
@@ -408,62 +420,73 @@ uint8_t Tas58xxComponent::get_highest_eq_select_index() {
 }
 
 // used by eq gain numbers
-bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t band_index, int8_t gain) {
+bool Tas58xxComponent::set_eq_gain(Channels channel, uint8_t biquad_index, int8_t gain) {
 #ifdef USE_TAS58XX_EQ_GAINS
 
-  if (band_index >= NUMBER_EQ_BANDS) {
-    ESP_LOGE(TAG, "Invalid Band index: %d", band_index);
+  if (biquad_index >= NUMBER_EQ_BANDS || !(this->eq_biquad_used_[channel] & (1u << biquad_index))) {
+    ESP_LOGE(TAG, "Invalid %s biquad: %d", EQ_BAND, biquad_index + 1);
     return false;
   }
-
-  const uint8_t band = band_index + 1;
 
   if (gain < TAS58XX_EQ_MIN_DB || gain > TAS58XX_EQ_MAX_DB) {
-    ESP_LOGE(TAG, "Invalid %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+    ESP_LOGE(TAG, "Invalid %s Channel %s biquad %d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, biquad_index + 1,
+             gain);
     return false;
   }
 
-  this->tas58xx_eq_gain_[channel][band_index] = gain;
-  this->eq_gain_defined_[channel] |= static_cast<uint16_t>(1u << band_index);
+  this->tas58xx_eq_gain_[channel][biquad_index] = gain;
 
   // only save until the I2S clock has been seen
   if (!this->can_write_dsp_()) {
-    ESP_LOGD(TAG, "Save %s Channel %s:%d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, band, gain);
+    ESP_LOGD(TAG, "Save %s Channel %s biquad %d Gain: %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, biquad_index + 1,
+             gain);
     return true;
   }
   // a channel that is flat in the DSP gets its gains when an EQ mode needs them
   if (!this->eq_filters_written_[channel]) return true;
-  return this->write_eq_gain_(channel, band_index);
+  return this->write_eq_gain_(channel, biquad_index);
 #else
   return true;
 #endif
 }
 
 #ifdef USE_TAS58XX_EQ_GAINS
-const EqBand &Tas58xxComponent::eq_band_(Channels channel, uint8_t band_index) {
-  return (this->eq_bands_[channel] != nullptr ? this->eq_bands_[channel] : EQ_DEFAULT_BANDS)[band_index];
+void Tas58xxComponent::add_eq_biquad(Channels channel, uint8_t biquad_index, FilterType type, uint16_t frequency,
+                                     double q_factor, bool fixed) {
+  if (channel >= NUMBER_CHANNELS || biquad_index >= NUMBER_EQ_BANDS) return;
+  this->eq_biquads_[channel][biquad_index] = {type, frequency, q_factor, fixed};
+  this->eq_biquad_used_[channel] |= static_cast<uint16_t>(1u << biquad_index);
+  if (fixed) this->eq_biquad_fixed_[channel] |= static_cast<uint16_t>(1u << biquad_index);
 }
 
-BiquadCoefficients Tas58xxComponent::eq_gain_biquad_(Channels channel, uint8_t band_index) {
-  const EqBand &eq_band = this->eq_band_(channel, band_index);
-  return make_biquad(eq_band.type, EQ_SAMPLE_RATE, eq_band.frequency,
-                                      this->tas58xx_eq_gain_[channel][band_index], eq_band.q_factor);
+// fixed filters have no gain
+BiquadCoefficients Tas58xxComponent::eq_biquad_coefficients_(Channels channel, uint8_t biquad_index) {
+  const EqBiquad &biquad = this->eq_biquads_[channel][biquad_index];
+  const int8_t gain = biquad.fixed ? 0 : this->tas58xx_eq_gain_[channel][biquad_index];
+  return make_biquad(biquad.type, EQ_SAMPLE_RATE, biquad.frequency, gain, biquad.q_factor);
 }
 
-void Tas58xxComponent::log_eq_gain_(Channels channel, uint8_t band_index) {
-  ESP_LOGD(TAG, "%s Channel %s:%dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, this->eq_band_(channel, band_index).frequency,
-           this->tas58xx_eq_gain_[channel][band_index]);
+void Tas58xxComponent::log_eq_biquad_(Channels channel, uint8_t biquad_index) {
+  const EqBiquad &biquad = this->eq_biquads_[channel][biquad_index];
+  if (biquad.fixed) {
+    ESP_LOGD(TAG, "%s Channel Fixed Filter biquad %d: %s %dHz Q %.3f", LR_CHANNEL_TEXT[channel], biquad_index + 1,
+             FILTER_TYPE_TEXT[biquad.type], biquad.frequency, biquad.q_factor);
+  } else {
+    ESP_LOGD(TAG, "%s Channel %s biquad %d: %s %dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, biquad_index + 1,
+             FILTER_TYPE_TEXT[biquad.type], biquad.frequency, this->tas58xx_eq_gain_[channel][biquad_index]);
+  }
 }
 #endif
 
-bool Tas58xxComponent::write_eq_gain_(Channels channel, uint8_t band_index) {
+bool Tas58xxComponent::write_eq_gain_(Channels channel, uint8_t biquad_index) {
 #ifdef USE_TAS58XX_EQ_GAINS
-  const BiquadCoefficients biquad = this->eq_gain_biquad_(channel, band_index);
-  if (!this->write_eq_biquads_(channel, band_index, &biquad, 1)) {
-    ESP_LOGW(TAG, "%s writing %s Channel %s:%d Gain", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, band_index + 1);
+  const BiquadCoefficients biquad = this->eq_biquad_coefficients_(channel, biquad_index);
+  if (!this->write_eq_biquads_(channel, biquad_index, &biquad, 1)) {
+    ESP_LOGW(TAG, "%s writing %s Channel %s biquad %d Gain", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND,
+             biquad_index + 1);
     return false;
   }
-  this->log_eq_gain_(channel, band_index);
+  this->log_eq_biquad_(channel, biquad_index);
 #endif
   return true;
 }
@@ -527,32 +550,37 @@ bool Tas58xxComponent::write_eq_biquads_(Channels channel, uint8_t biquad_index,
 #endif
 }
 
-// write the biquads defined in YAML of a channel: its gains or preset (filters = true) or flat
-// consecutive gain bands are written together
+// write the biquads defined in YAML of a channel: its bands, fixed filters or preset (filters = true), or flat
+// flat sets the bands and preset to all pass and keeps the fixed filters
+// consecutive biquads are written together
 bool Tas58xxComponent::write_eq_channel_(Channels channel, bool filters) {
   bool ok = true;
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
 #ifdef USE_TAS58XX_EQ_GAINS
-  // only bands with a gain number in YAML are written, the other biquads keep their power on (flat) state
-  const uint16_t defined = this->eq_gain_defined_[channel];
+  // only biquads in YAML are written, the other biquads keep their power on (flat) state
+  const uint16_t used = this->eq_biquad_used_[channel];
+  const uint16_t fixed = this->eq_biquad_fixed_[channel];
   BiquadCoefficients biquads[NUMBER_EQ_BANDS];
-  uint8_t band = 0;
-  while (band < NUMBER_EQ_BANDS) {
-    if (!(defined & (1u << band))) {
-      band++;
+  uint8_t index = 0;
+  while (index < NUMBER_EQ_BANDS) {
+    if (!(used & (1u << index))) {
+      index++;
       continue;
     }
-    const uint8_t first = band;
-    for (; band < NUMBER_EQ_BANDS && (defined & (1u << band)); band++) {
-      biquads[band] = filters ? this->eq_gain_biquad_(channel, band) : ALL_PASS;
+    const uint8_t first = index;
+    for (; index < NUMBER_EQ_BANDS && (used & (1u << index)); index++) {
+      biquads[index] = (filters || (fixed & (1u << index))) ? this->eq_biquad_coefficients_(channel, index) : ALL_PASS;
     }
-    if (!this->write_eq_biquads_(channel, first, &biquads[first], band - first)) {
-      ESP_LOGW(TAG, "%s writing %s Channel %s:%d to %d", ERROR, LR_CHANNEL_TEXT[channel], EQ_BAND, first + 1, band);
+    if (!this->write_eq_biquads_(channel, first, &biquads[first], index - first)) {
+      ESP_LOGW(TAG, "%s writing %s Channel biquads %d to %d", ERROR, LR_CHANNEL_TEXT[channel], first + 1, index);
       ok = false;
-    } else if (filters) {
-      for (uint8_t written = first; written < band; written++) this->log_eq_gain_(channel, written);
+    } else {
+      for (uint8_t written = first; written < index; written++) {
+        if (filters || (fixed & (1u << written))) this->log_eq_biquad_(channel, written);
+      }
     }
   }
+  if (ok && fixed != 0) this->eq_fixed_written_[channel] = true;
 #endif
 #ifdef USE_TAS58XX_EQ_PRESETS
   if (this->eq_preset_defined_[channel]) {
@@ -580,8 +608,10 @@ bool Tas58xxComponent::write_eq_channels_(bool rewrite_filters) {
 #if defined(USE_TAS58XX_EQ_GAINS) || defined(USE_TAS58XX_EQ_PRESETS)
   for (uint8_t channel = LEFT_CHANNEL; channel < NUMBER_CHANNELS; channel++) {
     bool defined = false;
+    bool fixed_to_write = false;  // fixed filters are written when a channel is first set flat too
 #ifdef USE_TAS58XX_EQ_GAINS
-    defined |= this->eq_gain_defined_[channel] != 0;
+    defined |= this->eq_biquad_used_[channel] != 0;
+    fixed_to_write = this->eq_biquad_fixed_[channel] != 0 && !this->eq_fixed_written_[channel];
 #endif
 #ifdef USE_TAS58XX_EQ_PRESETS
     defined |= this->eq_preset_defined_[channel];
@@ -595,7 +625,7 @@ bool Tas58xxComponent::write_eq_channels_(bool rewrite_filters) {
         if ((!written || rewrite_filters) && !this->write_eq_channel_(ch, true)) ok = false;
         break;
       case EQ_CHANNEL_FLAT:
-        if (written && !this->write_eq_channel_(ch, false)) ok = false;
+        if ((written || fixed_to_write) && !this->write_eq_channel_(ch, false)) ok = false;
         break;
       default:
         if (written && rewrite_filters && !this->write_eq_channel_(ch, true)) ok = false;

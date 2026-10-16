@@ -14,7 +14,17 @@
 
 namespace esphome::tas58xx {
 
-struct EqBand;  // tas58xx_eq.h
+// one EQ biquad of a channel, set from YAML: an EQ band (with a gain number) or a fixed filter (no gain)
+struct EqBiquad {
+  FilterType type;
+  uint16_t frequency;
+  double q_factor;  // double, so a Q such as 2.144908 is the same value TI PurePath Console uses
+  bool fixed;
+};
+
+// text of each FilterType, for logs
+static constexpr const char *const FILTER_TYPE_TEXT[] = {"All Pass",  "Equalizer", "Peaking", "Low Shelf", "High Shelf",
+                                                         "Low Pass",  "High Pass", "Notch",   "Band Pass"};
 
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
@@ -86,12 +96,16 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
   void select_eq_mode(uint8_t select_index);
   uint8_t get_highest_eq_select_index();
 
-  bool set_eq_gain(Channels channel, uint8_t band_index, int8_t gain);
+  // used by eq gain numbers, biquad_index is the biquad allocated to the band from YAML
+  bool set_eq_gain(Channels channel, uint8_t biquad_index, int8_t gain);
 
 #ifdef USE_TAS58XX_EQ_GAINS
-  // the filter of each EQ gain number band, a constant table of NUMBER_EQ_BANDS bands for the channel
-  // when not set, EQ_DEFAULT_BANDS is used
-  void config_eq_bands(Channels channel, const EqBand *bands) { this->eq_bands_[channel] = bands; }
+  // the EQ bands and fixed filters of a channel, each in the biquad allocated to it from YAML
+  void add_eq_biquad(Channels channel, uint8_t biquad_index, FilterType type, uint16_t frequency, double q_factor,
+                     bool fixed);
+  const EqBiquad &get_eq_biquad(Channels channel, uint8_t biquad_index) const {
+    return this->eq_biquads_[channel][biquad_index];
+  }
 #endif
 
   bool set_eq_preset(Channels channel, uint8_t select_preset);
@@ -121,11 +135,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool write_eq_channels_(bool rewrite_filters);
    bool write_eq_biquads_(Channels channel, uint8_t biquad_index, const BiquadCoefficients *biquads,
                           uint8_t count);
-   bool write_eq_gain_(Channels channel, uint8_t band_index);
+   bool write_eq_gain_(Channels channel, uint8_t biquad_index);
 #ifdef USE_TAS58XX_EQ_GAINS
-   const EqBand &eq_band_(Channels channel, uint8_t band_index);
-   BiquadCoefficients eq_gain_biquad_(Channels channel, uint8_t band_index);
-   void log_eq_gain_(Channels channel, uint8_t band_index);
+   BiquadCoefficients eq_biquad_coefficients_(Channels channel, uint8_t biquad_index);
+   void log_eq_biquad_(Channels channel, uint8_t biquad_index);
 #endif
    bool write_eq_mode_();
    bool write_eq_preset_(Channels channel);
@@ -185,12 +198,14 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    DacMode tas58xx_dac_mode_; // configured in YAML
 
-   int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{}; // used if eq gain numbers are defined in YAML
+   int8_t tas58xx_eq_gain_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{}; // gain of each EQ band biquad, set by its number
 
 #ifdef USE_TAS58XX_EQ_GAINS
    // only the biquads defined in YAML are written, the others stay at their power on (flat) state
-   uint16_t eq_gain_defined_[NUMBER_CHANNELS]{0}; // one bit per band, set by an EQ gain number
-   const EqBand *eq_bands_[NUMBER_CHANNELS]{nullptr, nullptr};
+   EqBiquad eq_biquads_[NUMBER_CHANNELS][NUMBER_EQ_BANDS]{};
+   uint16_t eq_biquad_used_[NUMBER_CHANNELS]{0};   // one bit per biquad defined in YAML
+   uint16_t eq_biquad_fixed_[NUMBER_CHANNELS]{0};  // one bit per fixed filter, kept when the channel is set flat
+   bool eq_fixed_written_[NUMBER_CHANNELS]{false, false};  // fixed filters are in the DSP
 #endif
 #ifdef USE_TAS58XX_EQ_PRESETS
    bool eq_preset_defined_[NUMBER_CHANNELS]{false}; // set by an EQ preset select

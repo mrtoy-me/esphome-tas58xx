@@ -22,8 +22,8 @@ from ..audio_dac import (
     get_audio_dac_config,
     get_eq_channels,
     get_eq_modes,
+    has_eq,
     tas58xx_ns,
-    validate_eq_channels,
 )
 
 EqModeSelect = tas58xx_ns.class_("EqModeSelect", select.Select, cg.Component)
@@ -57,25 +57,19 @@ def _final_validate(config):
     full_conf = fv.full_config.get()
     audio_dac_id = config[CONF_TAS58XX_ID]
 
-    # the tas58xx number config with the same audio_dac ID as this select
+    # the tas58xx number and audio_dac configs with the same audio_dac ID as this select
+    # EQ checks (eq_mode required, bands with presets, biquad count) are done by the audio_dac final validation
     number_conf = find_matching_config(full_conf, audio_dac_id, CONF_NUMBER)
-    eq_channels = get_eq_channels(number_conf, config)
-    have_eq_gains = eq_channels.left_gains or eq_channels.right_gains
-    have_eq_presets = eq_channels.left_preset or eq_channels.right_preset
-
-    # each channel has either EQ gain numbers or an EQ preset, not both
-    validate_eq_channels(eq_channels)
-
-    if have_eq_gains and CONF_EQ_MODE not in config:
-        raise cv.Invalid("Select eq_mode is required with EQ Gain numbers - add Select eq_mode to YAML configuration")
+    audio_dac_conf = get_audio_dac_config(full_conf, audio_dac_id)
+    eq_channels = get_eq_channels(number_conf, config, audio_dac_conf)
 
     # warn rather than fail, so YAML that was valid in earlier releases still validates
-    if (audio_dac_conf := get_audio_dac_config(full_conf, audio_dac_id)) is not None:
+    if audio_dac_conf is not None:
         if audio_dac_conf.get(CONF_DAC_MODE) != DAC_MODE_BTL and eq_channels.right_preset:
             _LOGGER.warning("Select eq_preset_right_channel is not used when dac_mode is PBTL - it can be removed from YAML configuration")
 
-    if CONF_EQ_MODE in config and not (have_eq_gains or have_eq_presets):
-        _LOGGER.warning("Select eq_mode only applies when Select EQ Presets or EQ Gain numbers are configured - it can be removed from YAML configuration")
+    if CONF_EQ_MODE in config and not has_eq(eq_channels):
+        _LOGGER.warning("Select eq_mode only applies when EQ bands, fixed filters or EQ Presets are configured - it can be removed from YAML configuration")
 
     return config
 

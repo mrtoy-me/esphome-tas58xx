@@ -168,6 +168,34 @@ static BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequenc
   return result;
 }
 
+// Derived from biquad.model.js in TI Pure Path Console 3 (bandPassCalc and notchCalc), which take a bandwidth.
+// Here bandwidth = frequency / Q, so t = tan(pi * bandwidth / Fs) = tan(w0 / (2 * Q)).
+// TI's band pass calculates C = tan(Wc / 2) from the band edges, but C cancels out of every coefficient, so it
+// is not calculated; its alpha = cos(w0) / cos(pi * bandwidth / Fs) uses 1 / cos(x) = sqrt(1 + tan(x)^2).
+static BiquadCoefficients bandwidth_filter(bool notch, uint32_t sample_rate, uint16_t frequency, double q_factor) {
+  const double w0 = angular_frequency(sample_rate, frequency);
+  const double t = std::tan(0.5 * w0 / q_factor);
+  const double inverse_a0 = 1.0 / (1.0 + t);
+  const double cos_w0 = std::cos(w0);
+
+  BiquadCoefficients result{};
+  if (notch) {
+    const double b1 = -2.0 * cos_w0 * inverse_a0;
+    result.b0 = double_to_fixed_5_27(inverse_a0);
+    result.b1 = double_to_fixed_5_27(b1);
+    result.b2 = result.b0;
+    result.a1 = double_to_fixed_5_27(-b1);
+  } else {
+    const double b0 = t * inverse_a0;
+    result.b0 = double_to_fixed_5_27(b0);
+    result.b1 = double_to_fixed_5_27(0.0);
+    result.b2 = double_to_fixed_5_27(-b0);
+    result.a1 = double_to_fixed_5_27(2.0 * cos_w0 * inverse_a0 * std::sqrt(1.0 + t * t));
+  }
+  result.a2 = double_to_fixed_5_27((t - 1.0) * inverse_a0);
+  return result;
+}
+
 
 int32_t gain_to_fixed_9_23(int8_t gain) {
   static constexpr float SCALE = 8388608.0f;  // 2^23
@@ -199,6 +227,10 @@ BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t f
       return pass_filter(false, sample_rate, frequency, gain);
     case FILTER_TYPE_HIGH_PASS:
       return pass_filter(true, sample_rate, frequency, gain);
+    case FILTER_TYPE_NOTCH:
+      return bandwidth_filter(true, sample_rate, frequency, q_factor);
+    case FILTER_TYPE_BAND_PASS:
+      return bandwidth_filter(false, sample_rate, frequency, q_factor);
     case FILTER_TYPE_ALL_PASS:
     default:
       return ALL_PASS;
