@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__1a59c906-04da-521d-bda7-7f71b9f9e01c__read",
+      "mcp__plugin_parallel_parallel-search__web_fetch",
+      "mcp__ccd_pr__get_status"
+    ]
+  }
+}
