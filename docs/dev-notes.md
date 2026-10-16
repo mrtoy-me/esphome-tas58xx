@@ -123,8 +123,15 @@ select:
   filters. Only filters in YAML are listed; the docs note that unlisted biquads keep their power-on (flat) values.
 
 ### Docs, examples and checks
-- README EQ section: the YAML above, filters and what each uses, defaults, ordering, flat and mode behaviour,
-  PPC Q conversion, unlisted biquads flat.
+- README EQ section: the YAML above, filters and what each uses, defaults (with the ISO 266 / 2/3-octave
+  constant-Q source for 2.144908), ordering, flat and mode behaviour (the fixed filter table above), PPC Q
+  conversion, unlisted biquads flat, and a validation table:
+
+  | | Number bands | Fixed filters (`notch`, `band_pass`) |
+  |---|---|---|
+  | `frequency` | required, 20 to 16000 Hz, whole Hz | required, 20 to 16000 Hz, whole Hz |
+  | `q_factor` | 0.1 to 20; default 2.144908 (equalizer, peaking) or 0.707 (shelves); warning if given for low/high pass | required, above 0.5 and at most 30 |
+  | count | bands + fixed filters at most 15 per channel (12 with a preset), else an error | |
 - Convert the 4 example YAMLs and the `docs/compat` cases; add cases for: q_factor warning, Q out of range,
   more than 15 filters, fixed filters with a preset, fixed filters only, PBTL right.
 - `docs/tools/ppc_check`: add the notch and band pass cases from the PPC reference file.
