@@ -35,7 +35,7 @@ number:
         frequency: 80Hz
       - name: "Left Mid"
         frequency: 1kHz              # eq_filter defaults to equalizer
-        q_factor: 1.4                # defaults to 0.707
+        q_factor: 1.4                # equalizer and peaking default 2.144908, shelves 0.707
       - name: "Left Treble"
         eq_filter: high_shelf
         frequency: 8kHz
@@ -56,8 +56,16 @@ select:
   Each entry is the gain number (`EqGainNumber` schema) plus:
   - `eq_filter`: `equalizer` (default), `peaking`, `low_shelf`, `high_shelf`, `low_pass`, `high_pass`.
     `all_pass` is not offered (used internally for flat biquads).
-  - `frequency`: required, ESPHome frequency (`80Hz`, `1.25kHz`), rounded to whole Hz, 10 Hz to 20 kHz.
-  - `q_factor`: default 0.707, > 0, at most 20. Warning if given for `low_pass` / `high_pass` (fixed Q 0.707).
+  - `frequency`: required, ESPHome frequency (`80Hz`, `1.25kHz`), whole Hz only (a fraction such as `31.5Hz` is
+    an error), 20 Hz to 16 kHz.
+  - `q_factor`: 0.1 to 20. Default 2.144908 for `equalizer` and `peaking`, the constant Q of a 2/3-octave graphic
+    EQ, Q = sqrt(2^N) / (2^N - 1) with N = 2/3 (sources: ISO 266:1997 preferred frequencies; constant-Q 15 band
+    equalizers such as the dbx 3215, "15 ISO standard center, 2/3 octave constant Q frequency bands" 25 Hz to
+    16 kHz). Default 0.707 for `low_shelf` and `high_shelf`. Warning if given for `low_pass` / `high_pass` (fixed
+    Q 0.707). A full 15 band graphic EQ is the ISO 2/3-octave centres 25, 40, 63, 100, 160, 250, 400, 630, 1000,
+    1600, 2500, 4000, 6300, 10000, 16000 Hz with only `name` and `frequency` given.
+  - History: `6b98ca4` (2026-04-10) tested these centres with Q 2.144908 for every band (`EQ_BAND_QFACTOR[0]`);
+    the descending 2.0 to 0.5 table is not a standard.
 - Gain ±24 dB (was ±15). Starts at 0 dB on first boot, then the saved value is restored. Saved values are tied to
   the number's name, not its biquad. On `low_pass` / `high_pass` the gain sets the passband level (PPC does the same).
 - Any filter with a gain input is defined only here, so always has a slider. No fixed gain, no initial gain.
@@ -65,7 +73,11 @@ select:
 
 ### Fixed filters (`left_fixed_filters` / `right_fixed_filters`, audio_dac)
 - Gain-less filters only: `notch`, `band_pass`. `eq_filter`, `frequency` and `q_factor` are all required
-  (0.707 is a poor default for a notch). Q > 0.5 and frequency × (1 + 1 / (2Q)) ≤ 20 kHz.
+  (0.707 is a poor default for a notch). Frequency 20 Hz to 16 kHz, whole Hz.
+- `q_factor` above 0.5 and at most 30. Q > 0.5 keeps TI's band pass lower edge (frequency - bandwidth / 2) above
+  0 Hz. With frequency at most 16 kHz the upper edge is at most 32 kHz, under the 48 kHz limit, so no upper edge
+  check is needed. Q at most 30 because 5.27 rounding detunes very narrow low frequency filters: a 20 Hz notch is
+  -49 dB deep at Q 30 but only -7 dB at Q 100 (checked 2026-10-16).
 - The component works out bandwidth = frequency / q_factor (as a double). PPC takes a bandwidth and ignores its
   QVal field for these filters: to copy a PPC design use q_factor = frequency / bandwidth.
 
@@ -89,6 +101,13 @@ select:
 - EQ On Right=Left: the right channel uses the left channel's biquads. Right bands and right_fixed_filters are
   not used; only left bands and left_fixed_filters are used, for both channels.
 - PBTL: right bands and right_fixed_filters log a "not used" warning.
+- For the docs, fixed filters by EQ mode:
+
+  | EQ mode | Fixed filters |
+  |---|---|
+  | EQ BIAMP On, EQ Left On, EQ Right On | stay, including on the channel the mode makes flat |
+  | EQ On Right=Left | right fixed filters not used; left fixed filters apply to both channels |
+  | EQ Off | bypassed, with everything else |
 
 ### C++
 - Helpers: `FILTER_TYPE_BAND_PASS`, `FILTER_TYPE_NOTCH`, a shared `bandwidth_filter()` and
