@@ -213,6 +213,10 @@ branch state, the design, a to-check list and the plan forward.
    3. EQ mode plus 15-band gains
    4. biamp
    5. presets
+   6. register 0x46 comments in `model_tas5805m.cpp` and `model_tas5825m.cpp`: both say 0x46 is not
+      documented, which is only true for TAS5805M. TAS5825M 0x46 is DSP_CTRL (datasheet 9.6.1.16), 0x11 =
+      96 kHz processing with default coefficients. Checked against PPC 2.0 dumps at 96 and 48 kHz (2026-10-16);
+      the esphome-tas58xx startup tables already carry the corrected comments.
 
    Each PR reuses beta's activation mechanism plus the `can_write_dsp_()` rule, and needs:
    - upstream structure (`ModelInfo`, EQ addresses per model)
