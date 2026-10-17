@@ -4,6 +4,45 @@ Notes from the session of 2026-10-10 so work can continue in a later session, ei
 or in the cloud. Read this first. It covers the goal, the requirements set so far, the current
 branch state, the design, a to-check list and the plan forward.
 
+## Upstream PR plan (2026-10-17)
+Goal: EQ in ESPHome's own tas58xx (`esphome/esphome`, `esphome/components/tas58xx`). This component is the
+proof of concept and the wider user test bed.
+
+**Scope:** start from upstream tas58xx as it is on `dev`. Raise the branches already waiting in `mrtoy-me/esphome`,
+then bring EQ across as in `docs/TAS58xx_EQ_Control_Proposal_v1.docx`. No other features from this component (no
+mixer select, channel volume numbers, enable switch or fault sensor).
+
+**Rules:**
+- Based on ESPHome `dev`, not a beta or release. Local checks use the `dev` worktree (`D:/NAS/github/esphome-dev`).
+- One upstream PR open at a time. Each PR is under 1000 lines, preferably under 500, with tests in
+  `tests/components/tas58xx` and an esphome.io docs PR where users see a change.
+- The EQ design is implemented and hardware tested on this component first; the upstream PRs port proven behaviour.
+- Upstream code is written for upstream's structure (`ModelInfo` per model, `model_*.cpp`), reusing this
+  component's math, register tables and test cases, not copying its files.
+- Follow current `dev` conventions: `DOMAIN`, `.options()` for enum option dicts (#20910 / #20911),
+  `status_comm_result` (#20863) and `get_declaring_config` (#20912) once merged; clang-format, ruff and clang-tidy clean.
+- EQ on ESP32 only (ESP32-S3 recommended); reject or warn on ESP8266 and RP2040, which upstream tas58xx also builds for.
+
+| # | PR | Source / content | Est. size |
+|---|---|---|---|
+| 1 | `[tas58xx] Add fault_output to choose the FAULTZ pin` | branch `add_fault_output` (`ee421f4`) | ~110 lines |
+| 2 | `[tas58xx] Add modulation option` (`bd_mode` / `1spw_mode`) | branch `add_modulation_option` (`dd23c49`) | ~30 lines |
+| 3 | `[tas58xx] Correct the register 0x46 comments` | TAS5825M 0x46 is DSP_CTRL (datasheet 9.6.1.16), 0x11 = 96 kHz processing with default coefficients; "not documented" is only true for TAS5805M. Checked against PPC 2.0 dumps at 96 and 48 kHz (2026-10-16) | ~5 lines |
+| 4 | EQ foundation (no user change) | EQ addresses per model in `ModelInfo` (biquad base left and right, EQ bypass flag); DSP write across pages (mixer write moved to it); "write once audio starts" generalised from `mixer_written_`; `make_biquad()` and 5.27 conversion with C++ unit tests against the PPC reference | 350-450 |
+| 5 | EQ bands | number platform: `left_bands` / `right_bands`, filter types, frequency (rounded) and Q rules, gain limits, biquad allocation, values restored | 450-550 |
+| 6 | Stereo bands and EQ switch | `stereo_bands` (one slider writes both channels); switch platform `eq_mode` On / Off with the bypass flag, `RESTORE_DEFAULT_ON`. **The switch is optional: without it EQ is always On** | 300-450 |
+| 7 | Fixed filters | `audio_dac` `left_fixed_filters` / `right_fixed_filters` (notch, band pass), `fixed_filters_always_on` (warning if set without the switch), the write-flat EQ Off path | 250-350 |
+| 8 | EQ presets | select platform `eq_preset_left_channel` / `eq_preset_right_channel`, preset table, presets mixed with bands (preset biquads 1-3) | 300-400 |
+
+Notes:
+- 1 and 2 each apply cleanly to `dev` but conflict with each other (same lines in `audio_dac.py`, `tas58xx.cpp`
+  and the tests): raise 1, then rebase 2 after 1 merges. Both need updating to `dev` first (`.options()` for their
+  option dicts) and an esphome.io docs PR.
+- 7 and 8 could be one PR if the port comes out under about 600 lines.
+- 5 may approach 500 lines; if it goes over, split it into "number platform and allocation" and "biquad writes and
+  restore".
+- Sizes are estimates from this component, including tests.
+
 ## EQ band and fixed filter YAML rework (plan, 2026-10-16, branch `dev_update_eq_test`)
 Branch `dev_update_eq_test` is based on `dev_update_with_onaudio_plus_eq` (`0a1bd72`). **Breaking YAML changes
 against `main` are accepted on this branch only.**
@@ -427,23 +466,7 @@ reference" and "Open items for next time" at the end of this file.
 3. ~~Refactor the 30 EQ gain number classes into one parameterised class.~~ Done on
    `dev_update_with_onaudio`; YAML keys unchanged.
 4. **Bring in the separate EQ redesign branch** (lowercase keys, optional gains, and so on).
-5. **Upstream PRs to `esphome/tas58xx`,** small and targeted. A possible order:
-   1. channel volume numbers
-   2. mixer mode select
-   3. EQ mode plus 15-band gains
-   4. biamp
-   5. presets
-   6. register 0x46 comments in `model_tas5805m.cpp` and `model_tas5825m.cpp`: both say 0x46 is not
-      documented, which is only true for TAS5805M. TAS5825M 0x46 is DSP_CTRL (datasheet 9.6.1.16), 0x11 =
-      96 kHz processing with default coefficients. Checked against PPC 2.0 dumps at 96 and 48 kHz (2026-10-16);
-      the esphome-tas58xx startup tables already carry the corrected comments.
-
-   Each PR reuses beta's activation mechanism plus the `can_write_dsp_()` rule, and needs:
-   - upstream structure (`ModelInfo`, EQ addresses per model)
-   - lowercase keys
-   - a single gain class
-   - an EQ restriction on ESP8266/RP2040
-   - clang-format, ruff and clang-tidy clean
+5. **Upstream PRs to `esphome/tas58xx`:** replaced by "Upstream PR plan" at the top of this file (2026-10-17).
 
 ## fault_output (upstream PR)
 Branch `add_fault_output` on `mrtoy-me/esphome`, one commit `ee421f4`
