@@ -43,7 +43,8 @@ Notes:
   restore".
 - Sizes are estimates from this component, including tests.
 
-**To-do for the `dev_update_eq_test` branch in ESPHome's tas58xx (`mrtoy-me/esphome`, based on `dev`):**
+**To-do for the `dev_eq_test` branch in ESPHome's tas58xx (`mrtoy-me/esphome`, based on `dev`; the same list is in
+`TAS58XX_TODO.md` on that branch):**
 - `volume_follows: <audio_dac id>` option: a DAC that no speaker drives (eg a second DAC on the same I2S output)
   copies volume and mute from the given DAC, at boot and on every change, so no media player `on_volume` /
   `on_mute` / `on_unmute` lambdas are needed. Until then the YAML workaround is those three triggers copying
@@ -64,8 +65,8 @@ Notes:
 - **Hex log macros:** `ESP_LOGV_HEX` / `ESP_LOGD_HEX` (#20931) for verbose dumps of DSP writes or coefficients.
   Minor; only if the EQ code logs raw bytes.
 
-## EQ band and fixed filter YAML rework (plan, 2026-10-16, branch `dev_update_eq_test`)
-Branch `dev_update_eq_test` is based on `dev_update_with_onaudio_plus_eq` (`0a1bd72`). **Breaking YAML changes
+## EQ band and fixed filter YAML rework (plan, 2026-10-16, branch `dev_update_eq_proto`, named `dev_update_eq_test` until 2026-10-18)
+Branch `dev_update_eq_proto` is based on `dev_update_with_onaudio_plus_eq` (`0a1bd72`). **Breaking YAML changes
 against `main` are accepted on this branch only.**
 Status (2026-10-16): implemented (`d4b104f` code, `a350fbd` range fixes, `2a38076` examples, `bf66b5f` compat, then
 README). Checked with ESPHome 2026.10.0b4 `config` and `compile --only-generate` (all 41 compat cases, the 4 example
@@ -692,4 +693,4 @@ add the docs entry to `esphome/esphome.io`.
 - Local checks need ESPHome's Python requirements in a venv; `docs/tools/cpp_check.sh` needs a scratch esphome
   clone and ArduinoJson v7.4.2. `docs/compat/run.sh` cases 01 to 41 (17, 18, 25, 26, 28, 32, 36, 37, 38, 41 are meant to fail; 35 passes with
   the rounding warning; on
-  `dev_update_eq_test` cases 06 to 29 use `left_bands` / `right_bands`, 31 to 41 test bands and fixed filters).
+  `dev_update_eq_proto` cases 06 to 29 use `left_bands` / `right_bands`, 31 to 41 test bands and fixed filters).

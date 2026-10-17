@@ -10,7 +10,7 @@ This component requires Esphome version 2026.10.0 or later.
 The following yaml can be used so ESPHome accesses the component files:
 ```
 external_components:
-  - source: github://mrtoy-me/esphome-tas58xx@dev_update_eq_test
+  - source: github://mrtoy-me/esphome-tas58xx@dev_update_eq_proto
     components: [ tas58xx ]
     refresh: 0s
 ```

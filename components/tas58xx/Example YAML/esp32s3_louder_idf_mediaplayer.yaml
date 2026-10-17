@@ -70,7 +70,7 @@ i2s_audio:
   i2s_bclk_pin: GPIO14
 
 external_components:
-  - source: github://mrtoy-me/esphome-tas58xx@dev_update_eq_test
+  - source: github://mrtoy-me/esphome-tas58xx@dev_update_eq_proto
     components: [ tas58xx ]
     refresh: 0s
 
