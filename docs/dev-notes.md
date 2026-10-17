@@ -43,6 +43,12 @@ Notes:
   restore".
 - Sizes are estimates from this component, including tests.
 
+**To-do for the `dev_update_eq_test` branch in ESPHome's tas58xx (`mrtoy-me/esphome`, based on `dev`):**
+- `volume_follows: <audio_dac id>` option: a DAC that no speaker drives (eg a second DAC on the same I2S output)
+  copies volume and mute from the given DAC, at boot and on every change, so no media player `on_volume` /
+  `on_mute` / `on_unmute` lambdas are needed. Until then the YAML workaround is those three triggers copying
+  `id(dac1).volume()` and `is_muted()` to the second DAC (added 2026-10-17).
+
 **Possible extra PRs (not planned):**
 - **Mixer mode select** (branch `add_mixer_select`, in progress 2026-10-17): `select:` `mixer_mode` on upstream's
   mixer code, restored after reboot, PBTL offers only mono / left / right.
