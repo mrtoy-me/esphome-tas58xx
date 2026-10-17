@@ -1,4 +1,5 @@
 import logging
+import math
 from collections import namedtuple
 
 import esphome.codegen as cg
@@ -177,14 +178,15 @@ EQ_FILTER_ORDER = {
 
 
 def eq_frequency(value):
-    """A whole number of Hz from 20 Hz to 16 kHz, eg 80Hz or 1.25kHz."""
-    value = cv.frequency(value)
-    if value != round(value):
-        raise cv.Invalid(f"frequency must be a whole number of Hz, got {value:g} Hz")
-    value = int(round(value))
-    if not EQ_MIN_FREQUENCY <= value <= EQ_MAX_FREQUENCY:
-        raise cv.Invalid(f"frequency must be from {EQ_MIN_FREQUENCY} Hz to {EQ_MAX_FREQUENCY} Hz, got {value} Hz")
-    return value
+    """A whole number of Hz from 20 Hz to 16 kHz, eg 80Hz or 1.25kHz; a fraction is rounded to the nearest Hz."""
+    frequency = cv.frequency(value)
+    # half rounds up; the tolerance ignores float error such as 1.001kHz parsing as 1000.9999 Hz before ESPHome 2026.11
+    rounded = math.floor(frequency + 0.5)
+    if abs(frequency - rounded) > 1e-6:
+        _LOGGER.warning("EQ frequency %s is not a whole number of Hz, using %d Hz", value, rounded)
+    if not EQ_MIN_FREQUENCY <= rounded <= EQ_MAX_FREQUENCY:
+        raise cv.Invalid(f"frequency must be from {EQ_MIN_FREQUENCY} Hz to {EQ_MAX_FREQUENCY} Hz, got {rounded} Hz")
+    return rounded
 
 
 def _validate_fixed_q(value):

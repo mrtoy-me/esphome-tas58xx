@@ -141,7 +141,7 @@ with no overshoot.
 ### Limits
 | | EQ bands | Fixed filters (`notch`, `band_pass`) |
 |---|---|---|
-| `frequency` | required, 20 Hz to 16000 Hz, whole Hz (eg `80Hz`, `1.25kHz`; `31.5Hz` is an error) | required, 20 Hz to 16000 Hz, whole Hz |
+| `frequency` | required, 20 Hz to 16000 Hz, whole Hz (eg `80Hz`, `1.25kHz`); a fraction is rounded to the nearest Hz with a warning, eg `31.5Hz` is built as 32 Hz | required, 20 Hz to 16000 Hz, whole Hz, rounded the same way |
 | `q_factor` | 0.1 to 20, default by filter (table above); a warning if given for `low_pass` / `high_pass` | required, 0.6 to 30 |
 | gain | -24 dB to +24 dB; `high_shelf` and `high_pass` -24 dB to +18 dB | none |
 | count | EQ bands + fixed filters at most 15 per channel, at most 12 with an EQ Preset on that channel (more is an error) | |
@@ -292,7 +292,8 @@ Configuration variables:
 - **left_fixed_filters:** / **right_fixed_filters:** (*Optional*): a list of fixed filters for each channel, with no
   gain and no Number in Home Assistant. Each entry:
   - **eq_filter:** (*Required*): `notch` or `band_pass`
-  - **frequency:** (*Required*): 20 Hz to 16000 Hz, whole Hz
+  - **frequency:** (*Required*): 20 Hz to 16000 Hz, whole Hz; a fraction is rounded to the nearest Hz with a
+    warning
   - **q_factor:** (*Required*): 0.6 to 30, bandwidth = frequency / q_factor
 
   A channel with fixed filters counts as having EQ, so Select **eq_mode:** is required and EQ Mode changes apply to
@@ -376,7 +377,9 @@ in Home Assistant (with the usual Number options such as `name:`) plus its filte
 
 - **eq_filter:** (*Optional*): `equalizer`, `peaking`, `low_shelf`, `high_shelf`, `low_pass` or `high_pass`.
   Defaults to `equalizer`.
-- **frequency:** (*Required*): 20 Hz to 16000 Hz, whole Hz, eg `80Hz` or `1.25kHz`.
+- **frequency:** (*Required*): 20 Hz to 16000 Hz, whole Hz, eg `80Hz` or `1.25kHz`. A fraction is rounded to the
+  nearest Hz (half rounds up) with a warning in the config log, eg `31.5Hz` is built as 32 Hz. The range is checked
+  after rounding.
 - **q_factor:** (*Optional*): 0.1 to 20. Defaults to 2.144908 for `equalizer` and `peaking` and 0.707 for the
   shelves. Not used by `low_pass` and `high_pass` (fixed Q 0.707), a warning is given if it is set for them.
 

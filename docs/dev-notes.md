@@ -60,8 +60,11 @@ select:
   Each entry is the gain number (`EqGainNumber` schema) plus:
   - `eq_filter`: `equalizer` (default), `peaking`, `low_shelf`, `high_shelf`, `low_pass`, `high_pass`.
     `all_pass` is not offered (used internally for flat biquads).
-  - `frequency`: required, ESPHome frequency (`80Hz`, `1.25kHz`), whole Hz only (a fraction such as `31.5Hz` is
-    an error), 20 Hz to 16 kHz.
+  - `frequency`: required, ESPHome frequency (`80Hz`, `1.25kHz`), whole Hz, 20 Hz to 16 kHz. A fraction such
+    as `31.5Hz` is rounded to the nearest Hz (half up) with a warning, range checked after rounding (changed
+    2026-10-17 from an error: before ESPHome 2026.11 (#20889) `cv.frequency` multiplied, so 175 whole-Hz values
+    written in kHz, eg `1.001kHz`, `2.01kHz`, parsed as 1000.9999.. and were rejected; the warning has a 1e-6
+    tolerance so those do not warn). The C++ keeps `uint16_t` frequency.
   - `q_factor`: 0.1 to 20. Default 2.144908 for `equalizer` and `peaking`, the constant Q of a 2/3-octave graphic
     EQ, Q = sqrt(2^N) / (2^N - 1) with N = 2/3 (sources: ISO 266:1997 preferred frequencies; constant-Q 15 band
     equalizers such as the dbx 3215, "15 ISO standard center, 2/3 octave constant Q frequency bands" 25 Hz to
@@ -140,7 +143,7 @@ select:
 
   | | Number bands | Fixed filters (`notch`, `band_pass`) |
   |---|---|---|
-  | `frequency` | required, 20 to 16000 Hz, whole Hz | required, 20 to 16000 Hz, whole Hz |
+  | `frequency` | required, 20 to 16000 Hz, whole Hz (fraction rounded, warning) | required, 20 to 16000 Hz, whole Hz (fraction rounded, warning) |
   | `q_factor` | 0.1 to 20; default 2.144908 (equalizer, peaking) or 0.707 (shelves); warning if given for low/high pass | required, 0.6 to 30 |
   | count | bands + fixed filters at most 15 per channel (12 with a preset), else an error | |
 - Convert the 4 example YAMLs and the `docs/compat` cases; add cases for: q_factor warning, Q out of range,
@@ -643,5 +646,6 @@ add the docs entry to `esphome/esphome.io`.
   `docs/tools/dsp_write_check/run.sh` (DSP memory written by `dsp_write_bytes_`), `docs/tools/ppc_check/run.sh`
   (helpers against the PPC reference). They need g++ and python3 only.
 - Local checks need ESPHome's Python requirements in a venv; `docs/tools/cpp_check.sh` needs a scratch esphome
-  clone and ArduinoJson v7.4.2. `docs/compat/run.sh` cases 01 to 41 (17, 18, 25, 26, 28, 32, 35, 36, 37, 38, 41 are meant to fail; on
+  clone and ArduinoJson v7.4.2. `docs/compat/run.sh` cases 01 to 41 (17, 18, 25, 26, 28, 32, 36, 37, 38, 41 are meant to fail; 35 passes with
+  the rounding warning; on
   `dev_update_eq_test` cases 06 to 29 use `left_bands` / `right_bands`, 31 to 41 test bands and fixed filters).
