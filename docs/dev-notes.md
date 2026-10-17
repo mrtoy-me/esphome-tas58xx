@@ -43,6 +43,16 @@ Notes:
   restore".
 - Sizes are estimates from this component, including tests.
 
+**Possible extra PRs (not planned):**
+- **Mixer mode select** (branch `add_mixer_select`, in progress 2026-10-17): `select:` `mixer_mode` on upstream's
+  mixer code, restored after reboot, PBTL offers only mono / left / right.
+- **Channel volume numbers** (branch `add_channel_volume`, planned 2026-10-17): `number:` `channel_volume_left` /
+  `channel_volume_right`, -24 to +24 dB, DSP channel volume per model.
+- **Chip ID check:** `I2CDevice::check_chip_id()` (#20941) could confirm the device is a TAS5805M / TAS5825M at
+  setup. First check the datasheets for a usable ID register and its value per model.
+- **Hex log macros:** `ESP_LOGV_HEX` / `ESP_LOGD_HEX` (#20931) for verbose dumps of DSP writes or coefficients.
+  Minor; only if the EQ code logs raw bytes.
+
 ## EQ band and fixed filter YAML rework (plan, 2026-10-16, branch `dev_update_eq_test`)
 Branch `dev_update_eq_test` is based on `dev_update_with_onaudio_plus_eq` (`0a1bd72`). **Breaking YAML changes
 against `main` are accepted on this branch only.**
