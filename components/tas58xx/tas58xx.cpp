@@ -77,8 +77,8 @@ bool Tas58xxComponent::configure_registers_() {
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
 
-  float initial_volume = remap<float, float>(0.0f, this->tas58xx_volume_min_, this->tas58xx_volume_max_, 0.0f, 1.0f);
-  if (!this->set_volume(initial_volume)) return false;
+  // start at volume_min, as ESPHome's tas58xx does; the speaker sets the volume it restores once it is set up
+  if (!this->set_volume(0.0f)) return false;
 
   if (!this->set_state_(CTRL_PLAY, this->is_muted_)) return false;
 
