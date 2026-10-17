@@ -1,5 +1,9 @@
 # Development notes: on_audio_started rework and path to esphome/tas58xx
 
+> **All further work has moved (2026-10-18)** to branch `dev_eq_test` of `mrtoy-me/esphome` (ESPHome's own
+> tas58xx). The current notes, to-do list and EQ control proposal are in `esphome/components/tas58xx/docs/` on that
+> branch. This branch (`dev_update_eq_proto`) is the frozen proof of concept: only fixes for bugs found in testing.
+
 Notes from the session of 2026-10-10 so work can continue in a later session, either locally
 or in the cloud. Read this first. It covers the goal, the requirements set so far, the current
 branch state, the design, a to-check list and the plan forward.
