@@ -26,7 +26,12 @@ void MixerModeSelect::setup() {
   // load saved mixer mode index
   // mixed mode index saved is always the index of the all 5 MixerModes
   // even if the reduced number of valid MixerModes is used in this select for PBTL mode
-  this->pref_ = this->make_entity_preference<size_t>();
+  // the saved value is tied to the YAML dac_mode and mixer_mode (the preference version): after either is changed
+  // in YAML the earlier saved value is not found, so the YAML mixer_mode applies; BTL with STEREO is version 0,
+  // the key used before, so a value saved with that YAML is still restored
+  const uint32_t yaml_version =
+      (static_cast<uint32_t>(this->parent_->get_configured_dac_mode()) << 8) | this->parent_->get_mixer_mode();
+  this->pref_ = this->make_entity_preference<size_t>(yaml_version);
   if (!this->pref_.load(&restored_index)) {
     restored_index = this->parent_->get_mixer_mode();
   }
