@@ -283,6 +283,27 @@ Configuration variables:
 - **volume_min:** (*Optional*): whole dB values from -103dB to 24dB. Defaults to -103dB.
   **volume_min_db:** is also accepted, as used by ESPHome's own tas58xx component.
 
+- **volume_follows:** (*Optional*): the id of another tas58xx **audio_dac** whose volume and mute this DAC copies.
+  For a second DAC on the same I2S output: a speaker only drives the one **audio_dac** it names, so without this
+  the second DAC stays at its **volume_min**. The volume is copied as a position from 0% to 100%, so each DAC maps
+  it onto its own **volume_min** to **volume_max**. The followed DAC also passes on audio start, so the second DAC's
+  DSP settings (mixer, EQ, channel volumes) are written straight away. A DAC cannot follow itself, cannot follow a
+  DAC that itself follows another, and cannot also be the **audio_dac** of a speaker.
+
+  ```yaml
+  audio_dac:
+    - platform: tas58xx
+      id: dac1            # the DAC named by the speaker's audio_dac
+      enable_pin: GPIO33
+    - platform: tas58xx
+      id: dac2
+      address: 0x2C
+      enable_pin: GPIO32
+      volume_follows: dac1
+  ```
+  This replaces media player **on_volume** / **on_mute** / **on_unmute** lambdas copying the volume to the
+  second DAC.
+
 - **ignore_fault:** (*Optional*): Valid options are **CLOCK_FAULT** and **NONE**. Default is **CLOCK_FAULT**.
   That is, by default clock faults are ignored when determining if fault registers require clearing. To trigger clearing of fault registers on any fault condition, specify **ignore_fault: NONE**
 

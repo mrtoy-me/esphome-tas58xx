@@ -86,6 +86,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void enable_dac(bool enable);
 
+  // used by YAML volume_follows: the follower gets every volume, mute and audio start of this DAC
+  void add_volume_follower(Tas58xxComponent *follower);
+
   uint8_t get_configured_dac_mode();
 
   uint8_t get_mixer_mode();
@@ -159,6 +162,10 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    bool set_state_(ControlState state, bool muted);
 
+   // volume followers (YAML volume_follows)
+   void update_volume_followers_();
+   void follower_audio_started_();
+
    // manage faults
    bool clear_fault_registers_();
 
@@ -223,6 +230,11 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    ModulationScheme tas58xx_modulation_scheme_; // YAML default = BD Mode
 
    float tas58xx_volume_{0}; // last volume written, range 0.0 to 1.0
+
+   // YAML volume_follows, as a list: a DAC points to its first follower, each follower to the next
+   Tas58xxComponent *volume_leader_{nullptr};
+   Tas58xxComponent *volume_follower_{nullptr};
+   Tas58xxComponent *next_volume_follower_{nullptr};
 
    int8_t tas58xx_volume_max_;  // YAML configured maximum volume dB
    int8_t tas58xx_volume_min_;  // YAML configured minimum volume dB

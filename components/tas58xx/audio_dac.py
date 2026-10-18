@@ -39,6 +39,8 @@ CONF_IGNORE_FAULT = "ignore_fault"
 CONF_MIXER_MODE = "mixer_mode"
 CONF_REFRESH_EQ = "refresh_eq"
 CONF_TAS58XX_ID = "tas58xx_id"
+CONF_VOLUME_FOLLOWS = "volume_follows"
+CONF_AUDIO_DAC = "audio_dac"
 
 # used for looking through the full configuration to derive eq configuration
 PLATFORM_TAS58XX = "tas58xx"
@@ -254,6 +256,8 @@ CONFIG_SCHEMA = cv.All(
             ),
             cv.Optional(CONF_LEFT_FIXED_FILTERS): cv.ensure_list(FIXED_FILTER_SCHEMA),
             cv.Optional(CONF_RIGHT_FIXED_FILTERS): cv.ensure_list(FIXED_FILTER_SCHEMA),
+            # a DAC no speaker drives (eg a second DAC on the same I2S output) copies volume, mute and audio start
+            cv.Optional(CONF_VOLUME_FOLLOWS): cv.use_id(Tas58xxComponent),
         }
     )
     .extend(cv.polling_component_schema("1s"))
@@ -346,9 +350,30 @@ def allocate_eq_biquads(channel, bands, fixed_filters, has_preset):
 
 # derive the EQ modes and allocate the biquads from the tas58xx numbers, selects and fixed filters of this
 # audio_dac, saved for audio_dac to_code, number to_code and select to_code
+def _validate_volume_follows(full_conf, config):
+    if CONF_VOLUME_FOLLOWS not in config:
+        return
+    own_id = str(config[CONF_ID])
+    leader_id = str(config[CONF_VOLUME_FOLLOWS])
+    if leader_id == own_id:
+        raise cv.Invalid(f"{CONF_VOLUME_FOLLOWS}: a DAC cannot follow itself")
+    for dac_conf in full_conf.get(CONF_AUDIO_DAC, []):
+        if str(dac_conf.get(CONF_ID)) == leader_id and CONF_VOLUME_FOLLOWS in dac_conf:
+            raise cv.Invalid(
+                f"{CONF_VOLUME_FOLLOWS}: '{leader_id}' itself follows another DAC - follow the DAC a speaker drives"
+            )
+    # a speaker already sets the volume and mute of its audio_dac, a follower must only take them from its leader
+    for speaker_conf in full_conf.get("speaker", []):
+        if str(speaker_conf.get(CONF_AUDIO_DAC, "")) == own_id:
+            raise cv.Invalid(
+                f"{CONF_VOLUME_FOLLOWS}: '{own_id}' is the audio_dac of a speaker - remove {CONF_VOLUME_FOLLOWS} "
+                "or that speaker's audio_dac"
+            )
+
 def _final_validate(config):
     full_conf = fv.full_config.get()
     audio_dac_id = config[CONF_ID]
+    _validate_volume_follows(full_conf, config)
     number_conf = find_matching_config(full_conf, audio_dac_id, CONF_NUMBER)
     select_conf = find_matching_config(full_conf, audio_dac_id, SELECT_COMPONENT)
 
@@ -413,6 +438,9 @@ async def to_code(config):
     cg.add(var.config_input_mixer_mode(config[CONF_MIXER_MODE]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
+    if CONF_VOLUME_FOLLOWS in config:
+        leader = await cg.get_variable(config[CONF_VOLUME_FOLLOWS])
+        cg.add(leader.add_volume_follower(var))
     cg.add(var.config_eq_modes(sum(1 << mode for mode in get_eq_modes(config[CONF_ID]))))
 
     # every EQ band and fixed filter in the biquad allocated to it
