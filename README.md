@@ -144,6 +144,7 @@ with no overshoot.
 | `frequency` | required, 20 Hz to 16000 Hz, whole Hz (eg `80Hz`, `1.25kHz`); a fraction is rounded to the nearest Hz with a warning, eg `31.5Hz` is built as 32 Hz | required, 20 Hz to 16000 Hz, whole Hz, rounded the same way |
 | `q_factor` | 0.1 to 20, default by filter (table above); a warning if given for `low_pass` / `high_pass` | required, 0.6 to 30 |
 | gain | -24 dB to +24 dB; `high_shelf` and `high_pass` -24 dB to +18 dB | none |
+| `gain_min` / `gain_max` | optional slider limits, whole dB; platform level -24 dB to +24 dB, band level within the filter's gain range above (see "Limiting the gain range") | none |
 | count | EQ bands + fixed filters at most 15 per channel, at most 12 with an EQ Preset on that channel (more is an error) | |
 
 - `high_shelf` and `high_pass` are limited to +18 dB because above that one of their coefficients
@@ -408,6 +409,40 @@ in Home Assistant (with the usual Number options such as `name:`) plus its filte
 The gain of each band is -24 dB to +24 dB (`high_shelf` and `high_pass`: -24 dB to +18 dB) in 1 dB steps. A band
 starts at 0 dB the first time, after that its last value is saved and restored at reboot. Saved values belong to
 the Number's name, so keep a band's name when editing the YAML to keep its saved gain.
+
+#### Limiting the gain range
+The slider range of the band gains can be narrowed with `gain_min` and `gain_max` (whole dB, eg `-12dB`), at two levels:
+- **Platform level**: on the `number: - platform: tas58xx` block. They apply to every band in `left_bands` and
+  `right_bands` of that block, not to `channel_volume_left` / `channel_volume_right`. Each must be from -24 dB to +24 dB.
+- **Band level**: on a band entry. They override the platform value for that band, in either direction, but must be
+  within the filter's full range (-24 dB to +24 dB; `high_shelf` and `high_pass` -24 dB to +18 dB).
+
+`gain_min` and `gain_max` are each worked out as: the band's own value, else the platform value, else the filter's
+full range. After that `gain_min` must be less than `gain_max`. A range that does not contain 0 dB is allowed.
+A value outside its allowed range, or `gain_min` not less than `gain_max`, is a config error naming the band.
+
+```yaml
+number:
+  - platform: tas58xx
+    gain_min: -12dB
+    gain_max: 12dB
+    left_bands:
+      - name: Left 100Hz
+        frequency: 100Hz
+      - name: Left Treble
+        eq_filter: high_shelf
+        frequency: 8kHz
+        gain_max: 6dB
+```
+Here Left 100Hz is -12 dB to +12 dB and Left Treble is -12 dB to +6 dB.
+
+If the platform `gain_max` is above +18 dB, `high_shelf` and `high_pass` bands that do not set their own `gain_max` use
++18 dB as max, and one warning per number block lists them, eg: `gain_max 24 dB is above +18 dB, the limit for
+high_shelf / high_pass bands - +18 dB is used as max for 'Left Treble', 'Left Air'`.
+
+A saved gain is clamped into the band's range at boot (so is the first-boot 0 dB if the range does not contain 0 dB),
+so a narrowed range takes effect after a reboot. The clamped value is published and applied but not saved again until
+the slider is moved.
 
 Any number of bands can be configured on either channel, up to 15 per channel together with that channel's fixed
 filters (12 with an EQ Preset). The component allocates the biquads (see "Biquad order" above); only the filters
