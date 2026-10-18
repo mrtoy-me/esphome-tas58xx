@@ -686,6 +686,13 @@ bool Tas58xxComponent::set_mute_on() {
 
 // called by codegen on the leader for each follower; the follower is added at the start of the list
 void Tas58xxComponent::add_volume_follower(Tas58xxComponent *follower) {
+  // YAML validation already allows one level only, each follower with one leader; checked again here because a
+  // lambda can call this, and a self link, a follower added twice or a chain would loop or break a list
+  if (follower == nullptr || follower == this || this->volume_leader_ != nullptr ||
+      follower->volume_leader_ != nullptr || follower->first_volume_follower_ != nullptr) {
+    ESP_LOGE(TAG, "Invalid volume follower, ignored");
+    return;
+  }
   follower->volume_leader_ = this;
   follower->next_volume_follower_ = this->first_volume_follower_;
   this->first_volume_follower_ = follower;
