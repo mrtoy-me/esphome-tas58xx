@@ -16,6 +16,8 @@ _LOGGER = logging.getLogger(__name__)
 
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
 CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
+CONF_GAIN_MIN = "gain_min"
+CONF_GAIN_MAX = "gain_max"
 
 ICON_VOLUME_SOURCE = "mdi:volume-source"
 
@@ -114,12 +116,57 @@ def _eq_band_schema():
                 cv.Optional(CONF_EQ_FILTER, default="equalizer"): cv.one_of(*EQ_BAND_FILTERS, lower=True),
                 cv.Required(CONF_FREQUENCY): eq_frequency,
                 cv.Optional(CONF_Q_FACTOR): cv.float_range(min=EQ_BAND_MIN_Q, max=EQ_BAND_MAX_Q),
+                # limits for this band, checked against the filter's full range in _resolve_gain_limits
+                cv.Optional(CONF_GAIN_MIN): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
+                cv.Optional(CONF_GAIN_MAX): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
             }
         ),
         _validate_eq_band,
     )
 
-CONFIG_SCHEMA = cv.Schema(
+def _filter_max_gain(eq_filter):
+    return EQ_BAND_MAX_GAIN_LIMITED if eq_filter in EQ_GAIN_LIMITED_FILTERS else EQ_BAND_MAX_GAIN
+
+
+# sets gain_min / gain_max of every band: the band's own value, else the platform value, else the filter's full range
+def _resolve_gain_limits(config):
+    platform_min = config.get(CONF_GAIN_MIN)
+    platform_max = config.get(CONF_GAIN_MAX)
+    capped_names = []
+    for key in BAND_KEYS.values():
+        for band_config in config.get(key, []):
+            name = band_config.get("name", "")
+            full_max = _filter_max_gain(band_config[CONF_EQ_FILTER])
+            for conf in (CONF_GAIN_MIN, CONF_GAIN_MAX):
+                value = band_config.get(conf)
+                if value is not None and not EQ_BAND_MIN_GAIN <= value <= full_max:
+                    raise cv.Invalid(f"{conf} of band '{name}' must be from {EQ_BAND_MIN_GAIN} dB to {full_max} dB "
+                                     f"for eq_filter {band_config[CONF_EQ_FILTER]}, got {value} dB")
+
+            gain_min = band_config.get(CONF_GAIN_MIN, platform_min if platform_min is not None else EQ_BAND_MIN_GAIN)
+            if CONF_GAIN_MAX in band_config:
+                gain_max = band_config[CONF_GAIN_MAX]
+            elif platform_max is not None and platform_max > full_max:
+                gain_max = full_max
+                capped_names.append(f"'{name}'")
+            else:
+                gain_max = platform_max if platform_max is not None else full_max
+
+            if gain_min >= gain_max:
+                raise cv.Invalid(f"gain_min ({gain_min} dB) must be less than gain_max ({gain_max} dB) "
+                                 f"for band '{name}'")
+            band_config[CONF_GAIN_MIN] = gain_min
+            band_config[CONF_GAIN_MAX] = gain_max
+
+    if capped_names:
+        _LOGGER.warning("gain_max %s dB is above +%s dB, the limit for high_shelf / high_pass bands - "
+                        "+%s dB is used as max for %s", platform_max, EQ_BAND_MAX_GAIN_LIMITED,
+                        EQ_BAND_MAX_GAIN_LIMITED, ", ".join(capped_names))
+    return config
+
+
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
     {
         cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
 
@@ -144,7 +191,13 @@ CONFIG_SCHEMA = cv.Schema(
         # EQ bands: one gain number per entry, in the biquad allocated by audio_dac.py
         cv.Optional(CONF_LEFT_BANDS): cv.ensure_list(_eq_band_schema()),
         cv.Optional(CONF_RIGHT_BANDS): cv.ensure_list(_eq_band_schema()),
+
+        # slider range limits for every band of this block (not the channel volumes); a band can override them
+        cv.Optional(CONF_GAIN_MIN): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
+        cv.Optional(CONF_GAIN_MAX): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
     }
+    ),
+    _resolve_gain_limits,
 )
 
 async def to_code(config):
@@ -170,11 +223,9 @@ async def to_code(config):
         for list_index, band_config in enumerate(config.get(key, [])):
             cg.add_define("USE_TAS58XX_EQ_GAINS")
             biquad_index = get_band_biquad(config[CONF_TAS58XX_ID], channel, list_index)
-            max_gain = (EQ_BAND_MAX_GAIN_LIMITED if band_config[CONF_EQ_FILTER] in EQ_GAIN_LIMITED_FILTERS
-                        else EQ_BAND_MAX_GAIN)
             n = await number.new_number(
                 band_config, CHANNEL_ENUMS[channel], biquad_index,
-                min_value=EQ_BAND_MIN_GAIN, max_value=max_gain, step=1
+                min_value=band_config[CONF_GAIN_MIN], max_value=band_config[CONF_GAIN_MAX], step=1
             )
             await cg.register_component(n, band_config)
             await cg.register_parented(n, tas58xx_component)

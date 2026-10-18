@@ -1,6 +1,8 @@
 #include "eq_gain_number.h"
 #include "esphome/core/log.h"
 
+#include <algorithm>
+
 namespace esphome::tas58xx {
 
 ESPHOME_LOG_TAG(TAG, "tas58xx.number");
@@ -10,6 +12,8 @@ void EqGainNumber::setup() {
   this->pref_ = this->make_entity_preference<float>();
   if (!this->pref_.load(&value))
     value = 0.0;  // no saved gain so set to 0dB
+  // the YAML limits may have changed since the value was saved, and 0 dB may be outside them
+  value = std::clamp(value, this->traits.get_min_value(), this->traits.get_max_value());
   this->publish_state(value);
   this->parent_->set_eq_gain(this->channel_, this->biquad_index_, static_cast<int>(value));
 }
