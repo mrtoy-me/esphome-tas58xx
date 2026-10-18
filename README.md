@@ -283,10 +283,11 @@ Configuration variables:
 - **volume_min:** (*Optional*): whole dB values from -103dB to 24dB. Defaults to -103dB.
   **volume_min_db:** is also accepted, as used by ESPHome's own tas58xx component.
 
-- **volume_follows:** (*Optional*): the id of another tas58xx **audio_dac** whose volume and mute this DAC copies.
+- **volume_follows:** (*Optional*): the id of another tas58xx **audio_dac** (the leader) whose volume and mute this
+  DAC (a follower) copies.
   For a second DAC on the same I2S output: a speaker only drives the one **audio_dac** it names, so without this
   the second DAC stays at its **volume_min**. The volume is copied as a position from 0% to 100%, so each DAC maps
-  it onto its own **volume_min** to **volume_max**. The followed DAC also passes on audio start, so the second DAC's
+  it onto its own **volume_min** to **volume_max**. The leader also passes on audio start, so the second DAC's
   DSP settings (mixer, EQ, channel volumes) are written straight away. A DAC cannot follow itself, cannot follow a
   DAC that itself follows another, and cannot also be the **audio_dac** of a speaker.
 

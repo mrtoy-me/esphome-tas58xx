@@ -86,7 +86,7 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
   void enable_dac(bool enable);
 
-  // used by YAML volume_follows: the follower gets every volume, mute and audio start of this DAC
+  // YAML volume_follows: makes `follower` copy the volume, mute and audio start of this DAC (its leader)
   void add_volume_follower(Tas58xxComponent *follower);
 
   uint8_t get_configured_dac_mode();
@@ -162,9 +162,11 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    bool set_state_(ControlState state, bool muted);
 
-   // volume followers (YAML volume_follows)
-   void update_volume_followers_();
-   void follower_audio_started_();
+   // volume leader and followers (YAML volume_follows), see the members below
+   void send_volume_to_followers_();
+   void send_mute_to_followers_();
+   void on_leader_audio_started_();
+   void sync_with_volume_leader_();
 
    // manage faults
    bool clear_fault_registers_();
@@ -231,10 +233,16 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    float tas58xx_volume_{0}; // last volume written, range 0.0 to 1.0
 
-   // YAML volume_follows, as a list: a DAC points to its first follower, each follower to the next
-   Tas58xxComponent *volume_leader_{nullptr};
-   Tas58xxComponent *volume_follower_{nullptr};
-   Tas58xxComponent *next_volume_follower_{nullptr};
+   // Volume leader and followers (YAML volume_follows). A speaker drives only the one audio_dac it names (the
+   // leader); a follower is another DAC on the same I2S output that copies the leader:
+   // - volume: passed as the 0.0 to 1.0 position, which the follower maps onto its own volume_min to volume_max
+   // - mute: passed when it is set
+   // - audio start: passed from on_audio_started(); the follower checks it is playing before writing its DSP
+   // A leader keeps its followers as a singly linked list (first_volume_follower_, then each follower's
+   // next_volume_follower_), as sensor filters do. YAML validation forbids chains, so a follower never has followers.
+   Tas58xxComponent *volume_leader_{nullptr};          // set on a follower: the DAC it copies
+   Tas58xxComponent *first_volume_follower_{nullptr};  // set on a leader: start of its follower list
+   Tas58xxComponent *next_volume_follower_{nullptr};   // set on a follower: next follower of the same leader
 
    int8_t tas58xx_volume_max_;  // YAML configured maximum volume dB
    int8_t tas58xx_volume_min_;  // YAML configured minimum volume dB

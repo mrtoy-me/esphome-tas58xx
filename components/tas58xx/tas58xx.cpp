@@ -39,7 +39,9 @@ void Tas58xxComponent::setup() {
   if (!this->configure_registers_()) {
     this->error_code_ = CONFIGURATION_FAILED;
     this->mark_failed();
+    return;
   }
+  this->sync_with_volume_leader_();
 }
 
 bool Tas58xxComponent::configure_registers_() {
@@ -98,18 +100,18 @@ void Tas58xxComponent::on_audio_started() {
     ESP_LOGD(TAG, "Audio started");
     this->write_dsp_settings_();
   }
-  // followers share this DAC's I2S output, so their clock is running too
-  for (Tas58xxComponent *follower = this->volume_follower_; follower != nullptr;
+  // volume followers share this DAC's I2S output, so their clock is normally running too
+  for (Tas58xxComponent *follower = this->first_volume_follower_; follower != nullptr;
        follower = follower->next_volume_follower_) {
-    follower->follower_audio_started_();
+    follower->on_leader_audio_started_();
   }
 }
 
-// a follower is passed the audio start of the DAC it follows; Play is checked first, so a follower wired to
-// another I2S output is still written only once its own clock runs (otherwise by the update() fallback)
-void Tas58xxComponent::follower_audio_started_() {
+// a volume follower is passed its leader's audio start; it checks it is playing before writing, so a follower
+// wired to another I2S output waits for its own clock (the update() fallback then writes it)
+void Tas58xxComponent::on_leader_audio_started_() {
   if (this->is_failed() || this->dsp_ready_ || !this->is_dac_playing_()) return;
-  ESP_LOGD(TAG, "Audio started (followed DAC)");
+  ESP_LOGD(TAG, "Audio started (volume leader)");
   this->write_dsp_settings_();
 }
 
@@ -250,7 +252,8 @@ void Tas58xxComponent::dump_config() {
               );
       LOG_UPDATE_INTERVAL(this);
       if (this->volume_leader_ != nullptr) {
-        ESP_LOGCONFIG(TAG, "  Volume Follows: DAC at address 0x%02X", this->volume_leader_->get_i2c_address());
+        ESP_LOGCONFIG(TAG, "  Volume Follows: DAC at address 0x%02X (volume leader)",
+                      this->volume_leader_->get_i2c_address());
       }
       break;
   }
@@ -658,46 +661,65 @@ bool Tas58xxComponent::write_eq_channels_(bool rewrite_filters) {
   return ok;
 }
 
+// the speaker calls set_mute_on() or set_mute_off() after every volume change, so mute is only passed to
+// volume followers when it actually changes
 bool Tas58xxComponent::set_mute_off() {
-  if (this->is_muted_) {
-    if (!this->set_state_(this->tas58xx_control_state_, false)) return false;
-    this->is_muted_ = false;
-    ESP_LOGV(TAG, "Mute Off");
-  }
-  this->update_volume_followers_();
+  if (!this->is_muted_) return true;
+  if (!this->set_state_(this->tas58xx_control_state_, false)) return false;
+  this->is_muted_ = false;
+  ESP_LOGV(TAG, "Mute Off");
+  this->send_mute_to_followers_();
   return true;
 }
 
 // set bit 3 MUTE in TAS58XX_DEVICE_CTRL_2 and retain current Control State
 bool Tas58xxComponent::set_mute_on() {
-  if (!this->is_muted_) {
-    if (!this->set_state_(this->tas58xx_control_state_, true)) return false;
-    this->is_muted_ = true;
-    ESP_LOGV(TAG, "Mute On");
-  }
-  this->update_volume_followers_();
+  if (this->is_muted_) return true;
+  if (!this->set_state_(this->tas58xx_control_state_, true)) return false;
+  this->is_muted_ = true;
+  ESP_LOGV(TAG, "Mute On");
+  this->send_mute_to_followers_();
   return true;
 }
 
-// used by YAML volume_follows
+// volume leader and followers (YAML volume_follows), described with the members in tas58xx.h
+
+// called by codegen on the leader for each follower; the follower is added at the start of the list
 void Tas58xxComponent::add_volume_follower(Tas58xxComponent *follower) {
   follower->volume_leader_ = this;
-  follower->next_volume_follower_ = this->volume_follower_;
-  this->volume_follower_ = follower;
+  follower->next_volume_follower_ = this->first_volume_follower_;
+  this->first_volume_follower_ = follower;
 }
 
-// the volume is passed as 0.0 to 1.0, so each follower maps it onto its own volume_min to volume_max;
-// followers that have not finished setup are skipped and brought in line by the next change
-void Tas58xxComponent::update_volume_followers_() {
-  for (Tas58xxComponent *follower = this->volume_follower_; follower != nullptr;
+// followers that have not finished setup are skipped; they copy the leader at the end of their own setup
+void Tas58xxComponent::send_volume_to_followers_() {
+  for (Tas58xxComponent *follower = this->first_volume_follower_; follower != nullptr;
+       follower = follower->next_volume_follower_) {
+    if (follower->is_ready())
+      follower->set_volume(this->tas58xx_volume_);
+  }
+}
+
+void Tas58xxComponent::send_mute_to_followers_() {
+  for (Tas58xxComponent *follower = this->first_volume_follower_; follower != nullptr;
        follower = follower->next_volume_follower_) {
     if (!follower->is_ready()) continue;
-    follower->set_volume(this->tas58xx_volume_);
     if (this->is_muted_) {
       follower->set_mute_on();
     } else {
       follower->set_mute_off();
     }
+  }
+}
+
+// end of setup: a follower copies its leader's volume and mute, whichever DAC finished setup first
+void Tas58xxComponent::sync_with_volume_leader_() {
+  if (this->volume_leader_ == nullptr || !this->volume_leader_->is_ready()) return;
+  this->set_volume(this->volume_leader_->volume());
+  if (this->volume_leader_->is_muted()) {
+    this->set_mute_on();
+  } else {
+    this->set_mute_off();
   }
 }
 
@@ -715,7 +737,7 @@ bool Tas58xxComponent::set_volume(float volume) {
   if (!this->set_digital_volume_(raw_volume)) return false;
   this->tas58xx_volume_ = new_volume;
   ESP_LOGV(TAG, "Volume >> %.1fdB", (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f);
-  this->update_volume_followers_();
+  this->send_volume_to_followers_();
   return true;
 }
 
