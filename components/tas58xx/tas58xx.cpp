@@ -666,7 +666,11 @@ bool Tas58xxComponent::set_mute_off() {
   if (!this->is_muted_) return true;
   if (!this->set_state_(this->tas58xx_control_state_, false)) return false;
   this->is_muted_ = false;
-  ESP_LOGV(TAG, "Mute Off");
+  if (this->volume_leader_ != nullptr) {
+    ESP_LOGD(TAG, "Mute Off (following 0x%02X)", this->volume_leader_->get_i2c_address());
+  } else {
+    ESP_LOGD(TAG, "Mute Off");
+  }
   this->send_mute_to_followers_();
   return true;
 }
@@ -676,7 +680,11 @@ bool Tas58xxComponent::set_mute_on() {
   if (this->is_muted_) return true;
   if (!this->set_state_(this->tas58xx_control_state_, true)) return false;
   this->is_muted_ = true;
-  ESP_LOGV(TAG, "Mute On");
+  if (this->volume_leader_ != nullptr) {
+    ESP_LOGD(TAG, "Mute On (following 0x%02X)", this->volume_leader_->get_i2c_address());
+  } else {
+    ESP_LOGD(TAG, "Mute On");
+  }
   this->send_mute_to_followers_();
   return true;
 }
@@ -742,7 +750,12 @@ bool Tas58xxComponent::set_volume(float volume) {
       lroundf(clamp(TAS58XX_DIG_VOL_0DB - volume_db * 2.0f, 0.0f, float{TAS58XX_DIG_VOL_MINUS_103DB})));
   if (!this->set_digital_volume_(raw_volume)) return false;
   this->tas58xx_volume_ = new_volume;
-  ESP_LOGV(TAG, "Volume >> %.1fdB", (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f);
+  const float written_db = (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f;
+  if (this->volume_leader_ != nullptr) {
+    ESP_LOGD(TAG, "Volume >> %.1fdB (following 0x%02X)", written_db, this->volume_leader_->get_i2c_address());
+  } else {
+    ESP_LOGD(TAG, "Volume >> %.1fdB", written_db);
+  }
   this->send_volume_to_followers_();
   return true;
 }
