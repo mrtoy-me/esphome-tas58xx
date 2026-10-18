@@ -440,6 +440,7 @@ async def to_code(config):
     cg.add(var.config_input_mixer_mode(config[CONF_MIXER_MODE]))
     cg.add(var.config_volume_max(config[CONF_VOLUME_MAX]))
     cg.add(var.config_volume_min(config[CONF_VOLUME_MIN]))
+    # this DAC is the follower: register it with the leader it names
     if CONF_VOLUME_FOLLOWS in config:
         leader = await cg.get_variable(config[CONF_VOLUME_FOLLOWS])
         cg.add(leader.add_volume_follower(var))
