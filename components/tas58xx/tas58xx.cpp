@@ -750,14 +750,20 @@ bool Tas58xxComponent::set_volume(float volume) {
   // round to nearest 0.5dB step of digital volume register
   uint8_t raw_volume = static_cast<uint8_t>(
       lroundf(clamp(TAS58XX_DIG_VOL_0DB - volume_db * 2.0f, 0.0f, float{TAS58XX_DIG_VOL_MINUS_103DB})));
-  if (!this->set_digital_volume_(raw_volume)) return false;
-  this->tas58xx_volume_ = new_volume;
-  // the media player logs the change itself, so only a volume follower logs it at debug level
-  if (this->volume_leader_ != nullptr) {
-    ESP_LOGD(TAG, "Volume change followed by 0x%02X", this->get_i2c_address());
-  } else {
-    ESP_LOGV(TAG, "Volume >> %.1fdB", (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f);
+  // the same volume can be set more than once (eg a speaker_source media player sets every pipeline's speaker),
+  // so the register is only written, and the change only logged, when its value changes; followers are still
+  // passed the volume, as their own volume range can map it to a different value
+  if (raw_volume != this->tas58xx_raw_volume_) {
+    if (!this->set_digital_volume_(raw_volume)) return false;
+    this->tas58xx_raw_volume_ = raw_volume;
+    // the media player logs the change itself, so only a volume follower logs it at debug level
+    if (this->volume_leader_ != nullptr) {
+      ESP_LOGD(TAG, "Volume change followed by 0x%02X", this->get_i2c_address());
+    } else {
+      ESP_LOGV(TAG, "Volume >> %.1fdB", (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f);
+    }
   }
+  this->tas58xx_volume_ = new_volume;
   this->send_volume_to_followers_();
   return true;
 }

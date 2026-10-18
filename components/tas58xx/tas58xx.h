@@ -232,6 +232,9 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    ModulationScheme tas58xx_modulation_scheme_; // YAML default = BD Mode
 
    float tas58xx_volume_{0}; // last volume written, range 0.0 to 1.0
+   // last value written to DIG_VOL, so an unchanged volume is not written again; 0xFF (mute, never set by
+   // set_volume) until the first write
+   uint8_t tas58xx_raw_volume_{0xFF};
 
    // Volume leader and followers (YAML volume_follows). A speaker drives only the one audio_dac it names (the
    // leader); a follower is another DAC on the same I2S output that copies the leader:
