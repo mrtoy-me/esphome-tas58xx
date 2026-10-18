@@ -250,10 +250,11 @@ void Tas58xxComponent::dump_config() {
               this->tas58xx_volume_max_, this->tas58xx_volume_min_,
               this->ignore_clock_faults_when_clearing_faults_ ? LOG_STR_LITERAL("CLOCK FAULTS") : LOG_STR_LITERAL("NONE")
               );
-      LOG_UPDATE_INTERVAL(this);
+
       if (this->volume_leader_ != nullptr) {
-        ESP_LOGCONFIG(TAG, "  Volume Follows: Audio Dac @ address 0x%02X", this->volume_leader_->get_i2c_address());
+        ESP_LOGCONFIG(TAG, "  Volume Follows: Audio Dac at address 0x%02X", this->volume_leader_->get_i2c_address());
       }
+      LOG_UPDATE_INTERVAL(this);
       break;
   }
 
@@ -666,10 +667,11 @@ bool Tas58xxComponent::set_mute_off() {
   if (!this->is_muted_) return true;
   if (!this->set_state_(this->tas58xx_control_state_, false)) return false;
   this->is_muted_ = false;
+  // the media player logs the change itself, so only a volume follower logs it at debug level
   if (this->volume_leader_ != nullptr) {
-    ESP_LOGD(TAG, "Mute Off (following 0x%02X)", this->volume_leader_->get_i2c_address());
+    ESP_LOGD(TAG, "Unmute followed by 0x%02X", this->get_i2c_address());
   } else {
-    ESP_LOGD(TAG, "Mute Off");
+    ESP_LOGV(TAG, "Mute Off");
   }
   this->send_mute_to_followers_();
   return true;
@@ -681,9 +683,9 @@ bool Tas58xxComponent::set_mute_on() {
   if (!this->set_state_(this->tas58xx_control_state_, true)) return false;
   this->is_muted_ = true;
   if (this->volume_leader_ != nullptr) {
-    ESP_LOGD(TAG, "Mute On (following 0x%02X)", this->volume_leader_->get_i2c_address());
+    ESP_LOGD(TAG, "Mute followed by 0x%02X", this->get_i2c_address());
   } else {
-    ESP_LOGD(TAG, "Mute On");
+    ESP_LOGV(TAG, "Mute On");
   }
   this->send_mute_to_followers_();
   return true;
@@ -750,11 +752,11 @@ bool Tas58xxComponent::set_volume(float volume) {
       lroundf(clamp(TAS58XX_DIG_VOL_0DB - volume_db * 2.0f, 0.0f, float{TAS58XX_DIG_VOL_MINUS_103DB})));
   if (!this->set_digital_volume_(raw_volume)) return false;
   this->tas58xx_volume_ = new_volume;
-  const float written_db = (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f;
+  // the media player logs the change itself, so only a volume follower logs it at debug level
   if (this->volume_leader_ != nullptr) {
-    ESP_LOGD(TAG, "Volume >> %.1fdB (following 0x%02X)", written_db, this->volume_leader_->get_i2c_address());
+    ESP_LOGD(TAG, "Volume change followed by 0x%02X", this->get_i2c_address());
   } else {
-    ESP_LOGD(TAG, "Volume >> %.1fdB", written_db);
+    ESP_LOGV(TAG, "Volume >> %.1fdB", (TAS58XX_DIG_VOL_0DB - raw_volume) / 2.0f);
   }
   this->send_volume_to_followers_();
   return true;
