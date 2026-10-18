@@ -252,8 +252,7 @@ void Tas58xxComponent::dump_config() {
               );
       LOG_UPDATE_INTERVAL(this);
       if (this->volume_leader_ != nullptr) {
-        ESP_LOGCONFIG(TAG, "  Volume Follows: DAC at address 0x%02X (volume leader)",
-                      this->volume_leader_->get_i2c_address());
+        ESP_LOGCONFIG(TAG, "  Volume Follows: Audio Dac @ address 0x%02X", this->volume_leader_->get_i2c_address());
       }
       break;
   }
