@@ -695,6 +695,6 @@ add the docs entry to `esphome/esphome.io`.
   `docs/tools/dsp_write_check/run.sh` (DSP memory written by `dsp_write_bytes_`), `docs/tools/ppc_check/run.sh`
   (helpers against the PPC reference). They need g++ and python3 only.
 - Local checks need ESPHome's Python requirements in a venv; `docs/tools/cpp_check.sh` needs a scratch esphome
-  clone and ArduinoJson v7.4.2. `docs/compat/run.sh` cases 01 to 41 (17, 18, 25, 26, 28, 32, 36, 37, 38, 41 are meant to fail; 35 passes with
+  clone and ArduinoJson v7.4.2. `docs/compat/run.sh` cases 01 to 49 (17, 18, 25, 26, 28, 32, 36, 37, 38, 41, 45 to 49 are meant to fail; 35 passes with
   the rounding warning; on
-  `dev_update_eq_proto` cases 06 to 29 use `left_bands` / `right_bands`, 31 to 41 test bands and fixed filters).
+  `dev_update_eq_proto` cases 06 to 29 use `left_bands` / `right_bands`, 31 to 41 test bands and fixed filters, 42 to 49 test the `gain_min` / `gain_max` band limits, -24 dB to +18 dB for every filter).

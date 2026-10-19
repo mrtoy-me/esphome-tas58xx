@@ -157,13 +157,11 @@ EQ_BAND_DEFAULT_Q = {
     "high_shelf": EQ_SHELF_Q,
 }
 EQ_FIXED_Q_FILTERS = ("low_pass", "high_pass")
-# gain range of the EQ bands in dB. A 5.27 coefficient holds just under +16: high_shelf and high_pass have
-# b1 = about -2 x the linear gain, which overflows above +18 dB (equalizer, peaking, low_shelf and low_pass do not
-# overflow up to +24 dB, from 20 Hz to 16 kHz and Q 0.1 to 20)
-EQ_BAND_MAX_GAIN = 24
+# gain range of the EQ bands in dB, the same for every filter. +18 dB is the lowest boost limit of the filters
+# (high_shelf and high_pass overflow the 5.27 coefficient range above it); each filter's own limit is guarded in the
+# C++ helpers
+EQ_BAND_MAX_GAIN = 18
 EQ_BAND_MIN_GAIN = -24
-EQ_BAND_MAX_GAIN_LIMITED = 18
-EQ_GAIN_LIMITED_FILTERS = ("high_shelf", "high_pass")
 # filters with no gain input, used by the audio_dac fixed filters
 EQ_FIXED_FILTERS = {
     "notch": FilterType.FILTER_TYPE_NOTCH,

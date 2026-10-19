@@ -143,11 +143,13 @@ with no overshoot.
 |---|---|---|
 | `frequency` | required, 20 Hz to 16000 Hz, whole Hz (eg `80Hz`, `1.25kHz`); a fraction is rounded to the nearest Hz with a warning, eg `31.5Hz` is built as 32 Hz | required, 20 Hz to 16000 Hz, whole Hz, rounded the same way |
 | `q_factor` | 0.1 to 20, default by filter (table above); a warning if given for `low_pass` / `high_pass` | required, 0.6 to 30 |
-| gain | -24 dB to +24 dB; `high_shelf` and `high_pass` -24 dB to +18 dB | none |
+| gain | -24 dB to +18 dB, every filter | none |
+| `gain_min` / `gain_max` | optional slider limits, whole dB, -24 dB to +18 dB, at platform and band level (see "Limiting the gain range") | none |
 | count | EQ bands + fixed filters at most 15 per channel, at most 12 with an EQ Preset on that channel (more is an error) | |
 
-- `high_shelf` and `high_pass` are limited to +18 dB because above that one of their coefficients
-  (about -2 × the linear gain) overflows the DSP's 5.27 coefficient range (just under +16).
+- The boost is limited to +18 dB for every filter: above that `high_shelf` and `high_pass` overflow the DSP's 5.27
+  coefficient range (one coefficient is about -2 × the linear gain, and 5.27 holds just under +16). One range for
+  all filters keeps the configuration simple.
 - Fixed filter Q is at least 0.6 because close to Q 0.5 the band pass lower edge (frequency − bandwidth / 2)
   reaches 0 Hz and the filter is no longer stable in 5.27 fixed point.
 - Copying a notch or band pass from TI PurePath Console: PPC sets these filters by bandwidth (its QVal is not used
@@ -405,9 +407,39 @@ in Home Assistant (with the usual Number options such as `name:`) plus its filte
 - **q_factor:** (*Optional*): 0.1 to 20. Defaults to 2.144908 for `equalizer` and `peaking` and 0.707 for the
   shelves. Not used by `low_pass` and `high_pass` (fixed Q 0.707), a warning is given if it is set for them.
 
-The gain of each band is -24 dB to +24 dB (`high_shelf` and `high_pass`: -24 dB to +18 dB) in 1 dB steps. A band
+The gain of each band is -24 dB to +18 dB in 1 dB steps. A band
 starts at 0 dB the first time, after that its last value is saved and restored at reboot. Saved values belong to
 the Number's name, so keep a band's name when editing the YAML to keep its saved gain.
+
+#### Limiting the gain range
+The slider range of the band gains can be narrowed with `gain_min` and `gain_max` (whole dB, eg `-12dB`), at two levels:
+- **Platform level**: on the `number: - platform: tas58xx` block. They apply to every band in `left_bands` and
+  `right_bands` of that block, not to `channel_volume_left` / `channel_volume_right`.
+- **Band level**: on a band entry. They override the platform value for that band, in either direction.
+
+Each must be from -24 dB to +18 dB. `gain_min` and `gain_max` are each worked out as: the band's own value, else the
+platform value, else the full range. After that `gain_min` must be less than `gain_max` (a config error naming the
+band otherwise). A range that does not contain 0 dB is allowed.
+
+```yaml
+number:
+  - platform: tas58xx
+    gain_min: -12dB
+    gain_max: 12dB
+    left_bands:
+      - name: Left 100Hz
+        frequency: 100Hz
+      - name: Left Treble
+        eq_filter: high_shelf
+        frequency: 8kHz
+        gain_max: 6dB
+```
+Here Left 100Hz is -12 dB to +12 dB and Left Treble is -12 dB to +6 dB.
+
+A saved gain is clamped into the band's range at boot (so is the first-boot 0 dB if the range does not contain 0 dB),
+so a narrowed range takes effect after a reboot. A saved gain that was outside the range is saved again as the
+clamped value, with a warning in the log, eg `Left Treble saved gain 20dB is outside its range (-24dB to 18dB), 18dB
+is used`. `dump_config` shows each band's range (`Gain range: -12dB to 12dB`).
 
 Any number of bands can be configured on either channel, up to 15 per channel together with that channel's fixed
 filters (12 with an EQ Preset). The component allocates the biquads (see "Biquad order" above); only the filters

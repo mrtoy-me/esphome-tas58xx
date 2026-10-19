@@ -7,6 +7,7 @@ import esphome.final_validate as fv
 
 from esphome.const import (
     CONF_FREQUENCY,
+    CONF_NAME,
     DEVICE_CLASS_SOUND_PRESSURE,
     ENTITY_CATEGORY_CONFIG,
     UNIT_DECIBEL,
@@ -16,6 +17,8 @@ _LOGGER = logging.getLogger(__name__)
 
 CONF_CHANNEL_VOLUME_LEFT = "channel_volume_left"
 CONF_CHANNEL_VOLUME_RIGHT = "channel_volume_right"
+CONF_GAIN_MIN = "gain_min"
+CONF_GAIN_MAX = "gain_max"
 
 ICON_VOLUME_SOURCE = "mdi:volume-source"
 
@@ -31,12 +34,10 @@ from ..audio_dac import (
     EQ_BAND_DEFAULT_Q,
     EQ_BAND_FILTERS,
     EQ_BAND_MAX_GAIN,
-    EQ_BAND_MAX_GAIN_LIMITED,
     EQ_BAND_MAX_Q,
     EQ_BAND_MIN_GAIN,
     EQ_BAND_MIN_Q,
     EQ_FIXED_Q_FILTERS,
-    EQ_GAIN_LIMITED_FILTERS,
     EQ_SHELF_Q,
     LEFT,
     RIGHT,
@@ -114,37 +115,64 @@ def _eq_band_schema():
                 cv.Optional(CONF_EQ_FILTER, default="equalizer"): cv.one_of(*EQ_BAND_FILTERS, lower=True),
                 cv.Required(CONF_FREQUENCY): eq_frequency,
                 cv.Optional(CONF_Q_FACTOR): cv.float_range(min=EQ_BAND_MIN_Q, max=EQ_BAND_MAX_Q),
+                # slider limits for this band, override the platform ones (see _resolve_gain_limits)
+                cv.Optional(CONF_GAIN_MIN): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
+                cv.Optional(CONF_GAIN_MAX): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
             }
         ),
         _validate_eq_band,
     )
 
-CONFIG_SCHEMA = cv.Schema(
-    {
-        cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
 
-        cv.Optional(CONF_CHANNEL_VOLUME_LEFT): number.number_schema(
-            ChannelVolumeLeft,
-            device_class=DEVICE_CLASS_SOUND_PRESSURE,
-            entity_category=ENTITY_CATEGORY_CONFIG,
-            icon=ICON_VOLUME_SOURCE,
-            unit_of_measurement=UNIT_DECIBEL,
-        )
-        .extend(cv.COMPONENT_SCHEMA),
+# Sets the slider range of every EQ band, so to_code() only reads each band's gain_min / gain_max.
+# Each limit is the band's own value, else the platform value, else the full range. The schema keeps every value
+# within EQ_BAND_MIN_GAIN to EQ_BAND_MAX_GAIN, so only gain_min < gain_max is left to check.
+def _resolve_gain_limits(config):
+    platform_min = config.get(CONF_GAIN_MIN, EQ_BAND_MIN_GAIN)
+    platform_max = config.get(CONF_GAIN_MAX, EQ_BAND_MAX_GAIN)
+    for key in BAND_KEYS.values():
+        for band in config.get(key, []):
+            band.setdefault(CONF_GAIN_MIN, platform_min)
+            band.setdefault(CONF_GAIN_MAX, platform_max)
+            if band[CONF_GAIN_MIN] >= band[CONF_GAIN_MAX]:
+                raise cv.Invalid(f"gain_min ({band[CONF_GAIN_MIN]} dB) must be less than gain_max "
+                                 f"({band[CONF_GAIN_MAX]} dB) for band '{band.get(CONF_NAME, '')}'")
+    return config
 
-        cv.Optional(CONF_CHANNEL_VOLUME_RIGHT): number.number_schema(
-            ChannelVolumeRight,
-            device_class=DEVICE_CLASS_SOUND_PRESSURE,
-            entity_category=ENTITY_CATEGORY_CONFIG,
-            icon=ICON_VOLUME_SOURCE,
-            unit_of_measurement=UNIT_DECIBEL,
-        )
-        .extend(cv.COMPONENT_SCHEMA),
 
-        # EQ bands: one gain number per entry, in the biquad allocated by audio_dac.py
-        cv.Optional(CONF_LEFT_BANDS): cv.ensure_list(_eq_band_schema()),
-        cv.Optional(CONF_RIGHT_BANDS): cv.ensure_list(_eq_band_schema()),
-    }
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
+
+            cv.Optional(CONF_CHANNEL_VOLUME_LEFT): number.number_schema(
+                ChannelVolumeLeft,
+                device_class=DEVICE_CLASS_SOUND_PRESSURE,
+                entity_category=ENTITY_CATEGORY_CONFIG,
+                icon=ICON_VOLUME_SOURCE,
+                unit_of_measurement=UNIT_DECIBEL,
+            )
+            .extend(cv.COMPONENT_SCHEMA),
+
+            cv.Optional(CONF_CHANNEL_VOLUME_RIGHT): number.number_schema(
+                ChannelVolumeRight,
+                device_class=DEVICE_CLASS_SOUND_PRESSURE,
+                entity_category=ENTITY_CATEGORY_CONFIG,
+                icon=ICON_VOLUME_SOURCE,
+                unit_of_measurement=UNIT_DECIBEL,
+            )
+            .extend(cv.COMPONENT_SCHEMA),
+
+            # EQ bands: one gain number per entry, in the biquad allocated by audio_dac.py
+            cv.Optional(CONF_LEFT_BANDS): cv.ensure_list(_eq_band_schema()),
+            cv.Optional(CONF_RIGHT_BANDS): cv.ensure_list(_eq_band_schema()),
+
+            # slider range limits for every band of this block (not the channel volumes); a band can override them
+            cv.Optional(CONF_GAIN_MIN): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
+            cv.Optional(CONF_GAIN_MAX): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
+        }
+    ),
+    _resolve_gain_limits,
 )
 
 async def to_code(config):
@@ -170,11 +198,9 @@ async def to_code(config):
         for list_index, band_config in enumerate(config.get(key, [])):
             cg.add_define("USE_TAS58XX_EQ_GAINS")
             biquad_index = get_band_biquad(config[CONF_TAS58XX_ID], channel, list_index)
-            max_gain = (EQ_BAND_MAX_GAIN_LIMITED if band_config[CONF_EQ_FILTER] in EQ_GAIN_LIMITED_FILTERS
-                        else EQ_BAND_MAX_GAIN)
             n = await number.new_number(
                 band_config, CHANNEL_ENUMS[channel], biquad_index,
-                min_value=EQ_BAND_MIN_GAIN, max_value=max_gain, step=1
+                min_value=band_config[CONF_GAIN_MIN], max_value=band_config[CONF_GAIN_MAX], step=1
             )
             await cg.register_component(n, band_config)
             await cg.register_parented(n, tas58xx_component)
