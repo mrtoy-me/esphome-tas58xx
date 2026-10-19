@@ -7,6 +7,7 @@ import esphome.final_validate as fv
 
 from esphome.const import (
     CONF_FREQUENCY,
+    CONF_NAME,
     DEVICE_CLASS_SOUND_PRESSURE,
     ENTITY_CATEGORY_CONFIG,
     UNIT_DECIBEL,
@@ -124,78 +125,79 @@ def _eq_band_schema():
         _validate_eq_band,
     )
 
+
 def _filter_max_gain(eq_filter):
     return EQ_BAND_MAX_GAIN_LIMITED if eq_filter in EQ_GAIN_LIMITED_FILTERS else EQ_BAND_MAX_GAIN
 
 
-# sets gain_min / gain_max of every band: the band's own value, else the platform value, else the filter's full range
+# Sets the slider range of every EQ band, so to_code() only reads each band's gain_min / gain_max.
+# Each limit is the band's own value, else the platform value, else the filter's full range. The schema already keeps
+# every value within -24 dB to +24 dB, so only the filter's own maximum (+18 dB for the limited filters) is checked here.
 def _resolve_gain_limits(config):
-    platform_min = config.get(CONF_GAIN_MIN)
-    platform_max = config.get(CONF_GAIN_MAX)
-    capped_names = []
+    # platform values, or the full range when not set
+    platform_min = config.get(CONF_GAIN_MIN, EQ_BAND_MIN_GAIN)
+    platform_max = config.get(CONF_GAIN_MAX, EQ_BAND_MAX_GAIN)
+    capped_names = []  # bands whose max was lowered from the platform gain_max to their filter's maximum
     for key in BAND_KEYS.values():
-        for band_config in config.get(key, []):
-            name = band_config.get("name", "")
-            full_max = _filter_max_gain(band_config[CONF_EQ_FILTER])
-            for conf in (CONF_GAIN_MIN, CONF_GAIN_MAX):
-                value = band_config.get(conf)
-                if value is not None and not EQ_BAND_MIN_GAIN <= value <= full_max:
-                    raise cv.Invalid(f"{conf} of band '{name}' must be from {EQ_BAND_MIN_GAIN} dB to {full_max} dB "
-                                     f"for eq_filter {band_config[CONF_EQ_FILTER]}, got {value} dB")
+        for band in config.get(key, []):
+            name = band.get(CONF_NAME, "")
+            filter_max = _filter_max_gain(band[CONF_EQ_FILTER])
 
-            gain_min = band_config.get(CONF_GAIN_MIN, platform_min if platform_min is not None else EQ_BAND_MIN_GAIN)
-            if CONF_GAIN_MAX in band_config:
-                gain_max = band_config[CONF_GAIN_MAX]
-            elif platform_max is not None and platform_max > full_max:
-                gain_max = full_max
-                capped_names.append(f"'{name}'")
-            else:
-                gain_max = platform_max if platform_max is not None else full_max
+            if CONF_GAIN_MAX not in band:
+                # no band gain_max: use the platform one, lowered to the filter's maximum (warned once below)
+                if CONF_GAIN_MAX in config and platform_max > filter_max:
+                    capped_names.append(f"'{name}'")
+                band[CONF_GAIN_MAX] = min(platform_max, filter_max)
+            elif band[CONF_GAIN_MAX] > filter_max:
+                # a band's own gain_max is an error above its filter's maximum
+                raise cv.Invalid(f"gain_max of band '{name}' must be at most {filter_max} dB for eq_filter "
+                                 f"{band[CONF_EQ_FILTER]}, got {band[CONF_GAIN_MAX]} dB")
 
-            if gain_min >= gain_max:
-                raise cv.Invalid(f"gain_min ({gain_min} dB) must be less than gain_max ({gain_max} dB) "
-                                 f"for band '{name}'")
-            band_config[CONF_GAIN_MIN] = gain_min
-            band_config[CONF_GAIN_MAX] = gain_max
+            band.setdefault(CONF_GAIN_MIN, platform_min)
+
+            # also catches a gain_min above the filter's maximum
+            if band[CONF_GAIN_MIN] >= band[CONF_GAIN_MAX]:
+                raise cv.Invalid(f"gain_min ({band[CONF_GAIN_MIN]} dB) must be less than gain_max "
+                                 f"({band[CONF_GAIN_MAX]} dB) for band '{name}'")
 
     if capped_names:
-        _LOGGER.warning("gain_max %s dB is above +%s dB, the limit for high_shelf / high_pass bands - "
-                        "+%s dB is used as max for %s", platform_max, EQ_BAND_MAX_GAIN_LIMITED,
+        _LOGGER.warning("gain_max %s dB is above +%s dB, the limit for %s bands - +%s dB is used as max for %s",
+                        platform_max, EQ_BAND_MAX_GAIN_LIMITED, " / ".join(EQ_GAIN_LIMITED_FILTERS),
                         EQ_BAND_MAX_GAIN_LIMITED, ", ".join(capped_names))
     return config
 
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
-    {
-        cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
+        {
+            cv.GenerateID(CONF_TAS58XX_ID): cv.use_id(Tas58xxComponent),
 
-        cv.Optional(CONF_CHANNEL_VOLUME_LEFT): number.number_schema(
-            ChannelVolumeLeft,
-            device_class=DEVICE_CLASS_SOUND_PRESSURE,
-            entity_category=ENTITY_CATEGORY_CONFIG,
-            icon=ICON_VOLUME_SOURCE,
-            unit_of_measurement=UNIT_DECIBEL,
-        )
-        .extend(cv.COMPONENT_SCHEMA),
+            cv.Optional(CONF_CHANNEL_VOLUME_LEFT): number.number_schema(
+                ChannelVolumeLeft,
+                device_class=DEVICE_CLASS_SOUND_PRESSURE,
+                entity_category=ENTITY_CATEGORY_CONFIG,
+                icon=ICON_VOLUME_SOURCE,
+                unit_of_measurement=UNIT_DECIBEL,
+            )
+            .extend(cv.COMPONENT_SCHEMA),
 
-        cv.Optional(CONF_CHANNEL_VOLUME_RIGHT): number.number_schema(
-            ChannelVolumeRight,
-            device_class=DEVICE_CLASS_SOUND_PRESSURE,
-            entity_category=ENTITY_CATEGORY_CONFIG,
-            icon=ICON_VOLUME_SOURCE,
-            unit_of_measurement=UNIT_DECIBEL,
-        )
-        .extend(cv.COMPONENT_SCHEMA),
+            cv.Optional(CONF_CHANNEL_VOLUME_RIGHT): number.number_schema(
+                ChannelVolumeRight,
+                device_class=DEVICE_CLASS_SOUND_PRESSURE,
+                entity_category=ENTITY_CATEGORY_CONFIG,
+                icon=ICON_VOLUME_SOURCE,
+                unit_of_measurement=UNIT_DECIBEL,
+            )
+            .extend(cv.COMPONENT_SCHEMA),
 
-        # EQ bands: one gain number per entry, in the biquad allocated by audio_dac.py
-        cv.Optional(CONF_LEFT_BANDS): cv.ensure_list(_eq_band_schema()),
-        cv.Optional(CONF_RIGHT_BANDS): cv.ensure_list(_eq_band_schema()),
+            # EQ bands: one gain number per entry, in the biquad allocated by audio_dac.py
+            cv.Optional(CONF_LEFT_BANDS): cv.ensure_list(_eq_band_schema()),
+            cv.Optional(CONF_RIGHT_BANDS): cv.ensure_list(_eq_band_schema()),
 
-        # slider range limits for every band of this block (not the channel volumes); a band can override them
-        cv.Optional(CONF_GAIN_MIN): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
-        cv.Optional(CONF_GAIN_MAX): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
-    }
+            # slider range limits for every band of this block (not the channel volumes); a band can override them
+            cv.Optional(CONF_GAIN_MIN): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
+            cv.Optional(CONF_GAIN_MAX): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
+        }
     ),
     _resolve_gain_limits,
 )

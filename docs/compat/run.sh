@@ -18,7 +18,7 @@ for f in "$HERE"/cases/*.yaml; do
     warn="$(echo "$out" | grep -o 'WARNING .*' | grep -v 'esphome/components' | head -1)"
     echo "$name: VALID ${warn:+ ($warn)}"
   else
-    echo "$name: FAIL :: $(echo "$out" | grep -E 'invalid|Invalid|required|not allowed|Cannot' | head -1 | tr -s ' ')"
+    echo "$name: FAIL :: $(echo "$out" | grep -E 'invalid|Invalid|required|not allowed|Cannot|must' | head -1 | tr -s ' ')"
   fi
 done
 rm -rf "$WORK"
