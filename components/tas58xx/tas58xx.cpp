@@ -33,14 +33,15 @@ void Tas58xxComponent::setup() {
     delay(5);
   }
 
+  // rescale -103db to 24db digital volume range to register digital volume range 254 to 0
+  // before configure_registers_(), which sets the starting volume
+  this->tas58xx_raw_volume_max_ = (uint8_t)((this->tas58xx_volume_max_ - 24) * -2);
+  this->tas58xx_raw_volume_min_ = (uint8_t)((this->tas58xx_volume_min_ - 24) * -2);
+
   if (!this->configure_registers_()) {
     this->error_code_ = CONFIGURATION_FAILED;
     this->mark_failed();
   }
-
-  // rescale -103db to 24db digital volume range to register digital volume range 254 to 0
-  this->tas58xx_raw_volume_max_ = (uint8_t)((this->tas58xx_volume_max_ - 24) * -2);
-  this->tas58xx_raw_volume_min_ = (uint8_t)((this->tas58xx_volume_min_ - 24) * -2);
 }
 
 bool Tas58xxComponent::configure_registers_() {
@@ -71,6 +72,10 @@ bool Tas58xxComponent::configure_registers_() {
   if (!this->set_dac_mode_(this->tas58xx_dac_mode_)) return false;
 
   if (!this->set_analog_gain_(this->tas58xx_analog_gain_)) return false;
+
+  // start at volume_min, as ESPHome's own tas58xx does: the reset default 0 dB left a DAC the speaker does not
+  // control (eg a second DAC on the same I2S) loud; the speaker then sets the volume it restores
+  if (!this->set_volume(0.0f)) return false;
 
   uint8_t ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
