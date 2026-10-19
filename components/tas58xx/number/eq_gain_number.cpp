@@ -17,14 +17,15 @@ void EqGainNumber::setup() {
 // every band setting is logged, including those defaulted in YAML
 void EqGainNumber::dump_config() {
   const EqBiquad &biquad = this->parent_->get_eq_biquad(this->channel_, this->biquad_index_);
-  if (biquad.type == FILTER_TYPE_LOW_PASS || biquad.type == FILTER_TYPE_HIGH_PASS) {
+  if (biquad.type == FILTER_TYPE_LOW_PASS || biquad.type == FILTER_TYPE_HIGH_PASS ||
+      biquad.type == FILTER_TYPE_LOW_PASS_CHEBYSHEV || biquad.type == FILTER_TYPE_HIGH_PASS_CHEBYSHEV) {
     ESP_LOGCONFIG(TAG, "Tas58xx %s EQ Band (biquad %d) '%s': %s %dHz Q fixed", LR_CHANNEL_TEXT[this->channel_],
                   this->biquad_index_ + 1, this->get_name().c_str(), FILTER_TYPE_TEXT[biquad.type],
                   biquad.frequency);
   } else {
     ESP_LOGCONFIG(TAG, "Tas58xx %s EQ Band (biquad %d) '%s': %s %dHz %s %.3f", LR_CHANNEL_TEXT[this->channel_],
                   this->biquad_index_ + 1, this->get_name().c_str(), FILTER_TYPE_TEXT[biquad.type],
-                  biquad.frequency, is_chebyshev(biquad.type) ? "Ripple" : "Q", biquad.q_factor);
+                  biquad.frequency, biquad.q_factor);
   }
 }
 

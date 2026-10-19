@@ -22,6 +22,9 @@ static constexpr double LN10_DIV_20 = 0.11512925464970228420;
 static constexpr double LN10_DIV_40 = 0.05756462732485114210;
 static constexpr double LN10_DIV_80 = 0.02878231366242557105;
 
+// ripple of the Chebyshev filters in dB, the TI PurePath Console 3 default and the value in the main branch presets
+static constexpr double CHEBYSHEV_RIPPLE_DB = 0.5;
+
 // 5.27 fixed point in the byte order written to the DSP, saturated to the 32 bit range
 static int32_t double_to_fixed_5_27(double x) {
   static constexpr double SCALE = 134217728.0;  // 2^27
@@ -281,9 +284,9 @@ BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t f
     case FILTER_TYPE_BAND_PASS:
       return bandwidth_filter(false, sample_rate, frequency, q_factor);
     case FILTER_TYPE_LOW_PASS_CHEBYSHEV:
-      return chebyshev_filter(false, sample_rate, frequency, gain, q_factor);
+      return chebyshev_filter(false, sample_rate, frequency, gain, CHEBYSHEV_RIPPLE_DB);
     case FILTER_TYPE_HIGH_PASS_CHEBYSHEV:
-      return chebyshev_filter(true, sample_rate, frequency, gain, q_factor);
+      return chebyshev_filter(true, sample_rate, frequency, gain, CHEBYSHEV_RIPPLE_DB);
     case FILTER_TYPE_ALL_PASS:
     default:
       return ALL_PASS;

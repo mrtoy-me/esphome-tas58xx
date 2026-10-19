@@ -264,9 +264,8 @@ void Tas58xxComponent::dump_config() {
     for (uint8_t index = 0; index < NUMBER_EQ_BANDS; index++) {
       if (!(this->eq_biquad_fixed_[channel] & (1u << index))) continue;
       const EqBiquad &biquad = this->eq_biquads_[channel][index];
-      ESP_LOGCONFIG(TAG, "  %s Fixed Filter (biquad %d): %s %dHz %s %.3f", LR_CHANNEL_TEXT[channel], index + 1,
-                    FILTER_TYPE_TEXT[biquad.type], biquad.frequency, is_chebyshev(biquad.type) ? "Ripple" : "Q",
-                    biquad.q_factor);
+      ESP_LOGCONFIG(TAG, "  %s Fixed Filter (biquad %d): %s %dHz Q %.3f", LR_CHANNEL_TEXT[channel], index + 1,
+                    FILTER_TYPE_TEXT[biquad.type], biquad.frequency, biquad.q_factor);
     }
   }
 #endif
@@ -496,9 +495,8 @@ BiquadCoefficients Tas58xxComponent::eq_biquad_coefficients_(Channels channel, u
 void Tas58xxComponent::log_eq_biquad_(Channels channel, uint8_t biquad_index) {
   const EqBiquad &biquad = this->eq_biquads_[channel][biquad_index];
   if (biquad.fixed) {
-    ESP_LOGD(TAG, "%s Channel Fixed Filter biquad %d: %s %dHz %s %.3f", LR_CHANNEL_TEXT[channel], biquad_index + 1,
-             FILTER_TYPE_TEXT[biquad.type], biquad.frequency, is_chebyshev(biquad.type) ? "Ripple" : "Q",
-             biquad.q_factor);
+    ESP_LOGD(TAG, "%s Channel Fixed Filter biquad %d: %s %dHz Q %.3f", LR_CHANNEL_TEXT[channel], biquad_index + 1,
+             FILTER_TYPE_TEXT[biquad.type], biquad.frequency, biquad.q_factor);
   } else {
     ESP_LOGD(TAG, "%s Channel %s biquad %d: %s %dHz Gain >> %ddB", LR_CHANNEL_TEXT[channel], EQ_BAND, biquad_index + 1,
              FILTER_TYPE_TEXT[biquad.type], biquad.frequency, this->tas58xx_eq_gain_[channel][biquad_index]);

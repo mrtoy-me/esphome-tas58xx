@@ -29,21 +29,16 @@ enum FilterType : uint8_t {
   FILTER_TYPE_NOTCH,      // no gain, bandwidth = frequency / Q
   FILTER_TYPE_BAND_PASS,  // no gain, bandwidth = frequency / Q
   // added at the end so the values above keep their numbers (docs/tools/ppc_check/compare.py relies on them)
-  FILTER_TYPE_LOW_PASS_CHEBYSHEV,   // 2nd order, ripple (dB) in q_factor, frequency is the ripple band edge
-  FILTER_TYPE_HIGH_PASS_CHEBYSHEV,  // 2nd order, ripple (dB) in q_factor, frequency is the ripple band edge
+  FILTER_TYPE_LOW_PASS_CHEBYSHEV,   // 2nd order, 0.5 dB ripple, frequency is the ripple band edge, Q is fixed
+  FILTER_TYPE_HIGH_PASS_CHEBYSHEV,  // 2nd order, 0.5 dB ripple, frequency is the ripple band edge, Q is fixed
 };
-
-// the Chebyshev filters carry the ripple in dB in the q_factor slot
-inline bool is_chebyshev(FilterType type) {
-  return type == FILTER_TYPE_LOW_PASS_CHEBYSHEV || type == FILTER_TYPE_HIGH_PASS_CHEBYSHEV;
-}
 
 // gain in dB as 9.23 fixed point in the byte order written to the DSP
 int32_t gain_to_fixed_9_23(int8_t gain);
 
 // gain is in dB and is not used by all pass, notch and band pass
-// q_factor is not used by all pass, low pass and high pass; for notch and band pass it sets bandwidth = frequency / Q;
-// for the Chebyshev filters it is the ripple in dB
+// q_factor is not used by all pass and the low pass and high pass filters; for notch and band pass it sets
+// bandwidth = frequency / Q
 BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor);
 
 }  // namespace esphome::tas58xx
