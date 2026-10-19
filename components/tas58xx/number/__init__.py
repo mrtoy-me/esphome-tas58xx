@@ -34,12 +34,10 @@ from ..audio_dac import (
     EQ_BAND_DEFAULT_Q,
     EQ_BAND_FILTERS,
     EQ_BAND_MAX_GAIN,
-    EQ_BAND_MAX_GAIN_LIMITED,
     EQ_BAND_MAX_Q,
     EQ_BAND_MIN_GAIN,
     EQ_BAND_MIN_Q,
     EQ_FIXED_Q_FILTERS,
-    EQ_GAIN_LIMITED_FILTERS,
     EQ_SHELF_Q,
     LEFT,
     RIGHT,
@@ -117,7 +115,7 @@ def _eq_band_schema():
                 cv.Optional(CONF_EQ_FILTER, default="equalizer"): cv.one_of(*EQ_BAND_FILTERS, lower=True),
                 cv.Required(CONF_FREQUENCY): eq_frequency,
                 cv.Optional(CONF_Q_FACTOR): cv.float_range(min=EQ_BAND_MIN_Q, max=EQ_BAND_MAX_Q),
-                # limits for this band, checked against the filter's full range in _resolve_gain_limits
+                # slider limits for this band, override the platform ones (see _resolve_gain_limits)
                 cv.Optional(CONF_GAIN_MIN): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
                 cv.Optional(CONF_GAIN_MAX): cv.All(cv.decibel, cv.int_range(EQ_BAND_MIN_GAIN, EQ_BAND_MAX_GAIN)),
             }
@@ -126,44 +124,19 @@ def _eq_band_schema():
     )
 
 
-def _filter_max_gain(eq_filter):
-    return EQ_BAND_MAX_GAIN_LIMITED if eq_filter in EQ_GAIN_LIMITED_FILTERS else EQ_BAND_MAX_GAIN
-
-
 # Sets the slider range of every EQ band, so to_code() only reads each band's gain_min / gain_max.
-# Each limit is the band's own value, else the platform value, else the filter's full range. The schema already keeps
-# every value within -24 dB to +24 dB, so only the filter's own maximum (+18 dB for the limited filters) is checked here.
+# Each limit is the band's own value, else the platform value, else the full range. The schema keeps every value
+# within EQ_BAND_MIN_GAIN to EQ_BAND_MAX_GAIN, so only gain_min < gain_max is left to check.
 def _resolve_gain_limits(config):
-    # platform values, or the full range when not set
     platform_min = config.get(CONF_GAIN_MIN, EQ_BAND_MIN_GAIN)
     platform_max = config.get(CONF_GAIN_MAX, EQ_BAND_MAX_GAIN)
-    capped_names = []  # bands whose max was lowered from the platform gain_max to their filter's maximum
     for key in BAND_KEYS.values():
         for band in config.get(key, []):
-            name = band.get(CONF_NAME, "")
-            filter_max = _filter_max_gain(band[CONF_EQ_FILTER])
-
-            if CONF_GAIN_MAX not in band:
-                # no band gain_max: use the platform one, lowered to the filter's maximum (warned once below)
-                if CONF_GAIN_MAX in config and platform_max > filter_max:
-                    capped_names.append(f"'{name}'")
-                band[CONF_GAIN_MAX] = min(platform_max, filter_max)
-            elif band[CONF_GAIN_MAX] > filter_max:
-                # a band's own gain_max is an error above its filter's maximum
-                raise cv.Invalid(f"gain_max of band '{name}' must be at most {filter_max} dB for eq_filter "
-                                 f"{band[CONF_EQ_FILTER]}, got {band[CONF_GAIN_MAX]} dB")
-
             band.setdefault(CONF_GAIN_MIN, platform_min)
-
-            # also catches a gain_min above the filter's maximum
+            band.setdefault(CONF_GAIN_MAX, platform_max)
             if band[CONF_GAIN_MIN] >= band[CONF_GAIN_MAX]:
                 raise cv.Invalid(f"gain_min ({band[CONF_GAIN_MIN]} dB) must be less than gain_max "
-                                 f"({band[CONF_GAIN_MAX]} dB) for band '{name}'")
-
-    if capped_names:
-        _LOGGER.warning("gain_max %s dB is above +%s dB, the limit for %s bands - +%s dB is used as max for %s",
-                        platform_max, EQ_BAND_MAX_GAIN_LIMITED, " / ".join(EQ_GAIN_LIMITED_FILTERS),
-                        EQ_BAND_MAX_GAIN_LIMITED, ", ".join(capped_names))
+                                 f"({band[CONF_GAIN_MAX]} dB) for band '{band.get(CONF_NAME, '')}'")
     return config
 
 

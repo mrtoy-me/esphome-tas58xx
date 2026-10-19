@@ -16,9 +16,12 @@ audio_dac:
     enable_pin: GPIO33
 number:
   - platform: tas58xx
-    gain_max: 30dB
+    gain_max: 18dB
     left_bands:
       - {name: Left 100Hz, frequency: 100Hz}
+      - {name: Left Treble, eq_filter: high_shelf, frequency: 8kHz}
+      - {name: Left Air, eq_filter: high_pass, frequency: 16kHz}
+      - {name: Left Own, eq_filter: high_shelf, frequency: 6kHz, gain_max: 10dB}
 select:
   - platform: tas58xx
     eq_mode: {name: m}

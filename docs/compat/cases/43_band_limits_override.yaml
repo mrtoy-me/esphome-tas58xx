@@ -21,7 +21,7 @@ number:
     left_bands:
       - {name: Left 100Hz, frequency: 100Hz}
       - {name: Left Treble, eq_filter: high_shelf, frequency: 8kHz, gain_max: 6dB}
-      - {name: Left Bass, eq_filter: low_shelf, frequency: 60Hz, gain_min: -24dB, gain_max: 20dB}
+      - {name: Left Bass, eq_filter: low_shelf, frequency: 60Hz, gain_min: -24dB, gain_max: 18dB}
 select:
   - platform: tas58xx
     eq_mode: {name: m}
