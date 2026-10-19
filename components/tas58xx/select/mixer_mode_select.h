@@ -17,6 +17,7 @@ public:
 
 protected:
   ESPPreferenceObject pref_;
+  uint8_t min_mixer_mode_{0};  // mixer mode of option 0: STEREO for BTL, MONO for PBTL
 
   void control(size_t index) override;
 };
