@@ -1,5 +1,6 @@
 #include "tas58xx_helpers.h"
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 #include <numbers>
@@ -46,6 +47,17 @@ static int32_t double_to_fixed_5_27(double x) {
   return byteswap(fixed_5_27);
 }
 
+// Gain range of each filter in dB, where its coefficients fit the 5.27 range (just under +16) from 20 Hz to 16 kHz.
+// A cut never overflows; -24 dB is the lowest gain used. The high shelf and high pass have b1 = about -2 x the linear
+// gain, which overflows above +18 dB; the other filters fit up to +24 dB. Each filter limits its own gain with these,
+// so every caller is protected whatever range the YAML allows.
+static constexpr int8_t FILTER_MIN_GAIN_DB = -24;
+static constexpr int8_t FILTER_MAX_GAIN_DB = 24;
+static constexpr int8_t FILTER_MAX_GAIN_DB_HIGH = 18;  // high shelf and high pass
+
+// gain limited to FILTER_MIN_GAIN_DB to max_gain
+static int8_t limit_gain(int8_t gain, int8_t max_gain) { return std::clamp(gain, FILTER_MIN_GAIN_DB, max_gain); }
+
 // 10^(gain / N) with the exp constant ln(10) / N, exp(0) = 1 is not calculated
 static double linear_gain(int8_t gain, double ln10_div_n) {
   if (gain == 0) return 1.0;
@@ -59,6 +71,7 @@ static double angular_frequency(uint32_t sample_rate, uint16_t frequency) {
 
 // Derived from biquad.model.js in TI Pure Path Console 3
 static BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
+  gain = limit_gain(gain, FILTER_MAX_GAIN_DB);
   const double ag = linear_gain(gain, LN10_DIV_20);
   const double t0 = angular_frequency(sample_rate, frequency);
 
@@ -90,6 +103,7 @@ static BiquadCoefficients equalizer_filter(uint32_t sample_rate, uint16_t freque
 // A high shelf is a low shelf with cos(w0) negated and the signs of b1 and a1 flipped
 static BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain,
                                        double q_factor) {
+  gain = limit_gain(gain, high ? FILTER_MAX_GAIN_DB_HIGH : FILTER_MAX_GAIN_DB);
   // sqrt(A) = 10^(gain / 80) and A = sqrt(A) * sqrt(A), which avoids a sqrt
   const double sqrt_ag = linear_gain(gain, LN10_DIV_80);
   const double ag = sqrt_ag * sqrt_ag;
@@ -127,6 +141,7 @@ static BiquadCoefficients shelf_filter(bool high, uint32_t sample_rate, uint16_t
 // which are easier to optimise. Gives the same coefficients as the Butterworth 2 filters in TI Pure Path Console 3.
 // A high pass is a low pass with cos(w0) negated and the sign of b1 flipped.
 static BiquadCoefficients pass_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain) {
+  gain = limit_gain(gain, high ? FILTER_MAX_GAIN_DB_HIGH : FILTER_MAX_GAIN_DB);
   const double ag = linear_gain(gain, LN10_DIV_20);
   const double w0 = angular_frequency(sample_rate, frequency);
   const double sign = high ? -1.0 : 1.0;
@@ -165,6 +180,7 @@ static BiquadCoefficients pass_filter(bool high, uint32_t sample_rate, uint16_t 
 static BiquadCoefficients chebyshev_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain,
                                            double ripple) {
   if (ripple == 0.0) return ALL_PASS;
+  gain = limit_gain(gain, high ? FILTER_MAX_GAIN_DB_HIGH : FILTER_MAX_GAIN_DB);
 
   const double u = std::exp(std::fabs(ripple) * LN10_DIV_20);
   const double inverse_epsilon = 1.0 / std::sqrt((u - 1.0) * (u + 1.0));
@@ -200,6 +216,7 @@ static BiquadCoefficients chebyshev_filter(bool high, uint32_t sample_rate, uint
 
 // Derived from biquad.model.js in TI Pure Path Console 3
 static BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
+  gain = limit_gain(gain, FILTER_MAX_GAIN_DB);
   // A = sqrt(10^(gain / 20)) = 10^(gain / 40)
   const double ag = linear_gain(gain, LN10_DIV_40);
   const double w0 = angular_frequency(sample_rate, frequency);

@@ -36,7 +36,8 @@ enum FilterType : uint8_t {
 // gain in dB as 9.23 fixed point in the byte order written to the DSP
 int32_t gain_to_fixed_9_23(int8_t gain);
 
-// gain is in dB and is not used by all pass, notch and band pass
+// gain is in dB and is not used by all pass, notch and band pass; each filter limits it to its own range
+// (-24 dB to +24 dB, high shelf and high pass -24 dB to +18 dB) so the coefficients fit 5.27
 // q_factor is not used by all pass and the low pass and high pass filters; for notch and band pass it sets
 // bandwidth = frequency / Q
 BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor);

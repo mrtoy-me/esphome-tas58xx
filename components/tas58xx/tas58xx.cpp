@@ -479,16 +479,10 @@ void Tas58xxComponent::add_eq_biquad(Channels channel, uint8_t biquad_index, Fil
   if (fixed) this->eq_biquad_fixed_[channel] |= static_cast<uint16_t>(1u << biquad_index);
 }
 
-// fixed filters have no gain
+// fixed filters have no gain; each filter in tas58xx_helpers.cpp limits the gain to its own range
 BiquadCoefficients Tas58xxComponent::eq_biquad_coefficients_(Channels channel, uint8_t biquad_index) {
   const EqBiquad &biquad = this->eq_biquads_[channel][biquad_index];
-  int8_t gain = biquad.fixed ? 0 : this->tas58xx_eq_gain_[channel][biquad_index];
-  // keep the coefficients inside the 5.27 range, eg if a higher gain was saved before the filter was changed
-  if ((biquad.type == FILTER_TYPE_HIGH_SHELF || biquad.type == FILTER_TYPE_HIGH_PASS ||
-       biquad.type == FILTER_TYPE_HIGH_PASS_CHEBYSHEV) &&
-      gain > TAS58XX_EQ_MAX_DB_HIGH_SHELF_PASS) {
-    gain = TAS58XX_EQ_MAX_DB_HIGH_SHELF_PASS;
-  }
+  const int8_t gain = biquad.fixed ? 0 : this->tas58xx_eq_gain_[channel][biquad_index];
   return make_biquad(biquad.type, EQ_SAMPLE_RATE, biquad.frequency, gain, biquad.q_factor);
 }
 

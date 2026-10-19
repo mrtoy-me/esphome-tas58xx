@@ -11,9 +11,7 @@ namespace esphome::tas58xx {
 // EQ Gain constants
 static constexpr int8_t  TAS58XX_EQ_MAX_DB = 24;
 static constexpr int8_t  TAS58XX_EQ_MIN_DB = -TAS58XX_EQ_MAX_DB;
-// high shelf and high pass: b1 is about -2 x the linear gain and a 5.27 coefficient holds just under +16,
-// so the boost is limited to +18 dB (the number's maximum is also +18 dB for these filters)
-static constexpr int8_t  TAS58XX_EQ_MAX_DB_HIGH_SHELF_PASS = 18;
+// each filter also limits the gain to its own range (+18 dB for high shelf and high pass), in tas58xx_helpers.cpp
 
 // biquad constants
 static constexpr uint8_t COEFFICIENT_SIZE = 4;                // cooefficients = 32 bit
