@@ -74,6 +74,7 @@ bool Tas58xxComponent::configure_registers_() {
 
   uint8_t ctrl_value = (this->is_muted_) ? (CTRL_PLAY + TAS58XX_MUTE_CONTROL) : CTRL_PLAY;
   if (!this->tas58xx_write_byte_(TAS58XX_DEVICE_CTRL_2, ctrl_value)) return false;
+  this->tas58xx_control_state_ = CTRL_PLAY;  // record it, mute, enable_dac and deep sleep rely on it
 
   this->start_time_ = App.get_loop_component_start_time();
   return true;
