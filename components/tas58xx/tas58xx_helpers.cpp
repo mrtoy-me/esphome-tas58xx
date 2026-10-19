@@ -22,7 +22,7 @@ static constexpr double LN10_DIV_20 = 0.11512925464970228420;
 static constexpr double LN10_DIV_40 = 0.05756462732485114210;
 static constexpr double LN10_DIV_80 = 0.02878231366242557105;
 
-// ripple of the Chebyshev filters in dB, the TI PurePath Console 3 default and the value in the main branch presets
+// ripple of the Chebyshev filters in dB, the value in the main branch presets (TI PurePath Console 3 defaults to 1.0)
 static constexpr double CHEBYSHEV_RIPPLE_DB = 0.5;
 
 // 5.27 fixed point in the byte order written to the DSP, saturated to the 32 bit range
