@@ -10,10 +10,18 @@ ESPHOME_LOG_TAG(TAG, "tas58xx.number");
 void EqGainNumber::setup() {
   float value;
   this->pref_ = this->make_entity_preference<float>();
-  if (!this->pref_.load(&value))
+  const bool saved = this->pref_.load(&value);
+  if (!saved)
     value = 0.0;  // no saved gain so set to 0dB
   // the YAML limits may have changed since the value was saved, and 0 dB may be outside them
-  value = std::clamp(value, this->traits.get_min_value(), this->traits.get_max_value());
+  const float limited = std::clamp(value, this->traits.get_min_value(), this->traits.get_max_value());
+  if (saved && limited != value) {
+    // saved once, so the warning is only given at the first boot after the limits changed
+    ESP_LOGW(TAG, "%s saved gain %.0fdB is outside its range (%.0fdB to %.0fdB), %.0fdB is used",
+             this->get_name().c_str(), value, this->traits.get_min_value(), this->traits.get_max_value(), limited);
+    this->pref_.save(&limited);
+  }
+  value = limited;
   this->publish_state(value);
   this->parent_->set_eq_gain(this->channel_, this->biquad_index_, static_cast<int>(value));
 }
@@ -30,6 +38,7 @@ void EqGainNumber::dump_config() {
                   this->biquad_index_ + 1, this->get_name().c_str(), FILTER_TYPE_TEXT[biquad.type],
                   biquad.frequency, biquad.q_factor);
   }
+  ESP_LOGCONFIG(TAG, "  Gain range: %.0fdB to %.0fdB", this->traits.get_min_value(), this->traits.get_max_value());
 }
 
 void EqGainNumber::control(float value) {

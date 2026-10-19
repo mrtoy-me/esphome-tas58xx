@@ -437,8 +437,9 @@ number:
 Here Left 100Hz is -12 dB to +12 dB and Left Treble is -12 dB to +6 dB.
 
 A saved gain is clamped into the band's range at boot (so is the first-boot 0 dB if the range does not contain 0 dB),
-so a narrowed range takes effect after a reboot. The clamped value is published and applied but not saved again until
-the slider is moved.
+so a narrowed range takes effect after a reboot. A saved gain that was outside the range is saved again as the
+clamped value, with a warning in the log, eg `Left Treble saved gain 20dB is outside its range (-24dB to 18dB), 18dB
+is used`. `dump_config` shows each band's range (`Gain range: -12dB to 12dB`).
 
 Any number of bands can be configured on either channel, up to 15 per channel together with that channel's fixed
 filters (12 with an EQ Preset). The component allocates the biquads (see "Biquad order" above); only the filters
