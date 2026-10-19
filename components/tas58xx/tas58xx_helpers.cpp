@@ -146,6 +146,55 @@ static BiquadCoefficients pass_filter(bool high, uint32_t sample_rate, uint16_t 
   return result;
 }
 
+// 2nd order Chebyshev low pass / high pass as in TI Pure Path Console 3. The frequency is the edge of the ripple
+// band, not the -3 dB point. ripple > 0: the ripple peaks are 0 dB and the DC (low pass) or Nyquist (high pass) gain
+// is -ripple dB. ripple < 0: that gain is 0 dB and the peaks are +|ripple| dB. ripple = 0 gives all pass.
+// Checked against PPC3 exports at 0.5 dB ripple: within 1 LSB (chebyshev-study.md, esphome dev_eq_test branch).
+//
+// TI's maths simplified with u = 10^(|ripple| / 20), epsilon = sqrt(u^2 - 1), e^(2 alpha) = sqrt((u + 1) / (u - 1)):
+//   b = cosh(2 alpha) / 2 = u / (2 epsilon)           pole product in units of wc^2
+//   p = -a = sqrt(2) sinh(alpha) = sqrt(2 b - 1)      pole sum in units of wc
+//   c = b / u = 1 / (2 epsilon) for ripple > 0, else c = b
+// With T = tan(pi f / Fs), k = wc / T, dividing every term by wc^2 and multiplying by T^2 removes wc:
+//   low pass:  D = 1 + p T + b T^2, b0 = c T^2 / D, a1 = (2 - 2 b T^2) / D, a2 = (p T - 1 - b T^2) / D
+//   high pass: D = b + p T + T^2,   b0 = c / D,     a1 = (2 b - 2 T^2) / D, a2 = (p T - b - T^2) / D
+// b1 = +/-2 b0 and b2 = b0; a1 and a2 are already in the sign the DSP expects.
+static BiquadCoefficients chebyshev_filter(bool high, uint32_t sample_rate, uint16_t frequency, int8_t gain,
+                                           double ripple) {
+  if (ripple == 0.0) return ALL_PASS;
+
+  const double u = std::exp(std::fabs(ripple) * LN10_DIV_20);
+  const double inverse_epsilon = 1.0 / std::sqrt((u - 1.0) * (u + 1.0));
+  const double b = 0.5 * u * inverse_epsilon;
+  const double c = ripple > 0.0 ? 0.5 * inverse_epsilon : b;
+  const double p = std::sqrt((u * inverse_epsilon) - 1.0);
+
+  const double t = std::tan(0.5 * angular_frequency(sample_rate, frequency));
+  const double t2 = t * t;
+  const double pt = p * t;
+  const double ag = linear_gain(gain, LN10_DIV_20);
+
+  BiquadCoefficients result{};
+  double b0;
+  if (high) {
+    const double inverse_d = 1.0 / (b + pt + t2);
+    b0 = c * inverse_d * ag;
+    result.b1 = double_to_fixed_5_27(-2.0 * b0);
+    result.a1 = double_to_fixed_5_27((2.0 * (b - t2)) * inverse_d);
+    result.a2 = double_to_fixed_5_27((pt - b - t2) * inverse_d);
+  } else {
+    const double bt2 = b * t2;
+    const double inverse_d = 1.0 / (1.0 + pt + bt2);
+    b0 = c * t2 * inverse_d * ag;
+    result.b1 = double_to_fixed_5_27(2.0 * b0);
+    result.a1 = double_to_fixed_5_27((2.0 - (2.0 * bt2)) * inverse_d);
+    result.a2 = double_to_fixed_5_27((pt - 1.0 - bt2) * inverse_d);
+  }
+  result.b0 = double_to_fixed_5_27(b0);
+  result.b2 = result.b0;
+  return result;
+}
+
 // Derived from biquad.model.js in TI Pure Path Console 3
 static BiquadCoefficients peaking_filter(uint32_t sample_rate, uint16_t frequency, int8_t gain, double q_factor) {
   // A = sqrt(10^(gain / 20)) = 10^(gain / 40)
@@ -231,6 +280,10 @@ BiquadCoefficients make_biquad(FilterType type, uint32_t sample_rate, uint16_t f
       return bandwidth_filter(true, sample_rate, frequency, q_factor);
     case FILTER_TYPE_BAND_PASS:
       return bandwidth_filter(false, sample_rate, frequency, q_factor);
+    case FILTER_TYPE_LOW_PASS_CHEBYSHEV:
+      return chebyshev_filter(false, sample_rate, frequency, gain, q_factor);
+    case FILTER_TYPE_HIGH_PASS_CHEBYSHEV:
+      return chebyshev_filter(true, sample_rate, frequency, gain, q_factor);
     case FILTER_TYPE_ALL_PASS:
     default:
       return ALL_PASS;

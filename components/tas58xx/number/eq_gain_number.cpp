@@ -22,9 +22,9 @@ void EqGainNumber::dump_config() {
                   this->biquad_index_ + 1, this->get_name().c_str(), FILTER_TYPE_TEXT[biquad.type],
                   biquad.frequency);
   } else {
-    ESP_LOGCONFIG(TAG, "Tas58xx %s EQ Band (biquad %d) '%s': %s %dHz Q %.3f", LR_CHANNEL_TEXT[this->channel_],
+    ESP_LOGCONFIG(TAG, "Tas58xx %s EQ Band (biquad %d) '%s': %s %dHz %s %.3f", LR_CHANNEL_TEXT[this->channel_],
                   this->biquad_index_ + 1, this->get_name().c_str(), FILTER_TYPE_TEXT[biquad.type],
-                  biquad.frequency, biquad.q_factor);
+                  biquad.frequency, is_chebyshev(biquad.type) ? "Ripple" : "Q", biquad.q_factor);
   }
 }
 

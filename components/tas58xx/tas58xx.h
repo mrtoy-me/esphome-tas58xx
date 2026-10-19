@@ -24,7 +24,10 @@ struct EqBiquad {
 
 // text of each FilterType, for logs
 static constexpr const char *const FILTER_TYPE_TEXT[] = {"All Pass",  "Equalizer", "Peaking", "Low Shelf", "High Shelf",
-                                                         "Low Pass",  "High Pass", "Notch",   "Band Pass"};
+                                                         "Low Pass",  "High Pass", "Notch",   "Band Pass",
+                                                         "Low Pass Chebyshev", "High Pass Chebyshev"};
+static_assert(sizeof(FILTER_TYPE_TEXT) / sizeof(FILTER_TYPE_TEXT[0]) == FILTER_TYPE_HIGH_PASS_CHEBYSHEV + 1,
+              "one text per FilterType");
 
 class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
