@@ -583,16 +583,14 @@ bool Tas58xxComponent::using_manual_eq_refresh() {
   return (this->eq_refresh_ == EqRefreshMode::MANUAL);
 }
 
-float Tas58xxComponent::volume() {
-  uint8_t raw_volume;
-  this->get_digital_volume_(&raw_volume);
-  return remap<float, uint8_t>(raw_volume, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_, 0.0f, 1.0f);
-}
+// the last volume written, no I2C read (a failed read used to return an uninitialised value)
+float Tas58xxComponent::volume() { return this->tas58xx_volume_; }
 
 bool Tas58xxComponent::set_volume(float volume) {
   float new_volume = clamp(volume, 0.0f, 1.0f);
   uint8_t raw_volume = remap<uint8_t, float>(new_volume, 0.0f, 1.0f, this->tas58xx_raw_volume_min_, this->tas58xx_raw_volume_max_);
   if (!this->set_digital_volume_(raw_volume)) return false;
+  this->tas58xx_volume_ = new_volume;
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
     int8_t dB = -(raw_volume / 2) + 24;
     ESP_LOGV(TAG, "Volume >> %ddB", dB);
@@ -714,13 +712,6 @@ bool Tas58xxComponent::set_deep_sleep_on_() {
   #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   if (this->is_muted_) ESP_LOGV(TAG, "Mute On preserved");
   #endif
-  return true;
-}
-
-bool Tas58xxComponent::get_digital_volume_(uint8_t* raw_volume) {
-  uint8_t current = 254; // lowest raw volume
-  if (!this->tas58xx_read_bytes_(TAS58XX_DIG_VOL_CTRL, &current, 1)) return false;
-  *raw_volume = current;
   return true;
 }
 

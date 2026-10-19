@@ -120,7 +120,6 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
    bool set_deep_sleep_off_();
    bool set_deep_sleep_on_();
 
-   bool get_digital_volume_(uint8_t* raw_volume);
    bool set_digital_volume_(uint8_t new_volume);
 
    bool get_eq_mode_(EqMode* current_mode);
@@ -192,6 +191,8 @@ class Tas58xxComponent : public audio_dac::AudioDac, public PollingComponent, pu
 
    uint8_t tas58xx_raw_volume_max_; // maximum volume as digital volume register range 254 to 0
    uint8_t tas58xx_raw_volume_min_; // minimum volume as digital volume register range 254 to 0
+
+   float tas58xx_volume_{0.0f};  // last volume written, 0.0 to 1.0 of volume_min to volume_max
 
    int8_t tas58xx_volume_max_;  // YAML configured maximum volume dB
    int8_t tas58xx_volume_min_;  // YAML configured maximum volume dB
